@@ -17,6 +17,7 @@ limitations under the License.
 package property
 
 import (
+	"context"
 	"errors"
 
 	"github.com/vmware/govmomi/vim25"
@@ -24,13 +25,12 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 // Collector models the PropertyCollector managed object.
 //
 // For more information, see:
-// http://pubs.vmware.com/vsphere-55/index.jsp#com.vmware.wssdk.apiref.doc/vmodl.query.PropertyCollector.html
+// http://pubs.vmware.com/vsphere-60/index.jsp?topic=%2Fcom.vmware.wssdk.apiref.doc%2Fvmodl.query.PropertyCollector.html
 //
 type Collector struct {
 	roundTripper soap.RoundTripper
@@ -111,6 +111,12 @@ func (p *Collector) WaitForUpdates(ctx context.Context, v string) (*types.Update
 	return res.Returnval, nil
 }
 
+func (p *Collector) CancelWaitForUpdates(ctx context.Context) error {
+	req := &types.CancelWaitForUpdates{This: p.Reference()}
+	_, err := methods.CancelWaitForUpdates(ctx, p.roundTripper, req)
+	return err
+}
+
 func (p *Collector) RetrieveProperties(ctx context.Context, req types.RetrieveProperties) (*types.RetrievePropertiesResponse, error) {
 	req.This = p.Reference()
 	return methods.RetrieveProperties(ctx, p.roundTripper, &req)
@@ -121,6 +127,10 @@ func (p *Collector) RetrieveProperties(ctx context.Context, req types.RetrievePr
 // of the specified managed objects, with the relevant properties filled in. If
 // the properties slice is nil, all properties are loaded.
 func (p *Collector) Retrieve(ctx context.Context, objs []types.ManagedObjectReference, ps []string, dst interface{}) error {
+	if len(objs) == 0 {
+		return errors.New("object references is empty")
+	}
+
 	var propSpec *types.PropertySpec
 	var objectSet []types.ObjectSpec
 
@@ -164,7 +174,34 @@ func (p *Collector) Retrieve(ctx context.Context, objs []types.ManagedObjectRefe
 		return err
 	}
 
+	if d, ok := dst.(*[]types.ObjectContent); ok {
+		*d = res.Returnval
+		return nil
+	}
+
 	return mo.LoadRetrievePropertiesResponse(res, dst)
+}
+
+// RetrieveWithFilter populates dst as Retrieve does, but only for entities matching the given filter.
+func (p *Collector) RetrieveWithFilter(ctx context.Context, objs []types.ManagedObjectReference, ps []string, dst interface{}, filter Filter) error {
+	if len(filter) == 0 {
+		return p.Retrieve(ctx, objs, ps, dst)
+	}
+
+	var content []types.ObjectContent
+
+	err := p.Retrieve(ctx, objs, filter.Keys(), &content)
+	if err != nil {
+		return err
+	}
+
+	objs = filter.MatchObjectContent(content)
+
+	if len(objs) == 0 {
+		return nil
+	}
+
+	return p.Retrieve(ctx, objs, ps, dst)
 }
 
 // RetrieveOne calls Retrieve with a single managed object reference.
