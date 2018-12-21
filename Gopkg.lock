@@ -248,6 +248,7 @@
     "find",
     "guest",
     "list",
+    "nfc",
     "object",
     "property",
     "session",
@@ -261,8 +262,8 @@
     "vim25/types",
     "vim25/xml"
   ]
-  revision = "9051bd6b44125d9472e0c148b5965692ab283d4a"
-  version = "v0.6.2"
+  revision = "3617f28d167d448f93f282a867870f109516d2a5"
+  version = "v0.19.0"
 
 [[projects]]
   name = "golang.org/x/crypto"
@@ -342,6 +343,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "719314934f3d0bb8163ba9d459ebb4135c14e92b1750c74a37ffa668102dc81c"
+  inputs-digest = "385b5348191113fbebcd7fb0f51e803d958ec8eb4c0fb4eba3b8c12183e02c9b"
   solver-name = "gps-cdcl"
   solver-version = 1

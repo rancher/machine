@@ -4,7 +4,7 @@ load test_helper
 
 # These tests should only run against a server running an evaluation license.
 verify_evaluation() {
-  if [ "$(govc license.list -json | jq -r .[0].EditionKey)" != "eval" ]; then
+  if [ "$(govc license.ls -json | jq -r .[0].EditionKey)" != "eval" ]; then
     skip "requires evaluation license"
   fi
 }
@@ -18,36 +18,42 @@ get_property() {
 }
 
 @test "license.add" {
-  skip_if_vca
+  esx_env
+
   verify_evaluation
 
   run govc license.add -json 00000-00000-00000-00000-00001 00000-00000-00000-00000-00002
   assert_success
 
   # Expect to see an entry for both the first and the second key
-  assert_equal "License is not valid for this product" $(get_key 00000-00000-00000-00000-00001 <<<${output} | get_property diagnostic)
-  assert_equal "License is not valid for this product" $(get_key 00000-00000-00000-00000-00002 <<<${output} | get_property diagnostic)
+  assert_equal "License is not valid for this product" "$(get_key 00000-00000-00000-00000-00001 <<<${output} | get_property diagnostic)"
+  assert_equal "License is not valid for this product" "$(get_key 00000-00000-00000-00000-00002 <<<${output} | get_property diagnostic)"
 }
 
 @test "license.remove" {
+  esx_env
+
   verify_evaluation
 
   run govc license.remove -json 00000-00000-00000-00000-00001
   assert_success
 }
 
-@test "license.list" {
-  skip_if_vca
+@test "license.ls" {
+  vcsim_env
+
   verify_evaluation
 
-  run govc license.list -json
+  run govc license.ls -json
   assert_success
 
   # Expect the test instance to run in evaluation mode
-  assert_equal "Evaluation Mode" $(get_key 00000-00000-00000-00000-00000 <<<$output | jq -r ".Name")
+  assert_equal "Evaluation Mode" "$(get_key 00000-00000-00000-00000-00000 <<<$output | jq -r ".Name")"
 }
 
 @test "license.decode" {
+  esx_env
+
   verify_evaluation
 
   key=00000-00000-00000-00000-00000
