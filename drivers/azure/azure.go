@@ -15,7 +15,7 @@ import (
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/state"
 
-	"github.com/Azure/azure-sdk-for-go/arm/storage"
+	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2016-01-01/storage"
 )
 
 const (
@@ -29,6 +29,7 @@ const (
 	defaultAzureVNet            = "docker-machine-vnet"
 	defaultAzureSubnet          = "docker-machine"
 	defaultAzureSubnetPrefix    = "192.168.0.0/16"
+	defaultManagedDiskSize      = 30
 	defaultStorageType          = string(storage.StandardLRS)
 	defaultAzureAvailabilitySet = "docker-machine"
 )
@@ -52,6 +53,8 @@ const (
 	flAzureStaticPublicIP  = "azure-static-public-ip"
 	flAzureNoPublicIP      = "azure-no-public-ip"
 	flAzureDNSLabel        = "azure-dns"
+	flAzureUseManagedDisks = "azure-use-managed-disks"
+	flAzureManagedDiskSize = "azure-managed-disk-size"
 	flAzureStorageType     = "azure-storage-type"
 	flAzureCustomData      = "azure-custom-data"
 	flAzureClientID        = "azure-client-id"
@@ -82,6 +85,8 @@ type Driver struct {
 	SubnetName      string
 	SubnetPrefix    string
 	AvailabilitySet string
+	UseManagedDisks bool
+	ManagedDiskSize int
 	StorageType     string
 
 	OpenPorts      []string
@@ -196,6 +201,17 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:  flAzurePrivateIPAddr,
 			Usage: "Specify a static private IP address for the machine",
 		},
+		mcnflag.BoolFlag{
+			Name:   flAzureUseManagedDisks,
+			Usage:  "Enable managed disks for storage backend",
+			EnvVar: "AZURE_STORAGE_SYSTEM",
+		},
+		mcnflag.IntFlag{
+			Name:   flAzureManagedDiskSize,
+			Usage:  "Size of managed disk, if using",
+			EnvVar: "AZURE_MANAGED_DISK_SIZE",
+			Value:  defaultManagedDiskSize,
+		},
 		mcnflag.StringFlag{
 			Name:   flAzureStorageType,
 			Usage:  "Type of Storage Account to host the OS Disk for the machine",
@@ -274,6 +290,8 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.NoPublicIP = fl.Bool(flAzureNoPublicIP)
 	d.StaticPublicIP = fl.Bool(flAzureStaticPublicIP)
 	d.DockerPort = fl.Int(flAzureDockerPort)
+	d.UseManagedDisks = fl.Bool(flAzureUseManagedDisks)
+	d.ManagedDiskSize = fl.Int(flAzureManagedDiskSize)
 	d.DNSLabel = fl.String(flAzureDNSLabel)
 	d.CustomDataFile = fl.String(flAzureCustomData)
 
@@ -360,7 +378,7 @@ func (d *Driver) Create() error {
 	if err := c.CreateResourceGroup(d.ResourceGroup, d.Location); err != nil {
 		return err
 	}
-	if err := c.CreateAvailabilitySetIfNotExists(d.ctx, d.ResourceGroup, d.AvailabilitySet, d.Location); err != nil {
+	if err := c.CreateAvailabilitySetIfNotExists(d.ctx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.UseManagedDisks); err != nil {
 		return err
 	}
 	if err := c.CreateNetworkSecurityGroup(d.ctx, d.ResourceGroup, d.naming().NSG(), d.Location, d.ctx.FirewallRules); err != nil {
@@ -384,15 +402,20 @@ func (d *Driver) Create() error {
 		d.ctx.PublicIPAddressID, d.ctx.SubnetID, d.ctx.NetworkSecurityGroupID, d.PrivateIPAddr); err != nil {
 		return err
 	}
-	if err := c.CreateStorageAccount(d.ctx, d.ResourceGroup, d.Location, storage.SkuName(d.StorageType)); err != nil {
-		return err
+	if d.UseManagedDisks {
+		log.Info("Using managed disks.")
+	} else {
+		if err := c.CreateStorageAccount(d.ctx, d.ResourceGroup, d.Location, storage.SkuName(d.StorageType)); err != nil {
+			return err
+		}
 	}
 	if err := d.generateSSHKey(d.ctx); err != nil {
 		return err
 	}
 	if err := c.CreateVirtualMachine(d.ResourceGroup, d.naming().VM(), d.Location, d.Size, d.ctx.AvailabilitySetID,
-		d.ctx.NetworkInterfaceID, d.BaseDriver.SSHUser, d.ctx.SSHPublicKey, d.Image, customData, d.ctx.StorageAccount); err != nil {
-			return err
+		d.ctx.NetworkInterfaceID, d.BaseDriver.SSHUser, d.ctx.SSHPublicKey, d.Image, customData, d.UseManagedDisks,
+		storage.SkuName(d.StorageType), d.ctx.StorageAccount, d.ManagedDiskSize); err != nil {
+		return err
 	}
 	ip, err := d.GetIP()
 	if err != nil {

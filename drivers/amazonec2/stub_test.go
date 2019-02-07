@@ -112,6 +112,16 @@ func (f *fakeEC2SecurityGroupTestRecorder) DescribeSecurityGroups(input *ec2.Des
 	return value, err
 }
 
+func (f *fakeEC2SecurityGroupTestRecorder) CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+	result := f.Called(input)
+	err := result.Error(1)
+	value, ok := result.Get(0).(*ec2.CreateTagsOutput)
+	if !ok && err == nil {
+		return nil, errors.New("Type assertion to CreateTagsOutput failed")
+	}
+	return value, err
+}
+
 func (f *fakeEC2SecurityGroupTestRecorder) CreateSecurityGroup(input *ec2.CreateSecurityGroupInput) (*ec2.CreateSecurityGroupOutput, error) {
 	result := f.Called(input)
 	err := result.Error(1)
