@@ -1196,7 +1196,7 @@ func (d *Driver) configureSecurityGroupPermissions(group *ec2.SecurityGroup) ([]
 		}
 	}
 
-	inboundPerms := []*ec2.IpPermission{}
+	var inboundPerms = make([]*ec2.IpPermission, 0)
 
 	if !hasPortsInbound["22/tcp"] {
 		inboundPerms = append(inboundPerms, &ec2.IpPermission{
