@@ -20,6 +20,16 @@ type User struct {
 	UserName  string `json:"username,omitempty" doc:"the user name"`
 }
 
+// ListRequest builds the ListUsers request
+func (user User) ListRequest() (ListCommand, error) {
+	req := &ListUsers{
+		ID:       user.ID,
+		UserName: user.UserName,
+	}
+
+	return req, nil
+}
+
 // RegisterUserKeys registers a new set of key of the given user
 //
 // NB: only the APIKey and SecretKey will be filled
@@ -28,9 +38,12 @@ type RegisterUserKeys struct {
 	_  bool  `name:"registerUserKeys" description:"This command allows a user to register for the developer API, returning a secret key and an API key. This request is made through the integration API port, so it is a privileged command and must be made on behalf of a user. It is up to the implementer just how the username and password are entered, and then how that translates to an integration API request. Both secret key and API key should be returned to the user"`
 }
 
-func (RegisterUserKeys) response() interface{} {
+// Response returns the struct to unmarshal
+func (RegisterUserKeys) Response() interface{} {
 	return new(User)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListUsers
 
 // ListUsers represents the search for Users
 type ListUsers struct {
@@ -39,7 +52,7 @@ type ListUsers struct {
 	Page     int    `json:"page,omitempty"`
 	PageSize int    `json:"pagesize,omitempty"`
 	State    string `json:"state,omitempty" doc:"List users by state of the user account."`
-	Username string `json:"username,omitempty" doc:"List user by the username"`
+	UserName string `json:"username,omitempty" doc:"List user by the username"`
 	_        bool   `name:"listUsers" description:"Lists user accounts"`
 }
 
@@ -47,8 +60,4 @@ type ListUsers struct {
 type ListUsersResponse struct {
 	Count int    `json:"count"`
 	User  []User `json:"user"`
-}
-
-func (ListUsers) response() interface{} {
-	return new(ListUsersResponse)
 }

@@ -10,7 +10,7 @@ type AsyncJobResult struct {
 	AccountID       *UUID            `json:"accountid,omitempty" doc:"the account that executed the async command"`
 	Cmd             string           `json:"cmd,omitempty" doc:"the async command executed"`
 	Created         string           `json:"created,omitempty" doc:"the created date of the job"`
-	JobID           *UUID            `json:"jobid,omitempty" doc:"extra field for the initial async call"`
+	JobID           *UUID            `json:"jobid" doc:"extra field for the initial async call"`
 	JobInstanceID   *UUID            `json:"jobinstanceid,omitempty" doc:"the unique ID of the instance/entity object related to the job"`
 	JobInstanceType string           `json:"jobinstancetype,omitempty" doc:"the instance/entity object related to the job"`
 	JobProcStatus   int              `json:"jobprocstatus,omitempty" doc:"the progress information of the PENDING job"`
@@ -21,6 +21,16 @@ type AsyncJobResult struct {
 	UserID          *UUID            `json:"userid,omitempty" doc:"the user that executed the async command"`
 }
 
+// ListRequest buils the (empty) ListAsyncJobs request
+func (a AsyncJobResult) ListRequest() (ListCommand, error) {
+	req := &ListAsyncJobs{
+		StartDate: a.Created,
+	}
+
+	return req, nil
+}
+
+// Error builds an error message from the result
 func (a AsyncJobResult) Error() error {
 	r := new(ErrorResponse)
 	if e := json.Unmarshal(*a.JobResult, r); e != nil {
@@ -35,9 +45,12 @@ type QueryAsyncJobResult struct {
 	_     bool  `name:"queryAsyncJobResult" description:"Retrieves the current status of asynchronous job."`
 }
 
-func (QueryAsyncJobResult) response() interface{} {
+// Response returns the struct to unmarshal
+func (QueryAsyncJobResult) Response() interface{} {
 	return new(AsyncJobResult)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListAsyncJobs
 
 // ListAsyncJobs list the asynchronous jobs
 type ListAsyncJobs struct {
@@ -50,12 +63,8 @@ type ListAsyncJobs struct {
 
 // ListAsyncJobsResponse represents a list of job results
 type ListAsyncJobsResponse struct {
-	Count     int              `json:"count"`
-	AsyncJobs []AsyncJobResult `json:"asyncjobs"`
-}
-
-func (ListAsyncJobs) response() interface{} {
-	return new(ListAsyncJobsResponse)
+	Count    int              `json:"count"`
+	AsyncJob []AsyncJobResult `json:"asyncjobs"`
 }
 
 // Result unmarshals the result of an AsyncJobResult into the given interface

@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-// Taggable represents a resource which can have tags attached
+// Taggable represents a resource to which tags can be attached
 //
 // This is a helper to fill the resourcetype of a CreateTags call
 type Taggable interface {
-	// CloudStack resource type of the Taggable type
+	// ResourceType is the name of the Taggable type
 	ResourceType() string
 }
 
@@ -33,16 +33,11 @@ type Listable interface {
 	ListRequest() (ListCommand, error)
 }
 
-// Gettable represents an Interface that can be "Get" by the client
-type Gettable interface {
-	Listable
-}
-
-// Client represents the CloudStack API client
+// Client represents the API client
 type Client struct {
 	// HTTPClient holds the HTTP client
 	HTTPClient *http.Client
-	// Endpoints is CloudStack API
+	// Endpoint is the HTTP URL
 	Endpoint string
 	// APIKey is the API identifier
 	APIKey string
@@ -60,7 +55,7 @@ type Client struct {
 	Logger *log.Logger
 }
 
-// RetryStrategyFunc represents a how much time to wait between two calls to CloudStack
+// RetryStrategyFunc represents a how much time to wait between two calls to the API
 type RetryStrategyFunc func(int64) time.Duration
 
 // IterateItemFunc represents the callback to iterate a list of results, if false stops
@@ -69,7 +64,7 @@ type IterateItemFunc func(interface{}, error) bool
 // WaitAsyncJobResultFunc represents the callback to wait a results of an async request, if false stops
 type WaitAsyncJobResultFunc func(*AsyncJobResult, error) bool
 
-// NewClient creates a CloudStack API client with default timeout (60)
+// NewClient creates an API client with default timeout (60)
 //
 // Timeout is set to both the HTTP client and the client itself.
 func NewClient(endpoint, apiKey, apiSecret string) *Client {
@@ -101,45 +96,52 @@ func NewClient(endpoint, apiKey, apiSecret string) *Client {
 }
 
 // Get populates the given resource or fails
-func (client *Client) Get(g Gettable) error {
+func (client *Client) Get(ls Listable) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
 	defer cancel()
 
-	return client.GetWithContext(ctx, g)
+	return client.GetWithContext(ctx, ls)
 }
 
 // GetWithContext populates the given resource or fails
-func (client *Client) GetWithContext(ctx context.Context, g Gettable) error {
-	gs, err := client.ListWithContext(ctx, g)
+func (client *Client) GetWithContext(ctx context.Context, ls Listable) (interface{}, error) {
+	gs, err := client.ListWithContext(ctx, ls)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	count := len(gs)
 	if count != 1 {
-		req, err := g.ListRequest()
+		req, err := ls.ListRequest()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		params, err := client.Payload(req)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		// removing sensitive/useless informations
+		params.Del("expires")
+		params.Del("response")
+		params.Del("signature")
+		params.Del("signatureversion")
 
 		// formatting the query string nicely
 		payload := params.Encode()
 		payload = strings.Replace(payload, "&", ", ", -1)
 
 		if count == 0 {
-			return &ErrorResponse{
-				ErrorCode: ParamError,
-				ErrorText: fmt.Sprintf("not found, query: %s", payload),
+			return nil, &ErrorResponse{
+				CSErrorCode: ServerAPIException,
+				ErrorCode:   ParamError,
+				ErrorText:   fmt.Sprintf("not found, query: %s", payload),
 			}
 		}
-		return fmt.Errorf("more than one element found: %s", payload)
+		return nil, fmt.Errorf("more than one element found: %s", payload)
 	}
 
-	return Copy(g, gs[0])
+	return gs[0], nil
 }
 
 // Delete removes the given resource of fails
@@ -183,7 +185,6 @@ func (client *Client) ListWithContext(ctx context.Context, g Listable) (s []inte
 		err = e
 		return
 	}
-
 	client.PaginateWithContext(ctx, req, func(item interface{}, e error) bool {
 		if item != nil {
 			s = append(s, item)
@@ -239,7 +240,6 @@ func (client *Client) AsyncListWithContext(ctx context.Context, g Listable) (<-c
 			errChan <- err
 			return
 		}
-
 		client.PaginateWithContext(ctx, req, func(item interface{}, e error) bool {
 			if item != nil {
 				outChan <- item
@@ -254,15 +254,21 @@ func (client *Client) AsyncListWithContext(ctx context.Context, g Listable) (<-c
 }
 
 // Paginate runs the ListCommand and paginates
-func (client *Client) Paginate(req ListCommand, callback IterateItemFunc) {
+func (client *Client) Paginate(g Listable, callback IterateItemFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
 	defer cancel()
 
-	client.PaginateWithContext(ctx, req, callback)
+	client.PaginateWithContext(ctx, g, callback)
 }
 
 // PaginateWithContext runs the ListCommand as long as the ctx is valid
-func (client *Client) PaginateWithContext(ctx context.Context, req ListCommand, callback IterateItemFunc) {
+func (client *Client) PaginateWithContext(ctx context.Context, g Listable, callback IterateItemFunc) {
+	req, err := g.ListRequest()
+	if err != nil {
+		callback(nil, err)
+		return
+	}
+
 	pageSize := client.PageSize
 
 	page := 1
@@ -272,13 +278,18 @@ func (client *Client) PaginateWithContext(ctx context.Context, req ListCommand, 
 		req.SetPageSize(pageSize)
 		resp, err := client.RequestWithContext(ctx, req)
 		if err != nil {
+			// in case of 431, the response is knowingly empty
+			if errResponse, ok := err.(*ErrorResponse); ok && page == 1 && errResponse.ErrorCode == ParamError {
+				break
+			}
+
 			callback(nil, err)
 			break
 		}
 
 		size := 0
 		didErr := false
-		req.each(resp, func(element interface{}, err error) bool {
+		req.Each(resp, func(element interface{}, err error) bool {
 			// If the context was cancelled, kill it in flight
 			if e := ctx.Err(); e != nil {
 				element = nil
@@ -302,10 +313,12 @@ func (client *Client) PaginateWithContext(ctx context.Context, req ListCommand, 
 	}
 }
 
-// APIName returns the CloudStack name of the given command
+// APIName returns the name of the given command
 func (client *Client) APIName(command Command) string {
 	// This is due to a limitation of Go<=1.7
-	if _, ok := command.(*AuthorizeSecurityGroupEgress); ok {
+	_, ok := command.(*AuthorizeSecurityGroupEgress)
+	_, okPtr := command.(AuthorizeSecurityGroupEgress)
+	if ok || okPtr {
 		return "authorizeSecurityGroupEgress"
 	}
 
@@ -316,7 +329,7 @@ func (client *Client) APIName(command Command) string {
 	return info.Name
 }
 
-// APIDescription returns the description of the given CloudStack command
+// APIDescription returns the description of the given command
 func (client *Client) APIDescription(command Command) string {
 	info, err := info(command)
 	if err != nil {
@@ -327,11 +340,11 @@ func (client *Client) APIDescription(command Command) string {
 
 // Response returns the response structure of the given command
 func (client *Client) Response(command Command) interface{} {
-	switch command.(type) {
+	switch c := command.(type) {
 	case AsyncCommand:
-		return (command.(AsyncCommand)).asyncResponse()
+		return c.AsyncResponse()
 	default:
-		return command.response()
+		return command.Response()
 	}
 }
 

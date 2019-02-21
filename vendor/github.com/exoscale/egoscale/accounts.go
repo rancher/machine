@@ -1,7 +1,5 @@
 package egoscale
 
-import "fmt"
-
 // Account provides the detailed account information
 type Account struct {
 	AccountDetails            map[string]string `json:"accountdetails,omitempty" doc:"details for the account"`
@@ -61,6 +59,8 @@ func (a Account) ListRequest() (ListCommand, error) {
 	}, nil
 }
 
+//go:generate go run generate/main.go -interface=Listable ListAccounts
+
 // ListAccounts represents a query to display the accounts
 type ListAccounts struct {
 	ID                *UUID  `json:"id,omitempty" doc:"List account by account ID"`
@@ -71,34 +71,6 @@ type ListAccounts struct {
 	PageSize          int    `json:"pagesize,omitempty"`
 	State             string `json:"state,omitempty" doc:"List accounts by state. Valid states are enabled, disabled, and locked."`
 	_                 bool   `name:"listAccounts" description:"Lists accounts and provides detailed account information for listed accounts"`
-}
-
-func (ListAccounts) response() interface{} {
-	return new(ListAccountsResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListAccounts) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListAccounts) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListAccounts) each(resp interface{}, callback IterateItemFunc) {
-	vms, ok := resp.(*ListAccountsResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListAccountsResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range vms.Account {
-		if !callback(&vms.Account[i], nil) {
-			break
-		}
-	}
 }
 
 // ListAccountsResponse represents a list of accounts

@@ -1,7 +1,5 @@
 package egoscale
 
-import "fmt"
-
 // NetworkOffering corresponds to the Compute Offerings
 type NetworkOffering struct {
 	Availability             string            `json:"availability,omitempty" doc:"availability of the network offering"`
@@ -42,6 +40,8 @@ func (no NetworkOffering) ListRequest() (ListCommand, error) {
 	return req, nil
 }
 
+//go:generate go run generate/main.go -interface=Listable ListNetworkOfferings
+
 // ListNetworkOfferings represents a query for network offerings
 type ListNetworkOfferings struct {
 	Availability       string    `json:"availability,omitempty" doc:"the availability of network offering. Default value is Required"`
@@ -72,34 +72,6 @@ type ListNetworkOfferingsResponse struct {
 	NetworkOffering []NetworkOffering `json:"networkoffering"`
 }
 
-func (ListNetworkOfferings) response() interface{} {
-	return new(ListNetworkOfferingsResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListNetworkOfferings) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListNetworkOfferings) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListNetworkOfferings) each(resp interface{}, callback IterateItemFunc) {
-	nos, ok := resp.(*ListNetworkOfferingsResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type, ListNetworkOfferingsResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range nos.NetworkOffering {
-		if !callback(&nos.NetworkOffering[i], nil) {
-			break
-		}
-	}
-}
-
 // UpdateNetworkOffering represents a modification of a network offering
 type UpdateNetworkOffering struct {
 	Availability     string `json:"availability,omitempty" doc:"the availability of network offering. Default value is Required for Guest Virtual network offering; Optional for Guest Direct network offering"`
@@ -113,6 +85,7 @@ type UpdateNetworkOffering struct {
 	_                bool   `name:"updateNetworkOffering" description:"Updates a network offering."`
 }
 
-func (UpdateNetworkOffering) response() interface{} {
+// Response returns the struct to unmarshal
+func (UpdateNetworkOffering) Response() interface{} {
 	return new(NetworkOffering)
 }

@@ -1,6 +1,49 @@
 Changelog
 =========
 
+0.14.0
+------
+
+- change: all DNS calls require a context
+- fix: `CreateAffinityGroup` allows empty `name`
+
+0.13.3
+------
+
+- fix: runstatus unmarshalling errors
+- feature: `UUID` implements DeepCopy, DeepCopyInto
+- change: export `BooleanResponse`
+
+0.13.2
+------
+
+- feat: initial Runstatus API support
+- feat: `admin` namespace containing `ListVirtualMachines` for admin usage
+
+0.13.1
+------
+
+- feat: `Iso` support `ListIsos`, `AttachIso`, and `DetachIso`
+
+0.13.0
+------
+
+- change: `Paginate` to accept `Listable`
+- change: `ListCommand` is also `Listable`
+- change: `client.Get` doesn't modify the given resource, returns a new one
+- change: `Command` and `AsyncCommand` are fully public, thus extensible
+- remove: `Gettable`
+
+0.12.5
+------
+
+- fix: `AuthorizeSecurityGroupEgress` could return `authorizeSecurityGroupIngress` as name
+
+0.12.4
+------
+
+- feat: `Snapshot` is `Listable`
+
 0.12.3
 ------
 

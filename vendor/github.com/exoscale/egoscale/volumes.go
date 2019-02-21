@@ -1,9 +1,5 @@
 package egoscale
 
-import (
-	"fmt"
-)
-
 // Volume represents a volume linked to a VM
 type Volume struct {
 	Account                    string        `json:"account,omitempty" doc:"the account associated with the disk volume"`
@@ -83,13 +79,17 @@ type ResizeVolume struct {
 	_              bool  `name:"resizeVolume" description:"Resizes a volume"`
 }
 
-func (ResizeVolume) response() interface{} {
+// Response returns the struct to unmarshal
+func (ResizeVolume) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (ResizeVolume) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (ResizeVolume) AsyncResponse() interface{} {
 	return new(Volume)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListVolumes
 
 // ListVolumes represents a query listing volumes
 type ListVolumes struct {
@@ -110,32 +110,4 @@ type ListVolumes struct {
 type ListVolumesResponse struct {
 	Count  int      `json:"count"`
 	Volume []Volume `json:"volume"`
-}
-
-func (ListVolumes) response() interface{} {
-	return new(ListVolumesResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListVolumes) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListVolumes) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListVolumes) each(resp interface{}, callback IterateItemFunc) {
-	volumes, ok := resp.(*ListVolumesResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListVolumesResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range volumes.Volume {
-		if !callback(&volumes.Volume[i], nil) {
-			break
-		}
-	}
 }

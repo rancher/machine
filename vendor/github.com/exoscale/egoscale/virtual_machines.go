@@ -119,7 +119,7 @@ func (vm VirtualMachine) Delete(ctx context.Context, client *Client) error {
 
 // ListRequest builds the ListVirtualMachines request
 func (vm VirtualMachine) ListRequest() (ListCommand, error) {
-	// XXX: AffinityGroupID, SecurityGroupID, Tags
+	// XXX: AffinityGroupID, SecurityGroupID
 
 	req := &ListVirtualMachines{
 		GroupID:    vm.GroupID,
@@ -135,14 +135,18 @@ func (vm VirtualMachine) ListRequest() (ListCommand, error) {
 		req.IPAddress = nic.IPAddress
 	}
 
+	for i := range vm.Tags {
+		req.Tags = append(req.Tags, vm.Tags[i])
+	}
+
 	return req, nil
 }
 
 // DefaultNic returns the default nic
 func (vm VirtualMachine) DefaultNic() *Nic {
-	for _, nic := range vm.Nic {
+	for i, nic := range vm.Nic {
 		if nic.IsDefault {
-			return &nic
+			return &vm.Nic[i]
 		}
 	}
 
@@ -166,8 +170,9 @@ func (vm VirtualMachine) NicsByType(nicType string) []Nic {
 	for _, nic := range vm.Nic {
 		if nic.Type == nicType {
 			// XXX The API forgets to specify it
-			nic.VirtualMachineID = vm.ID
-			nics = append(nics, nic)
+			n := nic
+			n.VirtualMachineID = vm.ID
+			nics = append(nics, n)
 		}
 	}
 	return nics
@@ -179,8 +184,9 @@ func (vm VirtualMachine) NicsByType(nicType string) []Nic {
 func (vm VirtualMachine) NicByNetworkID(networkID UUID) *Nic {
 	for _, nic := range vm.Nic {
 		if nic.NetworkID.Equal(networkID) {
-			nic.VirtualMachineID = vm.ID
-			return &nic
+			n := nic
+			n.VirtualMachineID = vm.ID
+			return &n
 		}
 	}
 	return nil
@@ -190,8 +196,9 @@ func (vm VirtualMachine) NicByNetworkID(networkID UUID) *Nic {
 func (vm VirtualMachine) NicByID(nicID UUID) *Nic {
 	for _, nic := range vm.Nic {
 		if nic.ID.Equal(nicID) {
-			nic.VirtualMachineID = vm.ID
-			return &nic
+			n := nic
+			n.VirtualMachineID = vm.ID
+			return &n
 		}
 	}
 
@@ -224,8 +231,8 @@ type Password struct {
 
 // VirtualMachineUserData represents the base64 encoded user-data
 type VirtualMachineUserData struct {
-	UserData         string `json:"userdata,omitempty" doc:"Base 64 encoded VM user data"`
-	VirtualMachineID *UUID  `json:"virtualmachineid,omitempty" doc:"the ID of the virtual machine"`
+	UserData         string `json:"userdata" doc:"Base 64 encoded VM user data"`
+	VirtualMachineID *UUID  `json:"virtualmachineid" doc:"the ID of the virtual machine"`
 }
 
 // Decode decodes as a readable string the content of the user-data (base64 · gzip)
@@ -295,11 +302,13 @@ func (req DeployVirtualMachine) onBeforeSend(_ url.Values) error {
 	return nil
 }
 
-func (DeployVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (DeployVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (DeployVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (DeployVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -309,11 +318,13 @@ type StartVirtualMachine struct {
 	_  bool  `name:"startVirtualMachine" description:"Starts a virtual machine."`
 }
 
-func (StartVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (StartVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (StartVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (StartVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -324,11 +335,13 @@ type StopVirtualMachine struct {
 	_      bool  `name:"stopVirtualMachine" description:"Stops a virtual machine."`
 }
 
-func (StopVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (StopVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (StopVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (StopVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -338,11 +351,13 @@ type RebootVirtualMachine struct {
 	_  bool  `name:"rebootVirtualMachine" description:"Reboots a virtual machine."`
 }
 
-func (RebootVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (RebootVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (RebootVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (RebootVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -354,11 +369,13 @@ type RestoreVirtualMachine struct {
 	_                bool  `name:"restoreVirtualMachine" description:"Restore a VM to original template/ISO or new template/ISO"`
 }
 
-func (RestoreVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (RestoreVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (RestoreVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (RestoreVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -368,7 +385,8 @@ type RecoverVirtualMachine struct {
 	_  bool  `name:"recoverVirtualMachine" description:"Recovers a virtual machine."`
 }
 
-func (RecoverVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (RecoverVirtualMachine) Response() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -378,11 +396,13 @@ type DestroyVirtualMachine struct {
 	_  bool  `name:"destroyVirtualMachine" description:"Destroys a virtual machine."`
 }
 
-func (DestroyVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (DestroyVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (DestroyVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (DestroyVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -398,7 +418,8 @@ type UpdateVirtualMachine struct {
 	_                bool              `name:"updateVirtualMachine" description:"Updates properties of a virtual machine. The VM has to be stopped and restarted for the new properties to take effect. UpdateVirtualMachine does not first check whether the VM is stopped. Therefore, stop the VM manually before issuing this call."`
 }
 
-func (UpdateVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (UpdateVirtualMachine) Response() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -408,12 +429,14 @@ type ExpungeVirtualMachine struct {
 	_  bool  `name:"expungeVirtualMachine" description:"Expunge a virtual machine. Once expunged, it cannot be recoverd."`
 }
 
-func (ExpungeVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (ExpungeVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (ExpungeVirtualMachine) asyncResponse() interface{} {
-	return new(booleanResponse)
+// AsyncResponse returns the struct to unmarshal the async job
+func (ExpungeVirtualMachine) AsyncResponse() interface{} {
+	return new(BooleanResponse)
 }
 
 // ScaleVirtualMachine (Async) scales the virtual machine to a new service offering.
@@ -427,12 +450,14 @@ type ScaleVirtualMachine struct {
 	_                 bool              `name:"scaleVirtualMachine" description:"Scales the virtual machine to a new service offering."`
 }
 
-func (ScaleVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (ScaleVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (ScaleVirtualMachine) asyncResponse() interface{} {
-	return new(booleanResponse)
+// AsyncResponse returns the struct to unmarshal the async job
+func (ScaleVirtualMachine) AsyncResponse() interface{} {
+	return new(BooleanResponse)
 }
 
 // ChangeServiceForVirtualMachine changes the service offering for a virtual machine. The virtual machine must be in a "Stopped" state for this command to take effect.
@@ -443,7 +468,8 @@ type ChangeServiceForVirtualMachine struct {
 	_                 bool              `name:"changeServiceForVirtualMachine" description:"Changes the service offering for a virtual machine. The virtual machine must be in a \"Stopped\" state for this command to take effect."`
 }
 
-func (ChangeServiceForVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (ChangeServiceForVirtualMachine) Response() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -453,10 +479,13 @@ type ResetPasswordForVirtualMachine struct {
 	_  bool  `name:"resetPasswordForVirtualMachine" description:"Resets the password for virtual machine. The virtual machine must be in a \"Stopped\" state and the template must already support this feature for this command to take effect."`
 }
 
-func (ResetPasswordForVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (ResetPasswordForVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
-func (ResetPasswordForVirtualMachine) asyncResponse() interface{} {
+
+// AsyncResponse returns the struct to unmarshal the async job
+func (ResetPasswordForVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -466,9 +495,12 @@ type GetVMPassword struct {
 	_  bool  `name:"getVMPassword" description:"Returns an encrypted password for the VM"`
 }
 
-func (GetVMPassword) response() interface{} {
+// Response returns the struct to unmarshal
+func (GetVMPassword) Response() interface{} {
 	return new(Password)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListVirtualMachines
 
 // ListVirtualMachines represents a search for a VM
 type ListVirtualMachines struct {
@@ -499,34 +531,6 @@ type ListVirtualMachinesResponse struct {
 	VirtualMachine []VirtualMachine `json:"virtualmachine"`
 }
 
-func (ListVirtualMachines) response() interface{} {
-	return new(ListVirtualMachinesResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListVirtualMachines) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListVirtualMachines) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListVirtualMachines) each(resp interface{}, callback IterateItemFunc) {
-	vms, ok := resp.(*ListVirtualMachinesResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListVirtualMachinesResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range vms.VirtualMachine {
-		if !callback(&vms.VirtualMachine[i], nil) {
-			break
-		}
-	}
-}
-
 // AddNicToVirtualMachine (Async) adds a NIC to a VM
 type AddNicToVirtualMachine struct {
 	NetworkID        *UUID  `json:"networkid" doc:"Network ID"`
@@ -535,11 +539,13 @@ type AddNicToVirtualMachine struct {
 	_                bool   `name:"addNicToVirtualMachine" description:"Adds VM to specified network by creating a NIC"`
 }
 
-func (AddNicToVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (AddNicToVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (AddNicToVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (AddNicToVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -550,11 +556,13 @@ type RemoveNicFromVirtualMachine struct {
 	_                bool  `name:"removeNicFromVirtualMachine" description:"Removes VM from specified network by deleting a NIC"`
 }
 
-func (RemoveNicFromVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (RemoveNicFromVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (RemoveNicFromVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (RemoveNicFromVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -565,10 +573,13 @@ type UpdateDefaultNicForVirtualMachine struct {
 	_                bool  `name:"updateDefaultNicForVirtualMachine" description:"Changes the default NIC on a VM"`
 }
 
-func (UpdateDefaultNicForVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (UpdateDefaultNicForVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
-func (UpdateDefaultNicForVirtualMachine) asyncResponse() interface{} {
+
+// AsyncResponse returns the struct to unmarshal the async job
+func (UpdateDefaultNicForVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }
 
@@ -578,7 +589,8 @@ type GetVirtualMachineUserData struct {
 	_                bool  `name:"getVirtualMachineUserData" description:"Returns user data associated with the VM"`
 }
 
-func (GetVirtualMachineUserData) response() interface{} {
+// Response returns the struct to unmarshal
+func (GetVirtualMachineUserData) Response() interface{} {
 	return new(VirtualMachineUserData)
 }
 
@@ -589,10 +601,12 @@ type UpdateVMNicIP struct {
 	NicID     *UUID  `json:"nicid" doc:"the ID of the nic."`
 }
 
-func (UpdateVMNicIP) response() interface{} {
+// Response returns the struct to unmarshal
+func (UpdateVMNicIP) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (UpdateVMNicIP) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (UpdateVMNicIP) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }

@@ -1,7 +1,6 @@
 package egoscale
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -41,6 +40,8 @@ func (zone Zone) ListRequest() (ListCommand, error) {
 	return req, nil
 }
 
+//go:generate go run generate/main.go -interface=Listable ListZones
+
 // ListZones represents a query for zones
 type ListZones struct {
 	Available      *bool         `json:"available,omitempty" doc:"true if you want to retrieve all available Zones. False if you only want to return the Zones from which you have at least one VM. Default is false."`
@@ -58,32 +59,4 @@ type ListZones struct {
 type ListZonesResponse struct {
 	Count int    `json:"count"`
 	Zone  []Zone `json:"zone"`
-}
-
-func (ListZones) response() interface{} {
-	return new(ListZonesResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListZones) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListZones) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListZones) each(resp interface{}, callback IterateItemFunc) {
-	zones, ok := resp.(*ListZonesResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListZonesResponse was expected, got %T", resp))
-		return
-	}
-
-	for i := range zones.Zone {
-		if !callback(&zones.Zone[i], nil) {
-			break
-		}
-	}
 }

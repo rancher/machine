@@ -83,11 +83,13 @@ type AssociateIPAddress struct {
 	_          bool  `name:"associateIpAddress" description:"Acquires and associates a public IP to an account."`
 }
 
-func (AssociateIPAddress) response() interface{} {
+// Response returns the struct to unmarshal
+func (AssociateIPAddress) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (AssociateIPAddress) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (AssociateIPAddress) AsyncResponse() interface{} {
 	return new(IPAddress)
 }
 
@@ -97,12 +99,14 @@ type DisassociateIPAddress struct {
 	_  bool  `name:"disassociateIpAddress" description:"Disassociates an ip address from the account."`
 }
 
-func (DisassociateIPAddress) response() interface{} {
+// Response returns the struct to unmarshal
+func (DisassociateIPAddress) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (DisassociateIPAddress) asyncResponse() interface{} {
-	return new(booleanResponse)
+// AsyncResponse returns the struct to unmarshal the async job
+func (DisassociateIPAddress) AsyncResponse() interface{} {
+	return new(BooleanResponse)
 }
 
 // UpdateIPAddress (Async) represents the IP modification
@@ -112,13 +116,17 @@ type UpdateIPAddress struct {
 	_        bool  `name:"updateIpAddress" description:"Updates an ip address"`
 }
 
-func (UpdateIPAddress) response() interface{} {
+// Response returns the struct to unmarshal
+func (UpdateIPAddress) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (UpdateIPAddress) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (UpdateIPAddress) AsyncResponse() interface{} {
 	return new(IPAddress)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListPublicIPAddresses
 
 // ListPublicIPAddresses represents a search for public IP addresses
 type ListPublicIPAddresses struct {
@@ -145,32 +153,4 @@ type ListPublicIPAddresses struct {
 type ListPublicIPAddressesResponse struct {
 	Count           int         `json:"count"`
 	PublicIPAddress []IPAddress `json:"publicipaddress"`
-}
-
-func (ListPublicIPAddresses) response() interface{} {
-	return new(ListPublicIPAddressesResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListPublicIPAddresses) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListPublicIPAddresses) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListPublicIPAddresses) each(resp interface{}, callback IterateItemFunc) {
-	ips, ok := resp.(*ListPublicIPAddressesResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListPublicIPAddressesResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range ips.PublicIPAddress {
-		if !callback(&ips.PublicIPAddress[i], nil) {
-			break
-		}
-	}
 }

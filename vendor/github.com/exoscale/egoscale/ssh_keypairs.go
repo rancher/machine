@@ -41,7 +41,8 @@ type CreateSSHKeyPair struct {
 	_    bool   `name:"createSSHKeyPair" description:"Create a new keypair and returns the private key"`
 }
 
-func (CreateSSHKeyPair) response() interface{} {
+// Response returns the struct to unmarshal
+func (CreateSSHKeyPair) Response() interface{} {
 	return new(SSHKeyPair)
 }
 
@@ -51,8 +52,9 @@ type DeleteSSHKeyPair struct {
 	_    bool   `name:"deleteSSHKeyPair" description:"Deletes a keypair by name"`
 }
 
-func (DeleteSSHKeyPair) response() interface{} {
-	return new(booleanResponse)
+// Response returns the struct to unmarshal
+func (DeleteSSHKeyPair) Response() interface{} {
+	return new(BooleanResponse)
 }
 
 // RegisterSSHKeyPair represents a new registration of a public key in a keypair
@@ -62,9 +64,12 @@ type RegisterSSHKeyPair struct {
 	_         bool   `name:"registerSSHKeyPair" description:"Register a public key in a keypair under a certain name"`
 }
 
-func (RegisterSSHKeyPair) response() interface{} {
+// Response returns the struct to unmarshal
+func (RegisterSSHKeyPair) Response() interface{} {
 	return new(SSHKeyPair)
 }
+
+//go:generate go run generate/main.go -interface=Listable ListSSHKeyPairs
 
 // ListSSHKeyPairs represents a query for a list of SSH KeyPairs
 type ListSSHKeyPairs struct {
@@ -82,34 +87,6 @@ type ListSSHKeyPairsResponse struct {
 	SSHKeyPair []SSHKeyPair `json:"sshkeypair"`
 }
 
-func (ListSSHKeyPairs) response() interface{} {
-	return new(ListSSHKeyPairsResponse)
-}
-
-// SetPage sets the current page
-func (ls *ListSSHKeyPairs) SetPage(page int) {
-	ls.Page = page
-}
-
-// SetPageSize sets the page size
-func (ls *ListSSHKeyPairs) SetPageSize(pageSize int) {
-	ls.PageSize = pageSize
-}
-
-func (ListSSHKeyPairs) each(resp interface{}, callback IterateItemFunc) {
-	sshs, ok := resp.(*ListSSHKeyPairsResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListSSHKeyPairsResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range sshs.SSHKeyPair {
-		if !callback(&sshs.SSHKeyPair[i], nil) {
-			break
-		}
-	}
-}
-
 // ResetSSHKeyForVirtualMachine (Async) represents a change for the key pairs
 type ResetSSHKeyForVirtualMachine struct {
 	ID      *UUID  `json:"id" doc:"The ID of the virtual machine"`
@@ -117,10 +94,12 @@ type ResetSSHKeyForVirtualMachine struct {
 	_       bool   `name:"resetSSHKeyForVirtualMachine" description:"Resets the SSH Key for virtual machine. The virtual machine must be in a \"Stopped\" state."`
 }
 
-func (ResetSSHKeyForVirtualMachine) response() interface{} {
+// Response returns the struct to unmarshal
+func (ResetSSHKeyForVirtualMachine) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (ResetSSHKeyForVirtualMachine) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (ResetSSHKeyForVirtualMachine) AsyncResponse() interface{} {
 	return new(VirtualMachine)
 }

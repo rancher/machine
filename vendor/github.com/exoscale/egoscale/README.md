@@ -12,7 +12,7 @@ A wrapper for the [Exoscale public cloud](https://www.exoscale.com) API.
 ## Known users
 
 - [Exoscale CLI](https://github.com/exoscale/cli)
-- [Exoscale terraform provider](https://github.com/exoscale/terraform-provider-exoscale)
+- [Exoscale Terraform provider](https://github.com/exoscale/terraform-provider-exoscale)
 - [ExoIP](https://github.com/exoscale/exoip): IP Watchdog
 - [Lego](https://github.com/xenolf/lego): Let's Encrypt and ACME library
 - Kubernetes Incubator: [External DNS](https://github.com/kubernetes-incubator/external-dns)

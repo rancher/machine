@@ -1,7 +1,5 @@
 package egoscale
 
-import "fmt"
-
 // SnapshotState represents the Snapshot.State enum
 //
 // See: https://github.com/apache/cloudstack/blob/master/api/src/main/java/com/cloud/storage/Snapshot.java
@@ -60,11 +58,13 @@ type CreateSnapshot struct {
 	_         bool  `name:"createSnapshot" description:"Creates an instant snapshot of a volume."`
 }
 
-func (CreateSnapshot) response() interface{} {
+// Response returns the struct to unmarshal
+func (CreateSnapshot) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (CreateSnapshot) asyncResponse() interface{} {
+// AsyncResponse returns the struct to unmarshal the async job
+func (CreateSnapshot) AsyncResponse() interface{} {
 	return new(Snapshot)
 }
 
@@ -72,12 +72,18 @@ func (CreateSnapshot) asyncResponse() interface{} {
 func (ss Snapshot) ListRequest() (ListCommand, error) {
 	// Restricted cannot be applied here because it really has three states
 	req := &ListSnapshots{
-		ID:   ss.ID,
-		Name: ss.Name,
+		ID:           ss.ID,
+		Name:         ss.Name,
+		VolumeID:     ss.VolumeID,
+		SnapshotType: ss.SnapshotType,
+		ZoneID:       ss.ZoneID,
+		// TODO: tags
 	}
 
 	return req, nil
 }
+
+//go:generate go run generate/main.go -interface=Listable ListSnapshots
 
 // ListSnapshots lists the volume snapshots
 type ListSnapshots struct {
@@ -100,46 +106,20 @@ type ListSnapshotsResponse struct {
 	Snapshot []Snapshot `json:"snapshot"`
 }
 
-func (ListSnapshots) response() interface{} {
-	return new(ListSnapshotsResponse)
-}
-
-// SetPage sets the current page
-func (lss *ListSnapshots) SetPage(page int) {
-	lss.Page = page
-}
-
-// SetPageSize sets the page size
-func (lss *ListSnapshots) SetPageSize(pageSize int) {
-	lss.PageSize = pageSize
-}
-
-func (ListSnapshots) each(resp interface{}, callback IterateItemFunc) {
-	sss, ok := resp.(*ListSnapshotsResponse)
-	if !ok {
-		callback(nil, fmt.Errorf("wrong type. ListSnapshotsResponse expected, got %T", resp))
-		return
-	}
-
-	for i := range sss.Snapshot {
-		if !callback(&sss.Snapshot[i], nil) {
-			break
-		}
-	}
-}
-
 // DeleteSnapshot (Async) deletes a snapshot of a disk volume
 type DeleteSnapshot struct {
 	ID *UUID `json:"id" doc:"The ID of the snapshot"`
 	_  bool  `name:"deleteSnapshot" description:"Deletes a snapshot of a disk volume."`
 }
 
-func (DeleteSnapshot) response() interface{} {
+// Response returns the struct to unmarshal
+func (DeleteSnapshot) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (DeleteSnapshot) asyncResponse() interface{} {
-	return new(booleanResponse)
+// AsyncResponse returns the struct to unmarshal the async job
+func (DeleteSnapshot) AsyncResponse() interface{} {
+	return new(BooleanResponse)
 }
 
 // RevertSnapshot (Async) reverts a volume snapshot
@@ -148,10 +128,12 @@ type RevertSnapshot struct {
 	_  bool  `name:"revertSnapshot" description:"revert a volume snapshot."`
 }
 
-func (RevertSnapshot) response() interface{} {
+// Response returns the struct to unmarshal
+func (RevertSnapshot) Response() interface{} {
 	return new(AsyncJobResult)
 }
 
-func (RevertSnapshot) asyncResponse() interface{} {
-	return new(booleanResponse)
+// AsyncResponse returns the struct to unmarshal the async job
+func (RevertSnapshot) AsyncResponse() interface{} {
+	return new(BooleanResponse)
 }
