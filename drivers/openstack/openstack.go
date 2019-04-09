@@ -394,32 +394,42 @@ func (d *Driver) GetState() (state.State, error) {
 	return state.None, nil
 }
 
-func (d *Driver) Create() error {
-	if err := d.resolveIds(); err != nil {
+func deleteKeyPairOnError(client Client, name string, err *error) {
+	if *err != nil {
+		derr := deleteKeyPair(client, name)
+		if derr != nil {
+			*err = multierror.Append(*err, derr).ErrorOrNil()
+		}
+	}
+}
+
+func (d *Driver) Create() (err error) {
+	if err = d.resolveIds(); err != nil {
 		return err
 	}
 	if d.KeyPairName != "" {
-		if err := d.loadSSHKey(); err != nil {
+		if err = d.loadSSHKey(); err != nil {
 			return err
 		}
 	} else {
 		d.KeyPairName = fmt.Sprintf("%s-%s", d.MachineName, mcnutils.GenerateRandomID())
-		if err := d.createSSHKey(); err != nil {
+		if err = d.createSSHKey(); err != nil {
 			return err
 		}
+		defer deleteKeyPairOnError(d.client, d.KeyPairName, &err)
 	}
-	if err := d.createMachine(); err != nil {
+	if err = d.createMachine(); err != nil {
 		return err
 	}
-	if err := d.waitForInstanceActive(); err != nil {
+	if err = d.waitForInstanceActive(); err != nil {
 		return err
 	}
 	if d.FloatingIpPool != "" {
-		if err := d.assignFloatingIP(); err != nil {
+		if err = d.assignFloatingIP(); err != nil {
 			return err
 		}
 	}
-	if err := d.lookForIPAddress(); err != nil {
+	if err = d.lookForIPAddress(); err != nil {
 		return err
 	}
 	return nil
