@@ -86,9 +86,16 @@ func (p *SystemdProvisioner) Service(name string, action serviceaction.ServiceAc
 	// be sure exactly when it changes from the provisioner so
 	// we call a reload on every restart to be safe
 	if reloadDaemon {
-		if _, err := p.SSHCommand("sudo systemctl daemon-reload"); err != nil {
-			return err
+		if (action.String() == "start") {
+			if _, err := p.SSHCommand("sudo systemctl daemon-reload; sudo systemctl -f start docker;"); err != nil {
+				return err
+			}
+		} else {
+			if _, err := p.SSHCommand("sudo systemctl daemon-reload"); err != nil {
+				return err
+			}
 		}
+
 	}
 
 	command := fmt.Sprintf("sudo systemctl -f %s %s", action.String(), name)
