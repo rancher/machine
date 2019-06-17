@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/machine/libmachine/log"
 	"github.com/docker/machine/libmachine/mcnutils"
@@ -34,6 +35,8 @@ func GetSSHClientFromDriver(d Driver) (ssh.Client, error) {
 }
 
 func RunSSHCommandFromDriver(d Driver, command string) (string, error) {
+	time.Sleep(time.Duration(5)*time.Second)
+
 	client, err := GetSSHClientFromDriver(d)
 	if err != nil {
 		return "", err
