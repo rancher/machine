@@ -25,7 +25,7 @@ const (
 	defaultAzureLocation        = "westus"
 	defaultSSHUser              = "docker-user" // 'root' not allowed on Azure
 	defaultDockerPort           = 2376
-	defaultAzureImage           = "canonical:UbuntuServer:16.04.0-LTS:latest"
+	defaultAzureImage           = "canonical:UbuntuServer:18.04-LTS:latest"
 	defaultAzureVNet            = "docker-machine-vnet"
 	defaultAzureSubnet          = "docker-machine"
 	defaultAzureSubnetPrefix    = "192.168.0.0/16"
@@ -419,8 +419,11 @@ func (d *Driver) Create() error {
 		d.ctx.PublicIPAddressID, d.ctx.SubnetID, d.ctx.NetworkSecurityGroupID, d.PrivateIPAddr); err != nil {
 		return err
 	}
-	if err := c.CreateStorageAccount(d.ctx, d.ResourceGroup, d.Location, storage.SkuName(d.StorageType)); err != nil {
-		return err
+	if !d.ManagedDisks {
+		// storage account is only necessary when using unmanaged disks
+		if err := c.CreateStorageAccount(d.ctx, d.ResourceGroup, d.Location, storage.SkuName(d.StorageType)); err != nil {
+			return err
+		}
 	}
 	if err := d.generateSSHKey(d.ctx); err != nil {
 		return err

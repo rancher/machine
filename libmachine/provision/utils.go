@@ -27,8 +27,8 @@ type DockerOptions struct {
 func installDockerGeneric(p Provisioner, baseURL string) error {
 	// install docker - until cloudinit we use ubuntu everywhere so we
 	// just install it using the docker repos
-	if output, err := p.SSHCommand(fmt.Sprintf("if ! type docker; then curl -sSL %s | sh -; fi", baseURL)); err != nil {
-		return fmt.Errorf("error installing docker: %s", output)
+	if output, err := p.SSHCommand(fmt.Sprintf("curl -sSL %s | sh -x -", baseURL)); err != nil {
+		return fmt.Errorf("error installing docker: %s | err: %s", output, err)
 	}
 
 	return nil
@@ -296,7 +296,7 @@ func DockerClientVersion(ssh SSHCommander) (string, error) {
 }
 
 func waitForLockAptGetUpdate(ssh SSHCommander) error {
-	return waitForLock(ssh, "sudo apt-get update")
+	return waitForLock(ssh, "sudo apt-get -y update")
 }
 
 func waitForLock(ssh SSHCommander, cmd string) error {

@@ -242,6 +242,17 @@ func (provisioner *RancherProvisioner) getLatestISOURL() (string, error) {
 
 func selectDocker(p Provisioner, baseURL string) error {
 	// TODO: detect if its a cloud-init, or a ros setting - and use that..
+
+	output, err := p.SSHCommand("docker --version")
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(output, "Docker version") {
+		//TODO: check if version matches install-url
+		return nil //docker already installed.
+	}
+
 	if output, err := p.SSHCommand(fmt.Sprintf("wget -O- %s | sh -", baseURL)); err != nil {
 		return fmt.Errorf("error selecting docker: (%s) %s", err, output)
 	}

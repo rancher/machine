@@ -42,7 +42,7 @@
   version = "v7.2.1"
 
 [[projects]]
-  digest = "1:3e3787c889e4c6600e320ae16abfde18cac2c1f96948180be584665a35ee3ec2"
+  digest = "1:12342a2c200bc1fbafd739172f425af3b93377718dcd2013e9ccce97be48271b"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -54,26 +54,33 @@
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
     "aws/credentials/stscreds",
+    "aws/csm",
     "aws/defaults",
     "aws/ec2metadata",
+    "aws/endpoints",
     "aws/request",
     "aws/session",
     "aws/signer/v4",
-    "private/endpoints",
+    "internal/ini",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
     "private/protocol",
     "private/protocol/ec2query",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/xml/xmlutil",
-    "private/waiter",
     "service/ec2",
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "ddfd17ec06eee10c24c5c474633273fd034afdda"
-  version = "v1.4.10"
+  revision = "420cda5d6383f94f7d9c231aa44bad3325181950"
+  version = "v1.20.20"
 
 [[projects]]
   digest = "1:676da826460e2bef9b36b2b1fe93fc73c781937d2c70ca459e41c9f3277d2c55"
@@ -138,6 +145,19 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:e73d5326cd1f76119573c8bc35f002664990147e1b71aee24d0820dd11a003b4"
+  name = "github.com/diskfs/go-diskfs"
+  packages = [
+    "filesystem",
+    "filesystem/iso9660",
+    "partition/mbr",
+    "util",
+  ]
+  pruneopts = "UT"
+  revision = "cf5830e4e4199fe1dd4cc71e3cc2704dc816cb93"
+
+[[projects]]
+  branch = "master"
   digest = "1:d2f0fc2e4829c6a0950a8a4c15a37f5585d3fb457d39fecd65ca77706dc1f59e"
   name = "github.com/docker/docker"
   packages = [
@@ -163,13 +183,6 @@
   version = "v0.12.3"
 
 [[projects]]
-  digest = "1:ad48c8fd2fb8c747d8798f19890f70b18091196274a773550a9e5dffa9e165d1"
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "03e0e7d51a13a91c765d8d0161246bc14a38001a"
-
-[[projects]]
   digest = "1:922ab7a624d8398c8e986beefc25052b26e02a8ac6bba5dc507bda11adbd878b"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -184,12 +197,11 @@
   revision = "30f7a39f4a218feb5325f3aebc60c32a572a8274"
 
 [[projects]]
-  digest = "1:b87714e57a511d88f307aba7d5b63522da12bed0a050889c81272fc50f71100e"
+  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3433f3ea46d9f8019119e7dd41274e112a2359a9"
-  version = "0.2.2"
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:481d1ca274189bb298947b76bb522b7e2ee494b7ca3206c705c008a02b5124cf"
@@ -302,7 +314,8 @@
   version = "v0.0.2"
 
 [[projects]]
-  digest = "1:48f74da3809cc4b0792b802b41e34ebac78a12e6a6f800611da5142c9627921b"
+  branch = "master"
+  digest = "1:d75c788e64b177d83b820c9ed1f968d0879499b6f9daa8d4d535a6765b33e560"
   name = "github.com/vmware/govmomi"
   packages = [
     ".",
@@ -314,6 +327,11 @@
     "property",
     "session",
     "task",
+    "vapi/internal",
+    "vapi/library",
+    "vapi/library/finder",
+    "vapi/rest",
+    "vapi/vcenter",
     "vim25",
     "vim25/debug",
     "vim25/methods",
@@ -324,8 +342,7 @@
     "vim25/xml",
   ]
   pruneopts = "UT"
-  revision = "bdf05b6cab86b1e9f40ee80a4d2cb07a0c25ef78"
-  version = "v0.20.0"
+  revision = "b26ac640748fae8a5074b0431d8ad50dc9d0b9c8"
 
 [[projects]]
   digest = "1:c520e4d4fc9976e4da44ee0a3bdd5a45e8a206a72c1ccd2089f3d184f5eb942a"
@@ -416,6 +433,13 @@
   pruneopts = "UT"
   revision = "975617b05ea8a58727e6c1a06b6161ff4185a9f2"
 
+[[projects]]
+  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "v2.2.2"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -437,6 +461,7 @@
     "github.com/bugsnag/bugsnag-go",
     "github.com/codegangsta/cli",
     "github.com/digitalocean/godo",
+    "github.com/diskfs/go-diskfs/filesystem/iso9660",
     "github.com/docker/docker/pkg/term",
     "github.com/exoscale/egoscale",
     "github.com/rackspace/gophercloud",
@@ -462,6 +487,11 @@
     "github.com/vmware/govmomi/find",
     "github.com/vmware/govmomi/guest",
     "github.com/vmware/govmomi/object",
+    "github.com/vmware/govmomi/vapi/library",
+    "github.com/vmware/govmomi/vapi/library/finder",
+    "github.com/vmware/govmomi/vapi/rest",
+    "github.com/vmware/govmomi/vapi/vcenter",
+    "github.com/vmware/govmomi/vim25",
     "github.com/vmware/govmomi/vim25/mo",
     "github.com/vmware/govmomi/vim25/soap",
     "github.com/vmware/govmomi/vim25/types",
@@ -473,6 +503,7 @@
     "golang.org/x/sys/windows/registry",
     "google.golang.org/api/compute/v1",
     "google.golang.org/api/googleapi",
+    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
