@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/arm/network"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/docker/machine/drivers/azure/azureutil"
 	"github.com/docker/machine/drivers/azure/logutil"
@@ -49,7 +51,7 @@ func (d *Driver) newAzureClient() (*azureutil.AzureClient, error) {
 	}
 
 	var (
-		token *azure.ServicePrincipalToken
+		token *adal.ServicePrincipalToken
 		err   error
 	)
 	if d.ClientID != "" && d.ClientSecret != "" { // use Service Principal auth
@@ -65,7 +67,7 @@ func (d *Driver) newAzureClient() (*azureutil.AzureClient, error) {
 			return nil, fmt.Errorf("Error creating Azure client: %v", err)
 		}
 	}
-	return azureutil.New(env, d.SubscriptionID, token), nil
+	return azureutil.New(env, d.SubscriptionID, autorest.NewBearerAuthorizer(token)), nil
 }
 
 // generateSSHKey creates a ssh key pair locally and saves the public key file
