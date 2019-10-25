@@ -3,7 +3,6 @@ package vmwarevsphere
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/machine/libmachine/log"
 	"github.com/vmware/govmomi/find"
@@ -100,11 +99,12 @@ func (d *Driver) createManual() error {
 	}
 
 	spec := types.VirtualMachineConfigSpec{
-		Name:     d.MachineName,
-		GuestId:  "otherLinux64Guest",
-		Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", dss.Name())},
-		NumCPUs:  int32(d.CPU),
-		MemoryMB: int64(d.Memory),
+		Name:       d.MachineName,
+		GuestId:    "otherLinux64Guest",
+		Files:      &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", dss.Name())},
+		NumCPUs:    int32(d.CPU),
+		MemoryMB:   int64(d.Memory),
+		VAppConfig: d.getVappConfig(),
 	}
 
 	scsi, err := object.SCSIControllerTypes().CreateSCSIController("pvscsi")
@@ -116,67 +116,6 @@ func (d *Driver) createManual() error {
 		Operation: types.VirtualDeviceConfigSpecOperationAdd,
 		Device:    scsi,
 	})
-
-	if d.VAppTransport == "com.vmware.guestInfo" ||
-		d.VAppTransport == "iso" {
-
-		vApp := types.VmConfigSpec{
-			OvfEnvironmentTransport: []string{d.VAppTransport},
-		}
-
-		if d.VAppIpAllocationPolicy == "dhcp" ||
-			d.VAppIpAllocationPolicy == "fixed" ||
-			d.VAppIpAllocationPolicy == "transient" ||
-			d.VAppIpAllocationPolicy == "fixedAllocated" {
-
-			if d.VAppIpProtocol != "IPv4" &&
-				d.VAppIpProtocol != "IPv6" {
-				d.VAppIpProtocol = "IPv4"
-			}
-
-			supportedAllocationScheme := "ovfenv"
-			if d.VAppIpAllocationPolicy == "dhcp" {
-				supportedAllocationScheme = "dhcp"
-			}
-
-			vApp.IpAssignment = &types.VAppIPAssignmentInfo{
-				SupportedIpProtocol:       []string{d.VAppIpProtocol},
-				SupportedAllocationScheme: []string{supportedAllocationScheme},
-				IpProtocol:                d.VAppIpProtocol,
-				IpAllocationPolicy:        d.VAppIpAllocationPolicy + "Policy",
-			}
-		}
-
-		for i, prop := range d.VAppProperties {
-			v := strings.SplitN(prop, "=", 2)
-			key := v[0]
-			typ := "string"
-			value := ""
-			if len(v) > 1 {
-				value = v[1]
-			}
-			if strings.HasPrefix(value, "ip:") {
-				typ = value
-				value = ""
-			} else if strings.HasPrefix(value, "${") &&
-				strings.HasSuffix(value, "}") {
-				typ = "expression"
-			}
-			vApp.Property = append(vApp.Property, types.VAppPropertySpec{
-				ArrayUpdateSpec: types.ArrayUpdateSpec{
-					Operation: types.ArrayUpdateOperationAdd,
-				},
-				Info: &types.VAppPropertyInfo{
-					Key:          int32(i),
-					Id:           key,
-					Type:         typ,
-					DefaultValue: value,
-				},
-			})
-		}
-
-		spec.VAppConfig = &vApp
-	}
 
 	folders, err := d.datacenter.Folders(d.getCtx())
 	if err != nil {
@@ -285,10 +224,11 @@ func (d *Driver) createFromVmName() error {
 			Pool: &ref,
 		},
 		Config: &types.VirtualMachineConfigSpec{
-			GuestId:  "otherLinux64Guest",
-			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", dss.Name())},
-			NumCPUs:  int32(d.CPU),
-			MemoryMB: int64(d.Memory),
+			GuestId:    "otherLinux64Guest",
+			Files:      &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", dss.Name())},
+			NumCPUs:    int32(d.CPU),
+			MemoryMB:   int64(d.Memory),
+			VAppConfig: d.getVappConfig(),
 		},
 	}
 
