@@ -1,16 +1,14 @@
 package amazonec2
 
 import (
-	"github.com/Azure/go-autorest/autorest/to"
-	"testing"
-
 	"errors"
-	"reflect"
-
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"testing"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/docker/machine/commands/commandstest"

@@ -2,14 +2,14 @@ package azure
 
 import (
 	"fmt"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/adal"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2016-09-01/network"
+	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/docker/machine/drivers/azure/azureutil"
