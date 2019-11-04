@@ -34,32 +34,33 @@ const (
 )
 
 const (
-	flAzureEnvironment       = "azure-environment"
-	flAzureSubscriptionID    = "azure-subscription-id"
-	flAzureResourceGroup     = "azure-resource-group"
-	flAzureSSHUser           = "azure-ssh-user"
-	flAzureDockerPort        = "azure-docker-port"
-	flAzureLocation          = "azure-location"
-	flAzureSize              = "azure-size"
-	flAzureImage             = "azure-image"
-	flAzureVNet              = "azure-vnet"
-	flAzureSubnet            = "azure-subnet"
-	flAzureSubnetPrefix      = "azure-subnet-prefix"
-	flAzureAvailabilitySet   = "azure-availability-set"
-	flAzureManagedDisks      = "azure-managed-disks"
-	flAzureFaultDomainCount  = "azure-fault-domain-count"
-	flAzureUpdateDomainCount = "azure-update-domain-count"
-	flAzureDiskSize          = "azure-disk-size"
-	flAzurePorts             = "azure-open-port"
-	flAzurePrivateIPAddr     = "azure-private-ip-address"
-	flAzureUsePrivateIP      = "azure-use-private-ip"
-	flAzureStaticPublicIP    = "azure-static-public-ip"
-	flAzureNoPublicIP        = "azure-no-public-ip"
-	flAzureDNSLabel          = "azure-dns"
-	flAzureStorageType       = "azure-storage-type"
-	flAzureCustomData        = "azure-custom-data"
-	flAzureClientID          = "azure-client-id"
-	flAzureClientSecret      = "azure-client-secret"
+	flAzureEnvironment          = "azure-environment"
+	flAzureSubscriptionID       = "azure-subscription-id"
+	flAzureResourceGroup        = "azure-resource-group"
+	flAzureSSHUser              = "azure-ssh-user"
+	flAzureDockerPort           = "azure-docker-port"
+	flAzureLocation             = "azure-location"
+	flAzureSize                 = "azure-size"
+	flAzureImage                = "azure-image"
+	flAzureVNet                 = "azure-vnet"
+	flAzureSubnet               = "azure-subnet"
+	flAzureSubnetPrefix         = "azure-subnet-prefix"
+	flAzureNetworkSecurityGroup = "azure-network-security-group"
+	flAzureAvailabilitySet      = "azure-availability-set"
+	flAzureManagedDisks         = "azure-managed-disks"
+	flAzureFaultDomainCount     = "azure-fault-domain-count"
+	flAzureUpdateDomainCount    = "azure-update-domain-count"
+	flAzureDiskSize             = "azure-disk-size"
+	flAzurePorts                = "azure-open-port"
+	flAzurePrivateIPAddr        = "azure-private-ip-address"
+	flAzureUsePrivateIP         = "azure-use-private-ip"
+	flAzureStaticPublicIP       = "azure-static-public-ip"
+	flAzureNoPublicIP           = "azure-no-public-ip"
+	flAzureDNSLabel             = "azure-dns"
+	flAzureStorageType          = "azure-storage-type"
+	flAzureCustomData           = "azure-custom-data"
+	flAzureClientID             = "azure-client-id"
+	flAzureClientSecret         = "azure-client-secret"
 )
 
 const (
@@ -78,19 +79,20 @@ type Driver struct {
 	SubscriptionID string
 	ResourceGroup  string
 
-	DockerPort      int
-	Location        string
-	Size            string
-	Image           string
-	VirtualNetwork  string
-	SubnetName      string
-	SubnetPrefix    string
-	AvailabilitySet string
-	ManagedDisks    bool
-	FaultCount      int
-	UpdateCount     int
-	DiskSize        int
-	StorageType     string
+	DockerPort            int
+	Location              string
+	Size                  string
+	Image                 string
+	VirtualNetwork        string
+	SubnetName            string
+	SubnetPrefix          string
+	NetworkSecurityGroup  string
+	AvailabilitySet       string
+	ManagedDisks          bool
+	FaultCount            int
+	UpdateCount           int
+	DiskSize              int
+	StorageType           string
 
 	OpenPorts      []string
 	PrivateIPAddr  string
@@ -264,6 +266,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Azure Service Principal Account password (optional, browser auth is used if not specified)",
 			EnvVar: "AZURE_CLIENT_SECRET",
 		},
+		mcnflag.StringFlag{
+			Name:   flAzureNetworkSecurityGroup,
+			Usage:  "Azure Network Security Group to attach to the virtual machine.",
+			EnvVar: "AZURE_NETWORK_SECURITY_GROUP",
+		},
 	}
 }
 
@@ -311,6 +318,7 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.FaultCount = fl.Int(flAzureFaultDomainCount)
 	d.UpdateCount = fl.Int(flAzureUpdateDomainCount)
 	d.DiskSize = fl.Int(flAzureDiskSize)
+	d.NetworkSecurityGroup = fl.String(flAzureNetworkSecurityGroup)
 
 	d.ClientID = fl.String(flAzureClientID)
 	d.ClientSecret = fl.String(flAzureClientSecret)
@@ -398,13 +406,18 @@ func (d *Driver) Create() error {
 	if err := c.CreateAvailabilitySetIfNotExists(d.ctx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
 		return err
 	}
-	if err := c.CreateNetworkSecurityGroup(d.ctx, d.ResourceGroup, d.naming().NSG(), d.Location, d.ctx.FirewallRules); err != nil {
+	// Check if network security group was set by optional param and if not set it from naming.
+	if d.NetworkSecurityGroup == "" {
+		d.NetworkSecurityGroup = d.naming().NSG()
+	}
+	if err := c.CreateNetworkSecurityGroup(d.ctx, d.ResourceGroup, d.NetworkSecurityGroup, d.Location, d.ctx.FirewallRules); err != nil {
 		return err
 	}
 	vnetResourceGroup, vNetName := parseVirtualNetwork(d.VirtualNetwork, d.ResourceGroup)
 	if err := c.CreateVirtualNetworkIfNotExists(vnetResourceGroup, vNetName, d.Location); err != nil {
 		return err
 	}
+
 	if err := c.CreateSubnet(d.ctx, vnetResourceGroup, vNetName, d.SubnetName, d.SubnetPrefix); err != nil {
 		return err
 	}
@@ -468,7 +481,12 @@ func (d *Driver) Remove() error {
 	if err := c.DeletePublicIPAddressIfExists(d.ResourceGroup, d.naming().IP()); err != nil {
 		return err
 	}
-	if err := c.DeleteNetworkSecurityGroupIfExists(d.ResourceGroup, d.naming().NSG()); err != nil {
+	// Check if network security group was set by optional param and if not set it from naming.
+	// included for backwards compatibility else nsgs prior without name will be orphaned.
+	if d.NetworkSecurityGroup == "" {
+		d.NetworkSecurityGroup = d.naming().NSG()
+	}
+	if err := c.CleanupNetworkSecurityGroupIfExists(d.ResourceGroup, d.NetworkSecurityGroup); err != nil {
 		return err
 	}
 	if err := c.CleanupAvailabilitySetIfExists(d.ResourceGroup, d.AvailabilitySet); err != nil {
