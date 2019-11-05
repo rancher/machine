@@ -395,7 +395,7 @@ func (d *Driver) Create() error {
 	if err := c.CreateResourceGroup(d.ResourceGroup, d.Location); err != nil {
 		return err
 	}
-	if err := c.CreateAvailabilitySetIfNotExists(d.ctx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks); err != nil {
+	if err := c.CreateAvailabilitySetIfNotExists(d.ctx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
 		return err
 	}
 	if err := c.CreateNetworkSecurityGroup(d.ctx, d.ResourceGroup, d.naming().NSG(), d.Location, d.ctx.FirewallRules); err != nil {
@@ -428,9 +428,10 @@ func (d *Driver) Create() error {
 	if err := d.generateSSHKey(d.ctx); err != nil {
 		return err
 	}
+
 	if err := c.CreateVirtualMachine(d.ResourceGroup, d.naming().VM(), d.Location, d.Size, d.ctx.AvailabilitySetID,
-		d.ctx.NetworkInterfaceID, d.BaseDriver.SSHUser, d.ctx.SSHPublicKey, d.Image, customData, d.ManagedDisks,
-		storage.SkuName(d.StorageType), d.ctx.StorageAccount, d.DiskSize); err != nil {
+		d.ctx.NetworkInterfaceID, d.BaseDriver.SSHUser, d.ctx.SSHPublicKey, d.Image, customData, d.ctx.StorageAccount, d.ManagedDisks,
+		string(storage.SkuName(d.StorageType)), int32(d.DiskSize)); err != nil {
 		return err
 	}
 	ip, err := d.GetIP()
