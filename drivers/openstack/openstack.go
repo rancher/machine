@@ -15,7 +15,7 @@ import (
 	"github.com/rancher/machine/libmachine/ssh"
 	"github.com/rancher/machine/libmachine/state"
 
-	"github.com/rackspace/gophercloud"
+	"github.com/gophercloud/gophercloud"
 )
 
 type Driver struct {
@@ -460,7 +460,7 @@ func (d *Driver) Remove() error {
 		return err
 	}
 	if err := d.client.DeleteInstance(d); err != nil {
-		if gopherErr, ok := err.(*gophercloud.UnexpectedResponseCodeError); ok {
+		if gopherErr, ok := err.(*gophercloud.ErrUnexpectedResponseCode); ok {
 			if gopherErr.Actual == http.StatusNotFound {
 				log.Warn("Remote instance does not exist, proceeding with removing local reference")
 			} else {
