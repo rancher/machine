@@ -24,6 +24,7 @@ require (
 	github.com/exoscale/egoscale v0.12.3
 	github.com/google/go-querystring v0.0.0-20140804062624-30f7a39f4a21 // indirect
 	github.com/gophercloud/gophercloud v0.7.0
+	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20140721150620-740c764bc614 // indirect
