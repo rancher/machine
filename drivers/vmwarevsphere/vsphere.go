@@ -339,7 +339,7 @@ func (d *Driver) Create() error {
 			return err
 		}
 		return d.createLegacy()
-	case "vm", "template", "libary":
+	case "vm", "template", "library":
 		if d.ContentLibrary != "" {
 			log.Infof("Creating VM from /%s/%s...", d.ContentLibrary, d.CloneFrom)
 			return d.createFromLibraryName()
