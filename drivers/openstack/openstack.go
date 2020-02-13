@@ -39,8 +39,8 @@ type Driver struct {
 	ImageName        string
 	ImageId          string
 	KeyPairName      string
-	NetworkName      string
-	NetworkId        string
+	NetworkNames     []string
+	NetworkIds       []string
 	UserData         []byte
 	PrivateKeyFile   string
 	SecurityGroups   []string
@@ -166,7 +166,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "OS_NETWORK_ID",
 			Name:   "openstack-net-id",
-			Usage:  "OpenStack network id the machine will be connected on",
+			Usage:  "OpenStack comma seperated network id(s) the machine will be connected on. (If floating ip pool is given, driver tries to find connected port in order of given networks to update floating ip)",
 			Value:  "",
 		},
 		mcnflag.StringFlag{
@@ -184,7 +184,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "OS_NETWORK_NAME",
 			Name:   "openstack-net-name",
-			Usage:  "OpenStack network name the machine will be connected on",
+			Usage:  "OpenStack comma seperated network name(s) the machine will be connected on. (If floating ip pool is given, driver tries to find connected port in order of given networks to update floating ip)",
 			Value:  "",
 		},
 		mcnflag.StringFlag{
@@ -284,8 +284,12 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.FlavorName = flags.String("openstack-flavor-name")
 	d.ImageId = flags.String("openstack-image-id")
 	d.ImageName = flags.String("openstack-image-name")
-	d.NetworkId = flags.String("openstack-net-id")
-	d.NetworkName = flags.String("openstack-net-name")
+	if flags.String("openstack-net-id") != "" {
+		d.NetworkIds = strings.Split(flags.String("openstack-net-id"), ",")
+	}
+	if flags.String("openstack-net-name") != "" {
+		d.NetworkNames = strings.Split(flags.String("openstack-net-name"), ",")
+	}
 	if flags.String("openstack-sec-groups") != "" {
 		d.SecurityGroups = strings.Split(flags.String("openstack-sec-groups"), ",")
 	}
@@ -520,8 +524,8 @@ func (d *Driver) checkConfig() error {
 		return fmt.Errorf(errorExclusiveOptions, "Image name", "Image id")
 	}
 
-	if d.NetworkName != "" && d.NetworkId != "" {
-		return fmt.Errorf(errorExclusiveOptions, "Network name", "Network id")
+	if len(d.NetworkNames) > 0 && len(d.NetworkIds) > 0 {
+		return fmt.Errorf(errorExclusiveOptions, "Network name(s)", "Network id(s)")
 	}
 	if d.EndpointType != "" && (d.EndpointType != "publicURL" && d.EndpointType != "adminURL" && d.EndpointType != "internalURL") {
 		return fmt.Errorf(errorWrongEndpointType)
@@ -533,26 +537,22 @@ func (d *Driver) checkConfig() error {
 }
 
 func (d *Driver) resolveIds() error {
-	if d.NetworkName != "" && !d.ComputeNetwork {
+	if len(d.NetworkNames) > 0 && !d.ComputeNetwork {
 		if err := d.initNetwork(); err != nil {
 			return err
 		}
 
-		networkID, err := d.client.GetNetworkID(d)
+		networkIDs, err := d.client.GetNetworkIDList(d)
 
 		if err != nil {
 			return err
 		}
 
-		if networkID == "" {
-			return fmt.Errorf(errorUnknownNetworkName, d.NetworkName)
+		if len(networkIDs) == 0 {
+			return fmt.Errorf(errorUnknownNetworkName, d.NetworkNames)
 		}
 
-		d.NetworkId = networkID
-		log.Debug("Found network id using its name", map[string]string{
-			"Name": d.NetworkName,
-			"ID":   d.NetworkId,
-		})
+		d.NetworkIds = networkIDs
 	}
 
 	if d.FlavorName != "" {
