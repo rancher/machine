@@ -5,9 +5,11 @@ go 1.13
 replace github.com/docker/docker => github.com/moby/moby v1.4.2-0.20170731201646-1009e6a40b29
 
 require (
-	github.com/Azure/azure-sdk-for-go v9.0.1-beta+incompatible
+	github.com/Azure/azure-sdk-for-go v39.1.0+incompatible
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Azure/go-autorest v7.2.1+incompatible
+	github.com/Azure/go-autorest v13.3.2+incompatible
+	github.com/Azure/go-autorest/autorest v0.9.5
+	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/aws/aws-sdk-go v1.20.20
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
@@ -16,7 +18,6 @@ require (
 	github.com/bugsnag/panicwrap v0.0.0-20160118154447-aceac81c6e2f // indirect
 	github.com/cenkalti/backoff v0.0.0-20141124221459-9831e1e25c87 // indirect
 	github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2 // indirect
-	github.com/dgrijalva/jwt-go v0.0.0-20160831183534-24c63f56522a // indirect
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
 	github.com/diskfs/go-diskfs v0.0.0-20191115120903-6cf046d472d7
 	github.com/docker/docker v0.0.0-20180212224933-bf1345d0b6d9
@@ -39,8 +40,8 @@ require (
 	github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.21.0
-	golang.org/x/crypto v0.0.0-20170704135851-51714a8c4ac1
-	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd
+	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
+	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 	golang.org/x/oauth2 v0.0.0-20151117210313-442624c9ec92
 	golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa
 	google.golang.org/api v0.0.0-20180213000552-87a2f5c77b36
