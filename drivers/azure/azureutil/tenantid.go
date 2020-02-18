@@ -1,6 +1,7 @@
 package azureutil
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -61,13 +62,15 @@ func loadOrFindTenantID(env azure.Environment, subscriptionID string) (string, e
 // unauthenticated request to the Get Subscription Details endpoint and parses
 // the value from WWW-Authenticate header.
 func findTenantID(env azure.Environment, subscriptionID string) (string, error) {
+	goCtx := context.TODO()
+
 	const hdrKey = "WWW-Authenticate"
 	c := subscriptionsClient(env.ResourceManagerEndpoint)
 
 	// we expect this request to fail (err != nil), but we are only interested
 	// in headers, so surface the error if the Response is not present (i.e.
 	// network error etc)
-	subs, err := c.Get(subscriptionID)
+	subs, err := c.Get(goCtx, subscriptionID)
 	if subs.Response.Response == nil {
 		return "", fmt.Errorf("Request failed: %v", err)
 	}

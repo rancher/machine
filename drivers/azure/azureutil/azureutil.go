@@ -1,6 +1,7 @@
 package azureutil
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,10 +12,10 @@ import (
 	"github.com/rancher/machine/drivers/azure/logutil"
 	"github.com/rancher/machine/libmachine/log"
 
-	"github.com/Azure/azure-sdk-for-go/arm/compute"
-	"github.com/Azure/azure-sdk-for-go/arm/network"
-	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
-	"github.com/Azure/azure-sdk-for-go/arm/storage"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2016-09-01/network"
+	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2016-07-01/resources"
+	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2016-01-01/storage"
 	blobstorage "github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -56,10 +57,11 @@ func New(env azure.Environment, subsID string, auth autorest.Authorizer) *AzureC
 // resource provider namespaces if they are not already registered. Namespaces
 // are case-insensitive.
 func (a AzureClient) RegisterResourceProviders(namespaces ...string) error {
-	l, err := a.providersClient().List(nil, "")
+	providerList, err := a.providersClient().List(context.TODO(), nil, "")
 	if err != nil {
 		return err
 	}
+	l := providerList.Response()
 	if l.Value == nil {
 		return errors.New("resource providers list is returned as nil")
 	}
@@ -81,7 +83,7 @@ func (a AzureClient) RegisterResourceProviders(namespaces ...string) error {
 				"ns":   ns,
 				"subs": a.subscriptionID,
 			})
-			if _, err := a.providersClient().Register(ns); err != nil {
+			if _, err := a.providersClient().Register(context.TODO(), ns); err != nil {
 				return err
 			}
 		}
@@ -101,7 +103,7 @@ func (a AzureClient) CreateResourceGroup(name, location string) error {
 	log.Info("Creating resource group.", logutil.Fields{
 		"name":     name,
 		"location": location})
-	_, err := a.resourceGroupsClient().CreateOrUpdate(name,
+	_, err := a.resourceGroupsClient().CreateOrUpdate(context.TODO(), name,
 		resources.Group{
 			Location: to.StringPtr(location),
 		})
@@ -110,7 +112,7 @@ func (a AzureClient) CreateResourceGroup(name, location string) error {
 
 func (a AzureClient) resourceGroupExists(name string) (bool, error) {
 	log.Info("Querying existing resource group.", logutil.Fields{"name": name})
-	_, err := a.resourceGroupsClient().Get(name)
+	_, err := a.resourceGroupsClient().Get(context.TODO(), name)
 	return checkResourceExistsFromError(err)
 }
 
@@ -118,28 +120,34 @@ func (a AzureClient) CreateNetworkSecurityGroup(ctx *DeploymentContext, resource
 	log.Info("Configuring network security group.", logutil.Fields{
 		"name":     name,
 		"location": location})
-	_, err := a.securityGroupsClient().CreateOrUpdate(resourceGroup, name,
+	_, err := a.securityGroupsClient().CreateOrUpdate(context.TODO(), resourceGroup, name,
 		network.SecurityGroup{
 			Location: to.StringPtr(location),
 			SecurityGroupPropertiesFormat: &network.SecurityGroupPropertiesFormat{
 				SecurityRules: rules,
 			},
-		}, nil)
+		})
 	if err != nil {
 		return err
 	}
-	nsg, err := a.securityGroupsClient().Get(resourceGroup, name, "")
+	nsg, err := a.securityGroupsClient().Get(context.TODO(), resourceGroup, name, "")
 	ctx.NetworkSecurityGroupID = to.String(nsg.ID)
 	return err
 }
 
 func (a AzureClient) DeleteNetworkSecurityGroupIfExists(resourceGroup, name string) error {
+	goCtx := context.TODO()
+
 	return deleteResourceIfExists("Network Security Group", name,
 		func() error {
-			_, err := a.securityGroupsClient().Get(resourceGroup, name, "")
+			_, err := a.securityGroupsClient().Get(goCtx, resourceGroup, name, "")
 			return err
 		},
-		func() (autorest.Response, error) { return a.securityGroupsClient().Delete(resourceGroup, name, nil) })
+		func() (autorest.Response, error) {
+			future, _ := a.securityGroupsClient().Delete(goCtx, resourceGroup, name)
+			_ = future.WaitForCompletionRef(goCtx, a.securityGroupsClient().Client)
+			return future.Result(a.securityGroupsClient())
+		})
 }
 
 func (a AzureClient) CreatePublicIPAddress(ctx *DeploymentContext, resourceGroup, name, location string, isStatic bool, dnsLabel string) error {
@@ -161,29 +169,35 @@ func (a AzureClient) CreatePublicIPAddress(ctx *DeploymentContext, resourceGroup
 		}
 	}
 
-	_, err := a.publicIPAddressClient().CreateOrUpdate(resourceGroup, name,
+	_, err := a.publicIPAddressClient().CreateOrUpdate(context.TODO(), resourceGroup, name,
 		network.PublicIPAddress{
 			Location: to.StringPtr(location),
 			PublicIPAddressPropertiesFormat: &network.PublicIPAddressPropertiesFormat{
 				PublicIPAllocationMethod: ipType,
 				DNSSettings:              dns,
 			},
-		}, nil)
+		})
 	if err != nil {
 		return err
 	}
-	ip, err := a.publicIPAddressClient().Get(resourceGroup, name, "")
+	ip, err := a.publicIPAddressClient().Get(context.TODO(), resourceGroup, name, "")
 	ctx.PublicIPAddressID = to.String(ip.ID)
 	return err
 }
 
 func (a AzureClient) DeletePublicIPAddressIfExists(resourceGroup, name string) error {
+	goCtx := context.TODO()
+
 	return deleteResourceIfExists("Public IP", name,
 		func() error {
-			_, err := a.publicIPAddressClient().Get(resourceGroup, name, "")
+			_, err := a.publicIPAddressClient().Get(goCtx, resourceGroup, name, "")
 			return err
 		},
-		func() (autorest.Response, error) { return a.publicIPAddressClient().Delete(resourceGroup, name, nil) })
+		func() (autorest.Response, error) {
+			future, _ := a.publicIPAddressClient().Delete(goCtx, resourceGroup, name)
+			_ = future.WaitForCompletionRef(goCtx, a.publicIPAddressClient().Client)
+			return future.Result(a.publicIPAddressClient())
+		})
 }
 
 func (a AzureClient) CreateVirtualNetworkIfNotExists(resourceGroup, name, location string) error {
@@ -203,7 +217,7 @@ func (a AzureClient) CreateVirtualNetworkIfNotExists(resourceGroup, name, locati
 	}
 
 	log.Info("Creating virtual network.", f)
-	_, err := a.virtualNetworksClient().CreateOrUpdate(resourceGroup, name,
+	_, err := a.virtualNetworksClient().CreateOrUpdate(context.TODO(), resourceGroup, name,
 		network.VirtualNetwork{
 			Location: to.StringPtr(location),
 			VirtualNetworkPropertiesFormat: &network.VirtualNetworkPropertiesFormat{
@@ -211,12 +225,12 @@ func (a AzureClient) CreateVirtualNetworkIfNotExists(resourceGroup, name, locati
 					AddressPrefixes: to.StringSlicePtr(defaultVnetAddressPrefixes),
 				},
 			},
-		}, nil)
+		})
 	return err
 }
 
 func (a AzureClient) virtualNetworkExists(resourceGroup, name string) (bool, error) {
-	_, err := a.virtualNetworksClient().Get(resourceGroup, name, "")
+	_, err := a.virtualNetworksClient().Get(context.TODO(), resourceGroup, name, "")
 	return checkResourceExistsFromError(err)
 }
 
@@ -229,7 +243,7 @@ func (a AzureClient) CleanupVirtualNetworkIfExists(resourceGroup, name string) e
 }
 
 func (a AzureClient) GetSubnet(resourceGroup, virtualNetwork, name string) (network.Subnet, error) {
-	return a.subnetsClient().Get(resourceGroup, virtualNetwork, name, "")
+	return a.subnetsClient().Get(context.TODO(), resourceGroup, virtualNetwork, name, "")
 }
 
 // CreateSubnet creates or updates a subnet if it does not already exist.
@@ -247,18 +261,18 @@ func (a AzureClient) CreateSubnet(ctx *DeploymentContext, resourceGroup, virtual
 			"name": name,
 			"vnet": virtualNetwork,
 			"cidr": subnetPrefix})
-		_, err = a.subnetsClient().CreateOrUpdate(resourceGroup, virtualNetwork, name,
+		_, err = a.subnetsClient().CreateOrUpdate(context.TODO(), resourceGroup, virtualNetwork, name,
 			network.Subnet{
 				SubnetPropertiesFormat: &network.SubnetPropertiesFormat{
 					AddressPrefix: to.StringPtr(subnetPrefix),
 				},
-			}, nil)
+			})
 
 		if err != nil {
 			return err
 		}
 
-		subnet, err = a.subnetsClient().Get(resourceGroup, virtualNetwork, name, "")
+		subnet, err = a.subnetsClient().Get(context.TODO(), resourceGroup, virtualNetwork, name, "")
 		ctx.SubnetID = to.String(subnet.ID)
 		return err
 	}
@@ -294,7 +308,7 @@ func (a AzureClient) CreateNetworkInterface(ctx *DeploymentContext, resourceGrou
 	if privateIPAddress != "" {
 		privateIPAllocMethod = network.Static
 	}
-	_, err := a.networkInterfacesClient().CreateOrUpdate(resourceGroup, name, network.Interface{
+	_, err := a.networkInterfacesClient().CreateOrUpdate(context.TODO(), resourceGroup, name, network.Interface{
 		Location: to.StringPtr(location),
 		InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
 			NetworkSecurityGroup: &network.SecurityGroup{
@@ -314,22 +328,28 @@ func (a AzureClient) CreateNetworkInterface(ctx *DeploymentContext, resourceGrou
 				},
 			},
 		},
-	}, nil)
+	})
 	if err != nil {
 		return err
 	}
-	nic, err := a.networkInterfacesClient().Get(resourceGroup, name, "")
+	nic, err := a.networkInterfacesClient().Get(context.TODO(), resourceGroup, name, "")
 	ctx.NetworkInterfaceID = to.String(nic.ID)
 	return err
 }
 
 func (a AzureClient) DeleteNetworkInterfaceIfExists(resourceGroup, name string) error {
+	goCtx := context.TODO()
+
 	return deleteResourceIfExists("Network Interface", name,
 		func() error {
-			_, err := a.networkInterfacesClient().Get(resourceGroup, name, "")
+			_, err := a.networkInterfacesClient().Get(goCtx, resourceGroup, name, "")
 			return err
 		},
-		func() (autorest.Response, error) { return a.networkInterfacesClient().Delete(resourceGroup, name, nil) })
+		func() (autorest.Response, error) {
+			future, _ := a.networkInterfacesClient().Delete(goCtx, resourceGroup, name)
+			_ = future.WaitForCompletionRef(goCtx, a.networkInterfacesClient().Client)
+			return future.Result(a.networkInterfacesClient())
+		})
 }
 
 func (a AzureClient) CreateStorageAccount(ctx *DeploymentContext, resourceGroup, location string, storageType storage.SkuName) error {
@@ -358,7 +378,7 @@ func (a AzureClient) findStorageAccount(resourceGroup, location, prefix string, 
 		"prefix":   prefix,
 		"location": location}
 	log.Debug("Querying existing storage accounts.", f)
-	l, err := a.storageAccountsClient().ListByResourceGroup(resourceGroup)
+	l, err := a.storageAccountsClient().ListByResourceGroup(context.TODO(), resourceGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -394,16 +414,16 @@ func (a AzureClient) createStorageAccount(resourceGroup, location string, storag
 	}
 
 	log.Info("Creating storage account.", f)
-	_, err := a.storageAccountsClient().Create(resourceGroup, name,
+	_, err := a.storageAccountsClient().Create(context.TODO(), resourceGroup, name,
 		storage.AccountCreateParameters{
 			Location: to.StringPtr(location),
 			Sku:      &storage.Sku{Name: storageType},
-		}, nil)
+		})
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := a.storageAccountsClient().GetProperties(resourceGroup, name)
+	s, err := a.storageAccountsClient().GetProperties(context.TODO(), resourceGroup, name)
 	if err != nil {
 		return nil, err
 	}
@@ -411,19 +431,24 @@ func (a AzureClient) createStorageAccount(resourceGroup, location string, storag
 }
 
 func (a AzureClient) VirtualMachineExists(resourceGroup, name string) (bool, error) {
-	_, err := a.virtualMachinesClient().Get(resourceGroup, name, "")
+	_, err := a.virtualMachinesClient().Get(context.TODO(), resourceGroup, name, "")
 	return checkResourceExistsFromError(err)
 }
 
 func (a AzureClient) DeleteVirtualMachineIfExists(resourceGroup, name string) error {
+	goCtx := context.TODO()
 	var vmRef compute.VirtualMachine
 	err := deleteResourceIfExists("Virtual Machine", name,
 		func() error {
-			vm, err := a.virtualMachinesClient().Get(resourceGroup, name, "")
+			vm, err := a.virtualMachinesClient().Get(goCtx, resourceGroup, name, "")
 			vmRef = vm
 			return err
 		},
-		func() (autorest.Response, error) { return a.virtualMachinesClient().Delete(resourceGroup, name, nil) })
+		func() (autorest.Response, error) {
+			future, _ := a.virtualMachinesClient().Delete(goCtx, resourceGroup, name)
+			_ = future.WaitForCompletionRef(goCtx, a.virtualMachinesClient().Client)
+			return future.Result(a.virtualMachinesClient())
+		})
 	if err != nil {
 		return err
 	}
@@ -462,7 +487,7 @@ func (a AzureClient) removeOSDiskBlob(resourceGroup, vmName, vhdURL string) erro
 		"account":     storageAccount,
 		"storageBase": blobServiceBaseURL,
 	})
-	resp, err := a.storageAccountsClient().ListKeys(resourceGroup, storageAccount)
+	resp, err := a.storageAccountsClient().ListKeys(context.TODO(), resourceGroup, storageAccount)
 	if err != nil {
 		return err
 	}
@@ -471,7 +496,7 @@ func (a AzureClient) removeOSDiskBlob(resourceGroup, vmName, vhdURL string) erro
 		return errors.New("Returned storage keys list response does not contain any keys")
 	}
 	storageAccountKey := to.String(((*resp.Keys)[0]).Value)
-	bs, err := blobstorage.NewClient(storageAccount, storageAccountKey, blobServiceBaseURL, defaultStorageAPIVersion, true)
+	bsc, err := blobstorage.NewClient(storageAccount, storageAccountKey, blobServiceBaseURL, defaultStorageAPIVersion, true)
 	if err != nil {
 		return fmt.Errorf("Error constructing blob storage client :%v", err)
 	}
@@ -480,19 +505,20 @@ func (a AzureClient) removeOSDiskBlob(resourceGroup, vmName, vhdURL string) erro
 		"account":   storageAccount,
 		"container": vhdContainer}
 	log.Debug("Removing container of disk blobs.", f)
-	containerRef := bs.GetBlobService().GetContainerReference(vhdContainer)
-	if ok, err := containerRef.DeleteIfExists(); err != nil {
+	bs := bsc.GetBlobService()
+	containerRef := bs.GetContainerReference(vhdContainer)
+	if ok, err := containerRef.DeleteIfExists(nil); err != nil {
 		log.Debugf("Container remove happened: %v", ok)
 	}
 
-	cts, err := bs.GetBlobService().ListContainers(blobstorage.ListContainersParameters{})
+	cts, err := bs.ListContainers(blobstorage.ListContainersParameters{})
 	if err != nil {
 		return err
 	}
 
 	if len(cts.Containers) == 0 {
 		log.Debugf("No storage containers left. Deleting virtual machine storage account.")
-		resp, err := a.storageAccountsClient().Delete(resourceGroup, storageAccount)
+		resp, err := a.storageAccountsClient().Delete(context.TODO(), resourceGroup, storageAccount)
 		if err != nil {
 			return err
 		}
@@ -542,7 +568,7 @@ func (a AzureClient) CreateVirtualMachine(resourceGroup, name, location, size, a
 		osProfile.CustomData = to.StringPtr(customData)
 	}
 
-	_, err = a.virtualMachinesClient().CreateOrUpdate(resourceGroup, name,
+	_, err = a.virtualMachinesClient().CreateOrUpdate(context.TODO(), resourceGroup, name,
 		compute.VirtualMachine{
 			Location: to.StringPtr(location),
 			VirtualMachineProperties: &compute.VirtualMachineProperties{
@@ -570,7 +596,7 @@ func (a AzureClient) CreateVirtualMachine(resourceGroup, name, location, size, a
 					OsDisk: getOSDisk(name, storageAccount, isManaged, storageType, diskSize),
 				},
 			},
-		}, nil)
+		})
 	return err
 }
 
@@ -581,20 +607,20 @@ func getOSDisk(name string, account *storage.AccountProperties, isManaged bool, 
 	if isManaged {
 		osdisk = &compute.OSDisk{
 			Name:         to.StringPtr(fmt.Sprintf(fmtOSDiskResourceName, name)),
-			Caching:      compute.ReadWrite,
-			CreateOption: compute.FromImage,
+			Caching:      compute.CachingTypesReadWrite,
+			CreateOption: compute.DiskCreateOptionTypesFromImage,
+			DiskSizeGB:   to.Int32Ptr(diskSize),
 			ManagedDisk: &compute.ManagedDiskParameters{
 				StorageAccountType: compute.StorageAccountTypes(storageType),
 			},
-			DiskSizeGB: to.Int32Ptr(diskSize),
 		}
 	} else {
 		osDiskBlobURL := osDiskStorageBlobURL(account, name)
 		log.Debugf("OS disk blob will be placed at: %s", osDiskBlobURL)
 		osdisk = &compute.OSDisk{
 			Name:         to.StringPtr(fmt.Sprintf(fmtOSDiskResourceName, name)),
-			Caching:      compute.ReadWrite,
-			CreateOption: compute.FromImage,
+			Caching:      compute.CachingTypesReadWrite,
+			CreateOption: compute.DiskCreateOptionTypesFromImage,
 			Vhd: &compute.VirtualHardDisk{
 				URI: to.StringPtr(osDiskBlobURL),
 			},
@@ -605,7 +631,7 @@ func getOSDisk(name string, account *storage.AccountProperties, isManaged bool, 
 }
 func (a AzureClient) GetVirtualMachinePowerState(resourceGroup, name string) (VMPowerState, error) {
 	log.Debug("Querying instance view for power state.")
-	vm, err := a.virtualMachinesClient().Get(resourceGroup, name, "instanceView")
+	vm, err := a.virtualMachinesClient().Get(context.TODO(), resourceGroup, name, "instanceView")
 	if err != nil {
 		log.Errorf("Error querying instance view: %v", err)
 		return Unknown, err
@@ -614,7 +640,7 @@ func (a AzureClient) GetVirtualMachinePowerState(resourceGroup, name string) (VM
 }
 
 func (a AzureClient) GetAvailabilitySet(resourceGroup, name string) (compute.AvailabilitySet, error) {
-	return a.availabilitySetsClient().Get(resourceGroup, name)
+	return a.availabilitySetsClient().Get(context.TODO(), resourceGroup, name)
 }
 
 // CreateAvailabilitySetIfNotExists checks that managed disk option match availability set if it already exists. If the
@@ -623,7 +649,7 @@ func (a AzureClient) CreateAvailabilitySetIfNotExists(ctx *DeploymentContext, re
 	f := logutil.Fields{"name": name}
 	log.Info("Configuring availability set.", f)
 
-	as, err := a.availabilitySetsClient().Get(resourceGroup, name)
+	as, err := a.availabilitySetsClient().Get(context.TODO(), resourceGroup, name)
 	if err != nil {
 		if !isNotFoundError(err) {
 			return fmt.Errorf("error getting availability set: %v", err)
@@ -637,7 +663,7 @@ func (a AzureClient) CreateAvailabilitySetIfNotExists(ctx *DeploymentContext, re
 			skuName = "Aligned"
 		}
 
-		as, err = a.availabilitySetsClient().CreateOrUpdate(resourceGroup, name,
+		as, err = a.availabilitySetsClient().CreateOrUpdate(context.TODO(), resourceGroup, name,
 			compute.AvailabilitySet{
 				Location: to.StringPtr(location),
 				AvailabilitySetProperties: &compute.AvailabilitySetProperties{
@@ -688,7 +714,7 @@ func (a AzureClient) CleanupAvailabilitySetIfExists(resourceGroup, name string) 
 func (a AzureClient) GetPublicIPAddress(resourceGroup, name string, useFqdn bool) (string, error) {
 	f := logutil.Fields{"name": name}
 	log.Debug("Querying public IP address.", f)
-	ip, err := a.publicIPAddressClient().Get(resourceGroup, name, "")
+	ip, err := a.publicIPAddressClient().Get(context.TODO(), resourceGroup, name, "")
 	if err != nil {
 		return "", err
 	}
@@ -713,7 +739,7 @@ func (a AzureClient) GetPublicIPAddress(resourceGroup, name string, useFqdn bool
 func (a AzureClient) GetPrivateIPAddress(resourceGroup, name string) (string, error) {
 	f := logutil.Fields{"name": name}
 	log.Debug("Querying network interface.", f)
-	nic, err := a.networkInterfacesClient().Get(resourceGroup, name, "")
+	nic, err := a.networkInterfacesClient().Get(context.TODO(), resourceGroup, name, "")
 	if err != nil {
 		return "", err
 	}
@@ -729,7 +755,7 @@ func (a AzureClient) GetPrivateIPAddress(resourceGroup, name string) (string, er
 // the goal state (running) or times out.
 func (a AzureClient) StartVirtualMachine(resourceGroup, name string) error {
 	log.Info("Starting virtual machine.", logutil.Fields{"vm": name})
-	if _, err := a.virtualMachinesClient().Start(resourceGroup, name, nil); err != nil {
+	if _, err := a.virtualMachinesClient().Start(context.TODO(), resourceGroup, name); err != nil {
 		return err
 	}
 	return a.waitVMPowerState(resourceGroup, name, Running, waitStartTimeout)
@@ -739,7 +765,7 @@ func (a AzureClient) StartVirtualMachine(resourceGroup, name string) error {
 // the goal state (stopped) or times out.
 func (a AzureClient) StopVirtualMachine(resourceGroup, name string) error {
 	log.Info("Stopping virtual machine.", logutil.Fields{"vm": name})
-	if _, err := a.virtualMachinesClient().PowerOff(resourceGroup, name, nil); err != nil {
+	if _, err := a.virtualMachinesClient().PowerOff(context.TODO(), resourceGroup, name); err != nil {
 		return err
 	}
 	return a.waitVMPowerState(resourceGroup, name, Stopped, waitPowerOffTimeout)
@@ -749,7 +775,7 @@ func (a AzureClient) StopVirtualMachine(resourceGroup, name string) error {
 // the goal state (stopped) or times out.
 func (a AzureClient) RestartVirtualMachine(resourceGroup, name string) error {
 	log.Info("Restarting virtual machine.", logutil.Fields{"vm": name})
-	if _, err := a.virtualMachinesClient().Restart(resourceGroup, name, nil); err != nil {
+	if _, err := a.virtualMachinesClient().Restart(context.TODO(), resourceGroup, name); err != nil {
 		return err
 	}
 	return a.waitVMPowerState(resourceGroup, name, Running, waitStartTimeout)

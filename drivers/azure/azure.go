@@ -15,8 +15,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/state"
 
-	"github.com/Azure/azure-sdk-for-go/arm/storage"
-)
+	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2016-01-01/storage")
 
 const (
 	defaultAzureEnvironment     = "AzurePublicCloud"
