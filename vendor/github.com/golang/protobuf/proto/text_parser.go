@@ -44,9 +44,6 @@ import (
 	"unicode/utf8"
 )
 
-// Error string emitted when deserializing Any and fields are already set
-const anyRepeatedlyUnpacked = "Any message unpacked multiple times, or %q already set"
-
 type ParseError struct {
 	Message string
 	Line    int // 1-based line number
@@ -166,7 +163,7 @@ func (p *textParser) advance() {
 	p.cur.offset, p.cur.line = p.offset, p.line
 	p.cur.unquoted = ""
 	switch p.s[0] {
-	case '<', '>', '{', '}', ':', '[', ']', ';', ',', '/':
+	case '<', '>', '{', '}', ':', '[', ']', ';', ',':
 		// Single symbol
 		p.cur.value, p.s = p.s[0:1], p.s[1:len(p.s)]
 	case '"', '\'':
@@ -206,6 +203,7 @@ func (p *textParser) advance() {
 
 var (
 	errBadUTF8 = errors.New("proto: bad UTF-8")
+	errBadHex  = errors.New("proto: bad hexadecimal")
 )
 
 func unquoteC(s string, quote rune) (string, error) {
@@ -276,45 +274,58 @@ func unescape(s string) (ch string, tail string, err error) {
 		return "?", s, nil // trigraph workaround
 	case '\'', '"', '\\':
 		return string(r), s, nil
-	case '0', '1', '2', '3', '4', '5', '6', '7':
+	case '0', '1', '2', '3', '4', '5', '6', '7', 'x', 'X':
 		if len(s) < 2 {
 			return "", "", fmt.Errorf(`\%c requires 2 following digits`, r)
 		}
-		ss := string(r) + s[:2]
+		base := 8
+		ss := s[:2]
 		s = s[2:]
-		i, err := strconv.ParseUint(ss, 8, 8)
+		if r == 'x' || r == 'X' {
+			base = 16
+		} else {
+			ss = string(r) + ss
+		}
+		i, err := strconv.ParseUint(ss, base, 8)
 		if err != nil {
-			return "", "", fmt.Errorf(`\%s contains non-octal digits`, ss)
+			return "", "", err
 		}
 		return string([]byte{byte(i)}), s, nil
-	case 'x', 'X', 'u', 'U':
-		var n int
-		switch r {
-		case 'x', 'X':
-			n = 2
-		case 'u':
-			n = 4
-		case 'U':
+	case 'u', 'U':
+		n := 4
+		if r == 'U' {
 			n = 8
 		}
 		if len(s) < n {
-			return "", "", fmt.Errorf(`\%c requires %d following digits`, r, n)
+			return "", "", fmt.Errorf(`\%c requires %d digits`, r, n)
 		}
-		ss := s[:n]
+
+		bs := make([]byte, n/2)
+		for i := 0; i < n; i += 2 {
+			a, ok1 := unhex(s[i])
+			b, ok2 := unhex(s[i+1])
+			if !ok1 || !ok2 {
+				return "", "", errBadHex
+			}
+			bs[i/2] = a<<4 | b
+		}
 		s = s[n:]
-		i, err := strconv.ParseUint(ss, 16, 64)
-		if err != nil {
-			return "", "", fmt.Errorf(`\%c%s contains non-hexadecimal digits`, r, ss)
-		}
-		if r == 'x' || r == 'X' {
-			return string([]byte{byte(i)}), s, nil
-		}
-		if i > utf8.MaxRune {
-			return "", "", fmt.Errorf(`\%c%s is not a valid Unicode code point`, r, ss)
-		}
-		return string(i), s, nil
+		return string(bs), s, nil
 	}
 	return "", "", fmt.Errorf(`unknown escape \%c`, r)
+}
+
+// Adapted from src/pkg/strconv/quote.go.
+func unhex(b byte) (v byte, ok bool) {
+	switch {
+	case '0' <= b && b <= '9':
+		return b - '0', true
+	case 'a' <= b && b <= 'f':
+		return b - 'a' + 10, true
+	case 'A' <= b && b <= 'F':
+		return b - 'A' + 10, true
+	}
+	return 0, false
 }
 
 // Back off the parser by one token. Can only be done between calls to next().
@@ -440,10 +451,7 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 	fieldSet := make(map[string]bool)
 	// A struct is a sequence of "name: value", terminated by one of
 	// '>' or '}', or the end of the input.  A name may also be
-	// "[extension]" or "[type/url]".
-	//
-	// The whole struct can also be an expanded Any message, like:
-	// [type/url] < ... struct contents ... >
+	// "[extension]".
 	for {
 		tok := p.next()
 		if tok.err != nil {
@@ -453,74 +461,33 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			break
 		}
 		if tok.value == "[" {
-			// Looks like an extension or an Any.
+			// Looks like an extension.
 			//
 			// TODO: Check whether we need to handle
 			// namespace rooted names (e.g. ".something.Foo").
-			extName, err := p.consumeExtName()
-			if err != nil {
-				return err
+			tok = p.next()
+			if tok.err != nil {
+				return tok.err
 			}
-
-			if s := strings.LastIndex(extName, "/"); s >= 0 {
-				// If it contains a slash, it's an Any type URL.
-				messageName := extName[s+1:]
-				mt := MessageType(messageName)
-				if mt == nil {
-					return p.errorf("unrecognized message %q in google.protobuf.Any", messageName)
-				}
-				tok = p.next()
-				if tok.err != nil {
-					return tok.err
-				}
-				// consume an optional colon
-				if tok.value == ":" {
-					tok = p.next()
-					if tok.err != nil {
-						return tok.err
-					}
-				}
-				var terminator string
-				switch tok.value {
-				case "<":
-					terminator = ">"
-				case "{":
-					terminator = "}"
-				default:
-					return p.errorf("expected '{' or '<', found %q", tok.value)
-				}
-				v := reflect.New(mt.Elem())
-				if pe := p.readStruct(v.Elem(), terminator); pe != nil {
-					return pe
-				}
-				b, err := Marshal(v.Interface().(Message))
-				if err != nil {
-					return p.errorf("failed to marshal message of type %q: %v", messageName, err)
-				}
-				if fieldSet["type_url"] {
-					return p.errorf(anyRepeatedlyUnpacked, "type_url")
-				}
-				if fieldSet["value"] {
-					return p.errorf(anyRepeatedlyUnpacked, "value")
-				}
-				sv.FieldByName("TypeUrl").SetString(extName)
-				sv.FieldByName("Value").SetBytes(b)
-				fieldSet["type_url"] = true
-				fieldSet["value"] = true
-				continue
-			}
-
 			var desc *ExtensionDesc
 			// This could be faster, but it's functional.
 			// TODO: Do something smarter than a linear scan.
 			for _, d := range RegisteredExtensions(reflect.New(st).Interface().(Message)) {
-				if d.Name == extName {
+				if d.Name == tok.value {
 					desc = d
 					break
 				}
 			}
 			if desc == nil {
-				return p.errorf("unrecognized extension %q", extName)
+				return p.errorf("unrecognized extension %q", tok.value)
+			}
+			// Check the extension terminator.
+			tok = p.next()
+			if tok.err != nil {
+				return tok.err
+			}
+			if tok.value != "]" {
+				return p.errorf("unrecognized extension terminator %q", tok.value)
 			}
 
 			props := &Properties{}
@@ -547,7 +514,7 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 				}
 				reqFieldErr = err
 			}
-			ep := sv.Addr().Interface().(Message)
+			ep := sv.Addr().Interface().(extendableProto)
 			if !rep {
 				SetExtension(ep, desc, ext.Interface())
 			} else {
@@ -578,11 +545,7 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			props = oop.Prop
 			nv := reflect.New(oop.Type.Elem())
 			dst = nv.Elem().Field(0)
-			field := sv.Field(oop.Field)
-			if !field.IsNil() {
-				return p.errorf("field '%s' would overwrite already parsed oneof '%s'", name, sv.Type().Field(oop.Field).Name)
-			}
-			field.Set(nv)
+			sv.Field(oop.Field).Set(nv)
 		}
 		if !dst.IsValid() {
 			return p.errorf("unknown field name %q in %v", name, st)
@@ -603,9 +566,8 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 
 			// The map entry should be this sequence of tokens:
 			//	< key : KEY value : VALUE >
-			// However, implementations may omit key or value, and technically
-			// we should support them in any order.  See b/28924776 for a time
-			// this went wrong.
+			// Technically the "key" and "value" could come in any order,
+			// but in practice they won't.
 
 			tok := p.next()
 			var terminator string
@@ -617,39 +579,32 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			default:
 				return p.errorf("expected '{' or '<', found %q", tok.value)
 			}
-			for {
-				tok := p.next()
-				if tok.err != nil {
-					return tok.err
-				}
-				if tok.value == terminator {
-					break
-				}
-				switch tok.value {
-				case "key":
-					if err := p.consumeToken(":"); err != nil {
-						return err
-					}
-					if err := p.readAny(key, props.MapKeyProp); err != nil {
-						return err
-					}
-					if err := p.consumeOptionalSeparator(); err != nil {
-						return err
-					}
-				case "value":
-					if err := p.checkForColon(props.MapValProp, dst.Type().Elem()); err != nil {
-						return err
-					}
-					if err := p.readAny(val, props.MapValProp); err != nil {
-						return err
-					}
-					if err := p.consumeOptionalSeparator(); err != nil {
-						return err
-					}
-				default:
-					p.back()
-					return p.errorf(`expected "key", "value", or %q, found %q`, terminator, tok.value)
-				}
+			if err := p.consumeToken("key"); err != nil {
+				return err
+			}
+			if err := p.consumeToken(":"); err != nil {
+				return err
+			}
+			if err := p.readAny(key, props.mkeyprop); err != nil {
+				return err
+			}
+			if err := p.consumeOptionalSeparator(); err != nil {
+				return err
+			}
+			if err := p.consumeToken("value"); err != nil {
+				return err
+			}
+			if err := p.checkForColon(props.mvalprop, dst.Type().Elem()); err != nil {
+				return err
+			}
+			if err := p.readAny(val, props.mvalprop); err != nil {
+				return err
+			}
+			if err := p.consumeOptionalSeparator(); err != nil {
+				return err
+			}
+			if err := p.consumeToken(terminator); err != nil {
+				return err
 			}
 
 			dst.SetMapIndex(key, val)
@@ -672,8 +627,7 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 				return err
 			}
 			reqFieldErr = err
-		}
-		if props.Required {
+		} else if props.Required {
 			reqCount--
 		}
 
@@ -687,38 +641,6 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 		return p.missingRequiredFieldError(sv)
 	}
 	return reqFieldErr
-}
-
-// consumeExtName consumes extension name or expanded Any type URL and the
-// following ']'. It returns the name or URL consumed.
-func (p *textParser) consumeExtName() (string, error) {
-	tok := p.next()
-	if tok.err != nil {
-		return "", tok.err
-	}
-
-	// If extension name or type url is quoted, it's a single token.
-	if len(tok.value) > 2 && isQuote(tok.value[0]) && tok.value[len(tok.value)-1] == tok.value[0] {
-		name, err := unquoteC(tok.value[1:len(tok.value)-1], rune(tok.value[0]))
-		if err != nil {
-			return "", err
-		}
-		return name, p.consumeToken("]")
-	}
-
-	// Consume everything up to "]"
-	var parts []string
-	for tok.value != "]" {
-		parts = append(parts, tok.value)
-		tok = p.next()
-		if tok.err != nil {
-			return "", p.errorf("unrecognized type_url or extension name: %s", tok.err)
-		}
-		if p.done && tok.value != "]" {
-			return "", p.errorf("unclosed type_url or extension name")
-		}
-	}
-	return strings.Join(parts, ""), nil
 }
 
 // consumeOptionalSeparator consumes an optional semicolon or comma.
@@ -785,12 +707,12 @@ func (p *textParser) readAny(v reflect.Value, props *Properties) error {
 		fv.Set(reflect.Append(fv, reflect.New(at.Elem()).Elem()))
 		return p.readAny(fv.Index(fv.Len()-1), props)
 	case reflect.Bool:
-		// true/1/t/True or false/f/0/False.
+		// Either "true", "false", 1 or 0.
 		switch tok.value {
-		case "true", "1", "t", "True":
+		case "true", "1":
 			fv.SetBool(true)
 			return nil
-		case "false", "0", "f", "False":
+		case "false", "0":
 			fv.SetBool(false)
 			return nil
 		}
@@ -872,9 +794,13 @@ func (p *textParser) readAny(v reflect.Value, props *Properties) error {
 // UnmarshalText returns *RequiredNotSetError.
 func UnmarshalText(s string, pb Message) error {
 	if um, ok := pb.(encoding.TextUnmarshaler); ok {
-		return um.UnmarshalText([]byte(s))
+		err := um.UnmarshalText([]byte(s))
+		return err
 	}
 	pb.Reset()
 	v := reflect.ValueOf(pb)
-	return newTextParser(s).readStruct(v.Elem(), "")
+	if pe := newTextParser(s).readStruct(v.Elem(), ""); pe != nil {
+		return pe
+	}
+	return nil
 }

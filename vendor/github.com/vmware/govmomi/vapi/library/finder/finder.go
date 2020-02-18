@@ -195,8 +195,7 @@ func (f *Finder) findLibraries(
 	// If the token does not contain any wildcard characters then perform
 	// a lookup by name using a server side call.
 	if !strings.ContainsAny(token, "*?") {
-		libIDs, err := f.M.FindLibrary(
-			ctx, library.Find{Name: token, Type: "LOCAL"})
+		libIDs, err := f.M.FindLibrary(ctx, library.Find{Name: token})
 		if err != nil {
 			return nil, err
 		}
@@ -206,6 +205,12 @@ func (f *Finder) findLibraries(
 				return nil, err
 			}
 			result = append(result, findResult{result: *lib})
+		}
+		if len(result) == 0 {
+			lib, err := f.M.GetLibraryByID(ctx, token)
+			if err == nil {
+				result = append(result, findResult{result: *lib})
+			}
 		}
 		return result, nil
 	}

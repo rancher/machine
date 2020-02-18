@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
-	"io/ioutil"
+	"sort"
 	"strings"
 )
 
@@ -16,35 +17,74 @@ type Command struct {
 	Aliases []string
 	// A short description of the usage of this command
 	Usage string
+	// Custom text to show on USAGE section of help
+	UsageText string
 	// A longer explanation of how the command works
 	Description string
 	// A short description of the arguments of this command
 	ArgsUsage string
+	// The category the command is part of
+	Category string
 	// The function to call when checking for bash command completions
-	BashComplete func(context *Context)
+	BashComplete BashCompleteFunc
 	// An action to execute before any sub-subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no sub-subcommands are run
-	Before func(context *Context) error
+	Before BeforeFunc
 	// An action to execute after any subcommands are run, but after the subcommand has finished
 	// It is run even if Action() panics
-	After func(context *Context) error
+	After AfterFunc
 	// The function to call when this command is invoked
-	Action func(context *Context)
+	Action interface{}
+	// TODO: replace `Action: interface{}` with `Action: ActionFunc` once some kind
+	// of deprecation period has passed, maybe?
+
+	// Execute this function if a usage error occurs.
+	OnUsageError OnUsageErrorFunc
 	// List of child commands
-	Subcommands []Command
+	Subcommands Commands
 	// List of flags to parse
 	Flags []Flag
 	// Treat all flags as normal arguments if true
 	SkipFlagParsing bool
+	// Skip argument reordering which attempts to move flags before arguments,
+	// but only works if all flags appear after all arguments. This behavior was
+	// removed n version 2 since it only works under specific conditions so we
+	// backport here by exposing it as an option for compatibility.
+	SkipArgReorder bool
 	// Boolean to hide built-in help command
 	HideHelp bool
+	// Boolean to hide this command from help or completion
+	Hidden bool
+	// Boolean to enable short-option handling so user can combine several
+	// single-character bool arguments into one
+	// i.e. foobar -o -v -> foobar -ov
+	UseShortOptionHandling bool
 
 	// Full name of command for help, defaults to full command name, including parent commands.
 	HelpName        string
 	commandNamePath []string
+
+	// CustomHelpTemplate the text template for the command help topic.
+	// cli.go uses text/template to render templates. You can
+	// render custom help text by setting this variable.
+	CustomHelpTemplate string
 }
 
-// Returns the full name of the command.
+type CommandsByName []Command
+
+func (c CommandsByName) Len() int {
+	return len(c)
+}
+
+func (c CommandsByName) Less(i, j int) bool {
+	return lexicographicLess(c[i].Name, c[j].Name)
+}
+
+func (c CommandsByName) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+// FullName returns the full name of the command.
 // For subcommands this ensures that parent commands are part of the command path
 func (c Command) FullName() string {
 	if c.commandNamePath == nil {
@@ -53,9 +93,12 @@ func (c Command) FullName() string {
 	return strings.Join(c.commandNamePath, " ")
 }
 
-// Invokes the command given the context, parses ctx.Args() to generate command-specific flags
-func (c Command) Run(ctx *Context) error {
-	if len(c.Subcommands) > 0 || c.Before != nil || c.After != nil {
+// Commands is a slice of Command
+type Commands []Command
+
+// Run invokes the command given the context, parses ctx.Args() to generate command-specific flags
+func (c Command) Run(ctx *Context) (err error) {
+	if len(c.Subcommands) > 0 {
 		return c.startApp(ctx)
 	}
 
@@ -67,77 +110,141 @@ func (c Command) Run(ctx *Context) error {
 		)
 	}
 
-	if ctx.App.EnableBashCompletion {
-		c.Flags = append(c.Flags, BashCompletionFlag)
+	if ctx.App.UseShortOptionHandling {
+		c.UseShortOptionHandling = true
 	}
 
-	set := flagSet(c.Name, c.Flags)
-	set.SetOutput(ioutil.Discard)
+	set, err := c.parseFlags(ctx.Args().Tail())
 
-	var err error
-	if !c.SkipFlagParsing {
-		firstFlagIndex := -1
-		terminatorIndex := -1
-		for index, arg := range ctx.Args() {
-			if arg == "--" {
-				terminatorIndex = index
-				break
-			} else if strings.HasPrefix(arg, "-") && firstFlagIndex == -1 {
-				firstFlagIndex = index
-			}
-		}
-
-		if firstFlagIndex > -1 {
-			args := ctx.Args()
-			regularArgs := make([]string, len(args[1:firstFlagIndex]))
-			copy(regularArgs, args[1:firstFlagIndex])
-
-			var flagArgs []string
-			if terminatorIndex > -1 {
-				flagArgs = args[firstFlagIndex:terminatorIndex]
-				regularArgs = append(regularArgs, args[terminatorIndex:]...)
-			} else {
-				flagArgs = args[firstFlagIndex:]
-			}
-
-			err = set.Parse(append(flagArgs, regularArgs...))
-		} else {
-			err = set.Parse(ctx.Args().Tail())
-		}
-	} else {
-		if c.SkipFlagParsing {
-			err = set.Parse(append([]string{"--"}, ctx.Args().Tail()...))
-		}
+	context := NewContext(ctx.App, set, ctx)
+	context.Command = c
+	if checkCommandCompletions(context, c.Name) {
+		return nil
 	}
 
 	if err != nil {
-		fmt.Fprintln(ctx.App.Writer, "Incorrect Usage.")
-		fmt.Fprintln(ctx.App.Writer)
-		ShowCommandHelp(ctx, c.Name)
+		if c.OnUsageError != nil {
+			err := c.OnUsageError(context, err, false)
+			context.App.handleExitCoder(context, err)
+			return err
+		}
+		_, _ = fmt.Fprintln(context.App.Writer, "Incorrect Usage:", err.Error())
+		_, _ = fmt.Fprintln(context.App.Writer)
+		_ = ShowCommandHelp(context, c.Name)
 		return err
-	}
-
-	nerr := normalizeFlags(c.Flags, set)
-	if nerr != nil {
-		fmt.Fprintln(ctx.App.Writer, nerr)
-		fmt.Fprintln(ctx.App.Writer)
-		ShowCommandHelp(ctx, c.Name)
-		return nerr
-	}
-	context := NewContext(ctx.App, set, ctx)
-
-	if checkCommandCompletions(context, c.Name) {
-		return nil
 	}
 
 	if checkCommandHelp(context, c.Name) {
 		return nil
 	}
-	context.Command = c
-	c.Action(context)
-	return nil
+
+	cerr := checkRequiredFlags(c.Flags, context)
+	if cerr != nil {
+		_ = ShowCommandHelp(context, c.Name)
+		return cerr
+	}
+
+	if c.After != nil {
+		defer func() {
+			afterErr := c.After(context)
+			if afterErr != nil {
+				context.App.handleExitCoder(context, err)
+				if err != nil {
+					err = NewMultiError(err, afterErr)
+				} else {
+					err = afterErr
+				}
+			}
+		}()
+	}
+
+	if c.Before != nil {
+		err = c.Before(context)
+		if err != nil {
+			_ = ShowCommandHelp(context, c.Name)
+			context.App.handleExitCoder(context, err)
+			return err
+		}
+	}
+
+	if c.Action == nil {
+		c.Action = helpSubcommand.Action
+	}
+
+	err = HandleAction(c.Action, context)
+
+	if err != nil {
+		context.App.handleExitCoder(context, err)
+	}
+	return err
 }
 
+func (c *Command) parseFlags(args Args) (*flag.FlagSet, error) {
+	if c.SkipFlagParsing {
+		set, err := c.newFlagSet()
+		if err != nil {
+			return nil, err
+		}
+
+		return set, set.Parse(append([]string{"--"}, args...))
+	}
+
+	if !c.SkipArgReorder {
+		args = reorderArgs(args)
+	}
+
+	set, err := parseIter(c, args)
+	if err != nil {
+		return nil, err
+	}
+
+	err = normalizeFlags(c.Flags, set)
+	if err != nil {
+		return nil, err
+	}
+
+	return set, nil
+}
+
+func (c *Command) newFlagSet() (*flag.FlagSet, error) {
+	return flagSet(c.Name, c.Flags)
+}
+
+func (c *Command) useShortOptionHandling() bool {
+	return c.UseShortOptionHandling
+}
+
+// reorderArgs moves all flags before arguments as this is what flag expects
+func reorderArgs(args []string) []string {
+	var nonflags, flags []string
+
+	readFlagValue := false
+	for i, arg := range args {
+		if arg == "--" {
+			nonflags = append(nonflags, args[i:]...)
+			break
+		}
+
+		if readFlagValue && !strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") {
+			readFlagValue = false
+			flags = append(flags, arg)
+			continue
+		}
+		readFlagValue = false
+
+		if arg != "-" && strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+
+			readFlagValue = !strings.Contains(arg, "=")
+		} else {
+			nonflags = append(nonflags, arg)
+		}
+	}
+
+	return append(flags, nonflags...)
+}
+
+// Names returns the names including short names and aliases.
 func (c Command) Names() []string {
 	names := []string{c.Name}
 
@@ -148,7 +255,7 @@ func (c Command) Names() []string {
 	return append(names, c.Aliases...)
 }
 
-// Returns true if Command.Name or Command.ShortName matches given name
+// HasName returns true if Command.Name or Command.ShortName matches given name
 func (c Command) HasName(name string) bool {
 	for _, n := range c.Names() {
 		if n == name {
@@ -160,23 +267,23 @@ func (c Command) HasName(name string) bool {
 
 func (c Command) startApp(ctx *Context) error {
 	app := NewApp()
-
+	app.Metadata = ctx.App.Metadata
+	app.ExitErrHandler = ctx.App.ExitErrHandler
 	// set the name and usage
 	app.Name = fmt.Sprintf("%s %s", ctx.App.Name, c.Name)
 	if c.HelpName == "" {
 		app.HelpName = c.HelpName
 	} else {
-		app.HelpName = fmt.Sprintf("%s %s", ctx.App.Name, c.Name)
+		app.HelpName = app.Name
 	}
 
-	if c.Description != "" {
-		app.Usage = c.Description
-	} else {
-		app.Usage = c.Usage
-	}
+	app.Usage = c.Usage
+	app.Description = c.Description
+	app.ArgsUsage = c.ArgsUsage
 
 	// set CommandNotFound
 	app.CommandNotFound = ctx.App.CommandNotFound
+	app.CustomAppHelpTemplate = c.CustomHelpTemplate
 
 	// set the flags and commands
 	app.Commands = c.Subcommands
@@ -189,6 +296,15 @@ func (c Command) startApp(ctx *Context) error {
 	app.Author = ctx.App.Author
 	app.Email = ctx.App.Email
 	app.Writer = ctx.App.Writer
+	app.ErrWriter = ctx.App.ErrWriter
+	app.UseShortOptionHandling = ctx.App.UseShortOptionHandling
+
+	app.categories = CommandCategories{}
+	for _, command := range c.Subcommands {
+		app.categories = app.categories.AddCommand(command.Category, command)
+	}
+
+	sort.Sort(app.categories)
 
 	// bash completion
 	app.EnableBashCompletion = ctx.App.EnableBashCompletion
@@ -204,13 +320,16 @@ func (c Command) startApp(ctx *Context) error {
 	} else {
 		app.Action = helpSubcommand.Action
 	}
+	app.OnUsageError = c.OnUsageError
 
-	var newCmds []Command
-	for _, cc := range app.Commands {
-		cc.commandNamePath = []string{c.Name, cc.Name}
-		newCmds = append(newCmds, cc)
+	for index, cc := range app.Commands {
+		app.Commands[index].commandNamePath = []string{c.Name, cc.Name}
 	}
-	app.Commands = newCmds
 
 	return app.RunAsSubcommand(ctx)
+}
+
+// VisibleFlags returns a slice of the Flags with Hidden=false
+func (c Command) VisibleFlags() []Flag {
+	return visibleFlags(c.Flags)
 }

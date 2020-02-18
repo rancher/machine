@@ -2,19 +2,20 @@
 
 
 [[projects]]
-  digest = "1:5251e329aedf2c89d2ddae736b04b633f60b119f9e2e9bafd1d21e9d2d720152"
+  digest = "1:ea358442b00b9c837deef702d0c8bd4f853aef04cc3fae616da3bfa988c0be2e"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
-    "arm/compute",
-    "arm/network",
-    "arm/resources/resources",
-    "arm/resources/subscriptions",
-    "arm/storage",
+    "services/compute/mgmt/2018-10-01/compute",
+    "services/network/mgmt/2016-09-01/network",
+    "services/resources/mgmt/2015-11-01/subscriptions",
+    "services/resources/mgmt/2016-07-01/resources",
+    "services/storage/mgmt/2016-01-01/storage",
     "storage",
+    "version",
   ]
   pruneopts = "UT"
-  revision = "088007b3b08cc02b27f2eadfdcd870958460ce7e"
-  version = "v9.0.1-beta"
+  revision = "0fffdb1371e8b1841662548797de09ef52bd529b"
+  version = "v39.1.0"
 
 [[projects]]
   branch = "master"
@@ -28,18 +29,21 @@
   revision = "d6e3b3328b783f23731bc4d058875b0371ff8109"
 
 [[projects]]
-  digest = "1:7119b0c081a1995d08827e697a94447a922dd57ec4b55962c91cc64c81f363a3"
+  digest = "1:5d72be7a7bb557bdd7586edf39984bf990153969d9721e06f8ceafbe4f8312b7"
   name = "github.com/Azure/go-autorest"
   packages = [
     "autorest",
+    "autorest/adal",
     "autorest/azure",
     "autorest/date",
     "autorest/to",
     "autorest/validation",
+    "logger",
+    "tracing",
   ]
   pruneopts = "UT"
-  revision = "0781901f19f1e7db3034d97ec57af753db0bf808"
-  version = "v7.2.1"
+  revision = "d3556005bee162041840c107de09f1047b781da4"
+  version = "v13.3.3"
 
 [[projects]]
   digest = "1:12342a2c200bc1fbafd739172f425af3b93377718dcd2013e9ccce97be48271b"
@@ -116,6 +120,14 @@
   revision = "9831e1e25c874e0a0601b6dc43641071414eec7a"
 
 [[projects]]
+  digest = "1:7cb4fdca4c251b3ef8027c90ea35f70c7b661a593b9eeae34753c65499098bb1"
+  name = "github.com/cpuguy83/go-md2man"
+  packages = ["md2man"]
+  pruneopts = "UT"
+  revision = "7762f7e404f8416dfa1d9bb6a8c192aa9acb4d19"
+  version = "v1.0.10"
+
+[[projects]]
   digest = "1:620bade21ddf8256869717861431d52650c7e40bc56bdcd3d5ec3da63e7573b0"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -123,11 +135,12 @@
   revision = "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 
 [[projects]]
-  digest = "1:02630c70b55ecda2dcb85805170923d8389c632487568ccffadc5482e8a191ed"
+  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "24c63f56522a87ec5339cc3567883f1039378fdb"
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   digest = "1:b41bcd468fe0882b4cd1591274dc6d007dc3c947758f34807c83200899637e4f"
@@ -166,6 +179,19 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "0bbddae09c5a5419a8c6dcdd7ff90da3d450393b"
+
+[[projects]]
+  digest = "1:a45c45617726c90cbb17da3f8071027e843e9c29afd052257121da968896b2e2"
+  name = "github.com/docker/machine"
+  packages = [
+    "drivers/azure/logutil",
+    "libmachine/log",
+    "libmachine/mcnutils",
+    "version",
+  ]
+  pruneopts = "UT"
+  revision = "bd45ab13d88c32a3dd701485983354514abc41fa"
+  version = "v0.16.2"
 
 [[projects]]
   digest = "1:be3684b202ef360bfe6cfa59b03b1258900936bab3fe47584ccd63d73c461858"
@@ -240,6 +266,14 @@
   revision = "ce0f487f6747ab43c4e4404722df25349385bebd"
 
 [[projects]]
+  digest = "1:2ee0f15eb0fb04f918db7c2dcf39745f40d69f798ef171610a730e8a56aaa4fd"
+  name = "github.com/russross/blackfriday"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d3b5b032dc8e8927d31a5071b56e14c89f045135"
+  version = "v2.0.1"
+
+[[projects]]
   digest = "1:26409dfc790d25c654c75f396bd0329a10fc487c389ff7837733aea23bfc7880"
   name = "github.com/samalba/dockerclient"
   packages = ["."]
@@ -253,6 +287,14 @@
   pruneopts = "UT"
   revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
   version = "v1.2.0"
+
+[[projects]]
+  digest = "1:9421f6e9e28ef86933e824b5caff441366f2b69bb281085b9dca40e1f27a1602"
+  name = "github.com/shurcooL/sanitized_anchor_name"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7bfe4c7ecddb3666a94b053b422cdd8f5aaa3615"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:5622116f2c79239f2d25d47b881e14f96a8b8c17b63b8a8326a38ee1a332b007"
@@ -294,6 +336,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "ac974c61c2f990f4115b119354b5e0b47550e888"
+
+[[projects]]
+  digest = "1:1d3ef3dd057d2eb1819e945f88cc83835296c9b7fb13ad3194c937c4e2891fee"
+  name = "github.com/urfave/cli"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bfe2e925cfb6d44b40ad3a779165ea7e8aff9212"
+  version = "v1.22.0"
 
 [[projects]]
   digest = "1:0f79aac7325bae1fd3c5b3013d886a212a3a81471a8381058d1f6a455bc158a6"
@@ -446,13 +496,14 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/Azure/azure-sdk-for-go/arm/compute",
-    "github.com/Azure/azure-sdk-for-go/arm/network",
-    "github.com/Azure/azure-sdk-for-go/arm/resources/resources",
-    "github.com/Azure/azure-sdk-for-go/arm/resources/subscriptions",
-    "github.com/Azure/azure-sdk-for-go/arm/storage",
+    "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute",
+    "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2016-09-01/network",
+    "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2015-11-01/subscriptions",
+    "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2016-07-01/resources",
+    "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2016-01-01/storage",
     "github.com/Azure/azure-sdk-for-go/storage",
     "github.com/Azure/go-autorest/autorest",
+    "github.com/Azure/go-autorest/autorest/adal",
     "github.com/Azure/go-autorest/autorest/azure",
     "github.com/Azure/go-autorest/autorest/to",
     "github.com/aws/aws-sdk-go/aws",
@@ -461,10 +512,12 @@
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/ec2",
     "github.com/bugsnag/bugsnag-go",
-    "github.com/codegangsta/cli",
     "github.com/digitalocean/godo",
     "github.com/diskfs/go-diskfs/filesystem/iso9660",
     "github.com/docker/docker/pkg/term",
+    "github.com/docker/machine/drivers/azure/logutil",
+    "github.com/docker/machine/libmachine/log",
+    "github.com/docker/machine/libmachine/mcnutils",
     "github.com/exoscale/egoscale",
     "github.com/rackspace/gophercloud",
     "github.com/rackspace/gophercloud/openstack",
@@ -484,6 +537,7 @@
     "github.com/skarademir/naturalsort",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
+    "github.com/urfave/cli",
     "github.com/vmware/govcloudair",
     "github.com/vmware/govmomi",
     "github.com/vmware/govmomi/find",
