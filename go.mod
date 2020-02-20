@@ -7,7 +7,7 @@ replace github.com/docker/docker => github.com/moby/moby v1.4.2-0.20170731201646
 require (
 	github.com/Azure/azure-sdk-for-go v39.1.0+incompatible
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Azure/go-autorest v13.3.2+incompatible
+	github.com/Azure/go-autorest v13.3.2+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.9.5
 	github.com/Azure/go-autorest/autorest/adal v0.8.2
 	github.com/Azure/go-autorest/autorest/to v0.3.0

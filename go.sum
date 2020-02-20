@@ -89,6 +89,7 @@ github.com/sirupsen/logrus v1.0.4/go.mod h1:pMByvHTf9Beacp5x1UXfOR9xyW/9antXMhjM
 github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62 h1:9XhURSzGwAsEe0h4F8JC66Fq9K45t2mfiNq9MwUBfRY=
 github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62/go.mod h1:oIdVclZaltY1Nf7OQUkg1/2jImBJ+ZfKZuDIRSwk3p0=
 github.com/stretchr/objx v0.0.0-20150928122152-1a9d0bb9f541/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.1.0 h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v0.0.0-20160221104443-1f4a1643a57e/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=

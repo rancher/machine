@@ -1,17 +1,33 @@
 package storage
 
+// Copyright 2017 Microsoft Corporation
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+
 import (
-	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 // ServiceProperties represents the storage account service properties
 type ServiceProperties struct {
-	Logging       *Logging
-	HourMetrics   *Metrics
-	MinuteMetrics *Metrics
-	Cors          *Cors
+	Logging               *Logging
+	HourMetrics           *Metrics
+	MinuteMetrics         *Metrics
+	Cors                  *Cors
+	DeleteRetentionPolicy *RetentionPolicy // blob storage only
+	StaticWebsite         *StaticWebsite   // blob storage only
 }
 
 // Logging represents the Azure Analytics Logging settings
@@ -51,6 +67,16 @@ type CorsRule struct {
 	AllowedHeaders  string
 }
 
+// StaticWebsite - The properties that enable an account to host a static website
+type StaticWebsite struct {
+	// Enabled - Indicates whether this account is hosting a static website
+	Enabled bool
+	// IndexDocument - The default name of the index page under each directory
+	IndexDocument *string
+	// ErrorDocument404Path - The absolute path of the custom 404 page
+	ErrorDocument404Path *string
+}
+
 func (c Client) getServiceProperties(service string, auth authentication) (*ServiceProperties, error) {
 	query := url.Values{
 		"restype": {"service"},
@@ -63,14 +89,14 @@ func (c Client) getServiceProperties(service string, auth authentication) (*Serv
 	if err != nil {
 		return nil, err
 	}
-	defer resp.body.Close()
+	defer resp.Body.Close()
 
-	if err := checkRespCode(resp.statusCode, []int{http.StatusOK}); err != nil {
+	if err := checkRespCode(resp, []int{http.StatusOK}); err != nil {
 		return nil, err
 	}
 
 	var out ServiceProperties
-	err = xmlUnmarshal(resp.body, &out)
+	err = xmlUnmarshal(resp.Body, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -88,16 +114,23 @@ func (c Client) setServiceProperties(props ServiceProperties, service string, au
 	// Ideally, StorageServiceProperties would be the output struct
 	// This is to avoid golint stuttering, while generating the correct XML
 	type StorageServiceProperties struct {
-		Logging       *Logging
-		HourMetrics   *Metrics
-		MinuteMetrics *Metrics
-		Cors          *Cors
+		Logging               *Logging
+		HourMetrics           *Metrics
+		MinuteMetrics         *Metrics
+		Cors                  *Cors
+		DeleteRetentionPolicy *RetentionPolicy
+		StaticWebsite         *StaticWebsite
 	}
 	input := StorageServiceProperties{
 		Logging:       props.Logging,
 		HourMetrics:   props.HourMetrics,
 		MinuteMetrics: props.MinuteMetrics,
 		Cors:          props.Cors,
+	}
+	// only set these fields for blob storage else it's invalid XML
+	if service == blobServiceName {
+		input.DeleteRetentionPolicy = props.DeleteRetentionPolicy
+		input.StaticWebsite = props.StaticWebsite
 	}
 
 	body, length, err := xmlMarshal(input)
@@ -106,13 +139,12 @@ func (c Client) setServiceProperties(props ServiceProperties, service string, au
 	}
 
 	headers := c.getStandardHeaders()
-	headers["Content-Length"] = fmt.Sprintf("%v", length)
+	headers["Content-Length"] = strconv.Itoa(length)
 
 	resp, err := c.exec(http.MethodPut, uri, headers, body, auth)
 	if err != nil {
 		return err
 	}
-	defer readAndCloseBody(resp.body)
-
-	return checkRespCode(resp.statusCode, []int{http.StatusAccepted})
+	defer drainRespBody(resp)
+	return checkRespCode(resp, []int{http.StatusAccepted})
 }
