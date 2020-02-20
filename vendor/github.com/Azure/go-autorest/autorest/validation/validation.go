@@ -3,20 +3,6 @@ Package validation provides methods for validating parameter value using reflect
 */
 package validation
 
-// Copyright 2017 Microsoft Corporation
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
 import (
 	"fmt"
 	"reflect"
@@ -105,12 +91,15 @@ func validateStruct(x reflect.Value, v Constraint, name ...string) error {
 		return createError(x, v, fmt.Sprintf("field %q doesn't exist", v.Target))
 	}
 
-	return Validate([]Validation{
+	if err := Validate([]Validation{
 		{
 			TargetValue: getInterfaceValue(f),
 			Constraints: []Constraint{v},
 		},
-	})
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func validatePtr(x reflect.Value, v Constraint) error {
@@ -136,29 +125,29 @@ func validatePtr(x reflect.Value, v Constraint) error {
 
 func validateInt(x reflect.Value, v Constraint) error {
 	i := x.Int()
-	r, ok := toInt64(v.Rule)
+	r, ok := v.Rule.(int)
 	if !ok {
 		return createError(x, v, fmt.Sprintf("rule must be integer value for %v constraint; got: %v", v.Name, v.Rule))
 	}
 	switch v.Name {
 	case MultipleOf:
-		if i%r != 0 {
+		if i%int64(r) != 0 {
 			return createError(x, v, fmt.Sprintf("value must be a multiple of %v", r))
 		}
 	case ExclusiveMinimum:
-		if i <= r {
+		if i <= int64(r) {
 			return createError(x, v, fmt.Sprintf("value must be greater than %v", r))
 		}
 	case ExclusiveMaximum:
-		if i >= r {
+		if i >= int64(r) {
 			return createError(x, v, fmt.Sprintf("value must be less than %v", r))
 		}
 	case InclusiveMinimum:
-		if i < r {
+		if i < int64(r) {
 			return createError(x, v, fmt.Sprintf("value must be greater than or equal to %v", r))
 		}
 	case InclusiveMaximum:
-		if i > r {
+		if i > int64(r) {
 			return createError(x, v, fmt.Sprintf("value must be less than or equal to %v", r))
 		}
 	default:
@@ -216,14 +205,14 @@ func validateString(x reflect.Value, v Constraint) error {
 			return createError(x, v, fmt.Sprintf("rule must be integer value for %v constraint; got: %v", v.Name, v.Rule))
 		}
 		if len(s) > v.Rule.(int) {
-			return createError(x, v, fmt.Sprintf("value length must be less than or equal to %v", v.Rule))
+			return createError(x, v, fmt.Sprintf("value length must be less than %v", v.Rule))
 		}
 	case MinLength:
 		if _, ok := v.Rule.(int); !ok {
 			return createError(x, v, fmt.Sprintf("rule must be integer value for %v constraint; got: %v", v.Name, v.Rule))
 		}
 		if len(s) < v.Rule.(int) {
-			return createError(x, v, fmt.Sprintf("value length must be greater than or equal to %v", v.Rule))
+			return createError(x, v, fmt.Sprintf("value length must be greater than %v", v.Rule))
 		}
 	case ReadOnly:
 		if len(s) > 0 {
@@ -283,17 +272,6 @@ func validateArrayMap(x reflect.Value, v Constraint) error {
 	case ReadOnly:
 		if x.Len() != 0 {
 			return createError(x, v, "readonly parameter; must send as nil or empty in request")
-		}
-	case Pattern:
-		reg, err := regexp.Compile(v.Rule.(string))
-		if err != nil {
-			return createError(x, v, err.Error())
-		}
-		keys := x.MapKeys()
-		for _, k := range keys {
-			if !reg.MatchString(k.String()) {
-				return createError(k, v, fmt.Sprintf("map key doesn't match pattern %v", v.Rule))
-			}
 		}
 	default:
 		return createError(x, v, fmt.Sprintf("constraint %v is not applicable to array, slice and map type", v.Name))
@@ -388,13 +366,8 @@ func createError(x reflect.Value, v Constraint, err string) error {
 		v.Target, v.Name, getInterfaceValue(x), err)
 }
 
-func toInt64(v interface{}) (int64, bool) {
-	if i64, ok := v.(int64); ok {
-		return i64, true
-	}
-	// older generators emit max constants as int, so if int64 fails fall back to int
-	if i32, ok := v.(int); ok {
-		return int64(i32), true
-	}
-	return 0, false
+// NewErrorWithValidationError appends package type and method name in
+// validation error.
+func NewErrorWithValidationError(err error, packageType, method string) error {
+	return fmt.Errorf("%s#%s: Invalid input: %v", packageType, method, err)
 }

@@ -1,24 +1,9 @@
 package storage
 
-// Copyright 2017 Microsoft Corporation
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
 import (
 	"encoding/xml"
 	"net/http"
 	"net/url"
-	"sync"
 )
 
 // Directory represents a directory on a share.
@@ -40,9 +25,8 @@ type DirectoryProperties struct {
 // ListDirsAndFilesParameters defines the set of customizable parameters to
 // make a List Files and Directories call.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/List-Directories-and-Files
+// See https://msdn.microsoft.com/en-us/library/azure/dn166980.aspx
 type ListDirsAndFilesParameters struct {
-	Prefix     string
 	Marker     string
 	MaxResults uint
 	Timeout    uint
@@ -51,7 +35,7 @@ type ListDirsAndFilesParameters struct {
 // DirsAndFilesListResponse contains the response fields from
 // a List Files and Directories call.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/List-Directories-and-Files
+// See https://msdn.microsoft.com/en-us/library/azure/dn166980.aspx
 type DirsAndFilesListResponse struct {
 	XMLName     xml.Name    `xml:"EnumerationResults"`
 	Xmlns       string      `xml:"xmlns,attr"`
@@ -76,15 +60,14 @@ func (d *Directory) buildPath() string {
 // Create this directory in the associated share.
 // If a directory with the same name already exists, the operation fails.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/Create-Directory
-func (d *Directory) Create(options *FileRequestOptions) error {
+// See https://msdn.microsoft.com/en-us/library/azure/dn166993.aspx
+func (d *Directory) Create() error {
 	// if this is the root directory exit early
 	if d.parent == nil {
 		return nil
 	}
 
-	params := prepareOptions(options)
-	headers, err := d.fsc.createResource(d.buildPath(), resourceDirectory, params, mergeMDIntoExtraHeaders(d.Metadata, nil), []int{http.StatusCreated})
+	headers, err := d.fsc.createResource(d.buildPath(), resourceDirectory, nil, mergeMDIntoExtraHeaders(d.Metadata, nil), []int{http.StatusCreated})
 	if err != nil {
 		return err
 	}
@@ -94,27 +77,26 @@ func (d *Directory) Create(options *FileRequestOptions) error {
 }
 
 // CreateIfNotExists creates this directory under the associated share if the
-// directory does not exist. Returns true if the directory is newly created or
+// directory does not exists. Returns true if the directory is newly created or
 // false if the directory already exists.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/Create-Directory
-func (d *Directory) CreateIfNotExists(options *FileRequestOptions) (bool, error) {
+// See https://msdn.microsoft.com/en-us/library/azure/dn166993.aspx
+func (d *Directory) CreateIfNotExists() (bool, error) {
 	// if this is the root directory exit early
 	if d.parent == nil {
 		return false, nil
 	}
 
-	params := prepareOptions(options)
-	resp, err := d.fsc.createResourceNoClose(d.buildPath(), resourceDirectory, params, nil)
+	resp, err := d.fsc.createResourceNoClose(d.buildPath(), resourceDirectory, nil, nil)
 	if resp != nil {
-		defer drainRespBody(resp)
-		if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusConflict {
-			if resp.StatusCode == http.StatusCreated {
-				d.updateEtagAndLastModified(resp.Header)
+		defer readAndCloseBody(resp.body)
+		if resp.statusCode == http.StatusCreated || resp.statusCode == http.StatusConflict {
+			if resp.statusCode == http.StatusCreated {
+				d.updateEtagAndLastModified(resp.headers)
 				return true, nil
 			}
 
-			return false, d.FetchAttributes(nil)
+			return false, d.FetchAttributes()
 		}
 	}
 
@@ -124,20 +106,20 @@ func (d *Directory) CreateIfNotExists(options *FileRequestOptions) (bool, error)
 // Delete removes this directory.  It must be empty in order to be deleted.
 // If the directory does not exist the operation fails.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/Delete-Directory
-func (d *Directory) Delete(options *FileRequestOptions) error {
-	return d.fsc.deleteResource(d.buildPath(), resourceDirectory, options)
+// See https://msdn.microsoft.com/en-us/library/azure/dn166969.aspx
+func (d *Directory) Delete() error {
+	return d.fsc.deleteResource(d.buildPath(), resourceDirectory)
 }
 
 // DeleteIfExists removes this directory if it exists.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/Delete-Directory
-func (d *Directory) DeleteIfExists(options *FileRequestOptions) (bool, error) {
-	resp, err := d.fsc.deleteResourceNoClose(d.buildPath(), resourceDirectory, options)
+// See https://msdn.microsoft.com/en-us/library/azure/dn166969.aspx
+func (d *Directory) DeleteIfExists() (bool, error) {
+	resp, err := d.fsc.deleteResourceNoClose(d.buildPath(), resourceDirectory)
 	if resp != nil {
-		defer drainRespBody(resp)
-		if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusNotFound {
-			return resp.StatusCode == http.StatusAccepted, nil
+		defer readAndCloseBody(resp.body)
+		if resp.statusCode == http.StatusAccepted || resp.statusCode == http.StatusNotFound {
+			return resp.statusCode == http.StatusAccepted, nil
 		}
 	}
 	return false, err
@@ -153,10 +135,8 @@ func (d *Directory) Exists() (bool, error) {
 }
 
 // FetchAttributes retrieves metadata for this directory.
-//  See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/get-directory-properties
-func (d *Directory) FetchAttributes(options *FileRequestOptions) error {
-	params := prepareOptions(options)
-	headers, err := d.fsc.getResourceHeaders(d.buildPath(), compNone, resourceDirectory, params, http.MethodHead)
+func (d *Directory) FetchAttributes() error {
+	headers, err := d.fsc.getResourceHeaders(d.buildPath(), compNone, resourceDirectory, http.MethodHead)
 	if err != nil {
 		return err
 	}
@@ -184,14 +164,13 @@ func (d *Directory) GetFileReference(name string) *File {
 		Name:   name,
 		parent: d,
 		share:  d.share,
-		mutex:  &sync.Mutex{},
 	}
 }
 
 // ListDirsAndFiles returns a list of files and directories under this directory.
 // It also contains a pagination token and other response details.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/List-Directories-and-Files
+// See https://msdn.microsoft.com/en-us/library/azure/dn166980.aspx
 func (d *Directory) ListDirsAndFiles(params ListDirsAndFilesParameters) (*DirsAndFilesListResponse, error) {
 	q := mergeParams(params.getParameters(), getURLInitValues(compList, resourceDirectory))
 
@@ -200,9 +179,9 @@ func (d *Directory) ListDirsAndFiles(params ListDirsAndFilesParameters) (*DirsAn
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer resp.body.Close()
 	var out DirsAndFilesListResponse
-	err = xmlUnmarshal(resp.Body, &out)
+	err = xmlUnmarshal(resp.body, &out)
 	return &out, err
 }
 
@@ -213,9 +192,9 @@ func (d *Directory) ListDirsAndFiles(params ListDirsAndFilesParameters) (*DirsAn
 // are case-insensitive so case munging should not matter to other
 // applications either.
 //
-// See https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/Set-Directory-Metadata
-func (d *Directory) SetMetadata(options *FileRequestOptions) error {
-	headers, err := d.fsc.setResourceHeaders(d.buildPath(), compMetadata, resourceDirectory, mergeMDIntoExtraHeaders(d.Metadata, nil), options)
+// See https://msdn.microsoft.com/en-us/library/azure/mt427370.aspx
+func (d *Directory) SetMetadata() error {
+	headers, err := d.fsc.setResourceHeaders(d.buildPath(), compMetadata, resourceDirectory, mergeMDIntoExtraHeaders(d.Metadata, nil))
 	if err != nil {
 		return err
 	}
