@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +59,11 @@ type Driver struct {
 	FloatingIpPoolId            string
 	IpVersion                   int
 	ConfigDrive                 bool
+	VolumeName                  string
+	VolumeDevicePath            string
+	VolumeId                    string
+	VolumeType                  string
+	VolumeSize                  int
 	client                      Client
 	// ExistingKey keeps track of whether the key was created by us or we used an existing one. If an existing one was used, we shouldn't delete it when the machine is deleted.
 	ExistingKey bool
@@ -290,6 +296,31 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "openstack-config-drive",
 			Usage:  "Enables the OpenStack config drive for the instance",
 		},
+		mcnflag.StringFlag{
+			Name:  "openstack-volume-name",
+			Usage: "OpenStack volume name (creating); Default: 'rancher-machine-name'",
+			Value: "",
+		},
+		mcnflag.StringFlag{
+			Name:  "openstack-volume-device-path",
+			Usage: "OpenStack volume device path (attaching); Omit for auto '/dev/vdb'",
+			Value: "",
+		},
+		mcnflag.StringFlag{
+			Name:  "openstack-volume-id",
+			Usage: "OpenStack volume id (existing)",
+			Value: "",
+		},
+		mcnflag.StringFlag{
+			Name:  "openstack-volume-type",
+			Usage: "OpenStack volume type (ssd, ...)",
+			Value: "",
+		},
+		mcnflag.IntFlag{
+			Name:  "openstack-volume-size",
+			Usage: "OpenStack volume size (GiB) when creating a volume",
+			Value: 0,
+		},
 	}
 }
 
@@ -363,6 +394,12 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.KeyPairName = flags.String("openstack-keypair-name")
 	d.PrivateKeyFile = flags.String("openstack-private-key-file")
 	d.ConfigDrive = flags.Bool("openstack-config-drive")
+
+	d.VolumeName = flags.String("openstack-volume-name")
+	d.VolumeDevicePath = flags.String("openstack-volume-device-path")
+	d.VolumeId = flags.String("openstack-volume-id")
+	d.VolumeType = flags.String("openstack-volume-type")
+	d.VolumeSize = flags.Int("openstack-volume-size")
 
 	if flags.String("openstack-user-data-file") != "" {
 		userData, err := ioutil.ReadFile(flags.String("openstack-user-data-file"))
@@ -480,11 +517,24 @@ func (d *Driver) Create() error {
 			return err
 		}
 	}
+	if d.VolumeSize > 0 {
+		if err := d.volumeCreate(); err != nil {
+			return err
+		}
+	}
 	if err := d.createMachine(); err != nil {
 		return err
 	}
 	if err := d.waitForInstanceActive(); err != nil {
 		return d.failedToCreate(err)
+	}
+	if d.VolumeId != "" {
+		if err := d.waitForVolumeAvailable(); err != nil {
+			return err
+		}
+		if err := d.volumeAttach(); err != nil {
+			return err
+		}
 	}
 	if d.FloatingIpPool != "" {
 		if err := d.assignFloatingIP(); err != nil {
@@ -729,6 +779,16 @@ func (d *Driver) initNetwork() error {
 	return nil
 }
 
+func (d *Driver) initBlockStorage() error {
+	if err := d.client.Authenticate(d); err != nil {
+		return err
+	}
+	if err := d.client.InitBlockStorageClient(d); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (d *Driver) loadSSHKey() error {
 	log.Debug("Loading Key Pair", d.KeyPairName)
 	if err := d.initCompute(); err != nil {
@@ -787,6 +847,56 @@ func (d *Driver) createMachine() error {
 		return err
 	}
 	d.MachineId = instanceID
+	return nil
+}
+
+func (d *Driver) volumeCreate() error {
+	if d.VolumeName == "" {
+		d.VolumeName = "rancher-machine-volume"
+	}
+	log.Debug("Creating OpenStack Volume ...", map[string]string{
+		"VolumeName": d.VolumeName,
+		"VolumeType": d.VolumeType,
+		"VolumeSize": strconv.Itoa(d.VolumeSize),
+	})
+
+	if err := d.initBlockStorage(); err != nil {
+		return err
+	}
+	volumeId, err := d.client.VolumeCreate(d)
+	if err != nil {
+		return err
+	}
+	d.VolumeId = volumeId
+	return nil
+}
+
+func (d *Driver) waitForVolumeAvailable() error {
+	log.Debug("Waiting for the OpenStack volume to be available...", map[string]string{
+		"VolumeId": d.VolumeId,
+	})
+	if err := d.initBlockStorage(); err != nil {
+		return err
+	}
+	if err := d.client.WaitForVolumeStatus(d, "available"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Driver) volumeAttach() error {
+	log.Debug("Attaching OpenStack Volume ...", map[string]string{
+		"VolumeId":         d.VolumeId,
+		"VolumeDevicePath": d.VolumeDevicePath,
+	})
+	if err := d.initCompute(); err != nil {
+		return err
+	}
+	VolumeDevicePath, err := d.client.VolumeAttach(d)
+	if err != nil {
+		return err
+	}
+	d.VolumeDevicePath = VolumeDevicePath
 	return nil
 }
 

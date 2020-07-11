@@ -10,9 +10,11 @@ import (
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumes"
 	compute_ips "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/volumeattach"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
@@ -29,6 +31,7 @@ type Client interface {
 	Authenticate(d *Driver) error
 	InitComputeClient(d *Driver) error
 	InitNetworkClient(d *Driver) error
+	InitBlockStorageClient(d *Driver) error
 
 	CreateInstance(d *Driver) (string, error)
 	GetInstanceState(d *Driver) (string, error)
@@ -48,12 +51,16 @@ type Client interface {
 	GetFloatingIPs(d *Driver) ([]FloatingIP, error)
 	GetFloatingIPPoolID(d *Driver) (string, error)
 	GetInstancePortID(d *Driver) (string, error)
+	VolumeCreate(d *Driver) (string, error)
+	WaitForVolumeStatus(d *Driver, status string) error
+	VolumeAttach(d *Driver) (string, error)
 }
 
 type GenericClient struct {
-	Provider *gophercloud.ProviderClient
-	Compute  *gophercloud.ServiceClient
-	Network  *gophercloud.ServiceClient
+	Provider     *gophercloud.ProviderClient
+	Compute      *gophercloud.ServiceClient
+	Network      *gophercloud.ServiceClient
+	BlockStorage *gophercloud.ServiceClient
 }
 
 func (c *GenericClient) CreateInstance(d *Driver) (string, error) {
@@ -84,6 +91,52 @@ func (c *GenericClient) CreateInstance(d *Driver) (string, error) {
 		return "", err
 	}
 	return server.ID, nil
+}
+
+func (c *GenericClient) VolumeCreate(d *Driver) (string, error) {
+	log.Info("Creating volume...")
+	opts := volumes.CreateOpts{
+		Name: d.VolumeName,
+		Size: d.VolumeSize,
+	}
+	if d.VolumeType != "" {
+		opts.VolumeType = d.VolumeType
+	}
+	vol, err := volumes.Create(c.BlockStorage, opts).Extract()
+	if err != nil {
+		return "", err
+	}
+	log.Infof("Volume created: VolumeId: %s VolumeName: %s VolumeType: %s VolumeSize: %d  \n", vol.ID, vol.Name, vol.VolumeType, vol.Size)
+	return vol.ID, nil
+}
+
+func (c *GenericClient) WaitForVolumeStatus(d *Driver, status string) error {
+	return mcnutils.WaitForSpecificOrError(func() (bool, error) {
+		vol, err := volumes.Get(c.BlockStorage, d.VolumeId).Extract()
+		if err != nil {
+			return true, err
+		}
+		if vol.Status == status {
+			return true, nil
+		}
+		return false, nil
+	}, 50, 4*time.Second)
+}
+
+func (c *GenericClient) VolumeAttach(d *Driver) (string, error) {
+	log.Info("Attaching volume...")
+	attachOpts := volumeattach.CreateOpts{
+		VolumeID: d.VolumeId,
+	}
+	if d.VolumeDevicePath != "" {
+		attachOpts.Device = d.VolumeDevicePath
+	}
+	volAttached, err := volumeattach.Create(c.Compute, d.MachineId, attachOpts).Extract()
+	if err != nil {
+		return "", err
+	}
+	log.Infof("Volume attached: VolumeId=%v Device=%v ServerId=%v \n", volAttached.VolumeID, volAttached.Device, volAttached.ServerID)
+	return volAttached.Device, nil
 }
 
 const (
@@ -477,6 +530,22 @@ func (c *GenericClient) InitNetworkClient(d *Driver) error {
 		return err
 	}
 	c.Network = network
+	return nil
+}
+
+func (c *GenericClient) InitBlockStorageClient(d *Driver) error {
+	if c.BlockStorage != nil {
+		return nil
+	}
+
+	blockStorage, err := openstack.NewBlockStorageV1(c.Provider, gophercloud.EndpointOpts{
+		Region:       d.Region,
+		Availability: c.getEndpointType(d),
+	})
+	if err != nil {
+		return err
+	}
+	c.BlockStorage = blockStorage
 	return nil
 }
 
