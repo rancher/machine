@@ -11,6 +11,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumes"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume"
 	compute_ips "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
@@ -64,29 +65,59 @@ type GenericClient struct {
 }
 
 func (c *GenericClient) CreateInstance(d *Driver) (string, error) {
-	serverOpts := servers.CreateOpts{
-		Name:             d.MachineName,
-		FlavorRef:        d.FlavorId,
-		ImageRef:         d.ImageId,
-		UserData:         d.UserData,
-		SecurityGroups:   d.SecurityGroups,
-		AvailabilityZone: d.AvailabilityZone,
-		ConfigDrive:      &d.ConfigDrive,
-	}
+
+	var serverOpts servers.CreateOptsBuilder
+
+	var networks []servers.Network
 	if d.NetworkId != "" {
-		serverOpts.Networks = []servers.Network{
+		networks = []servers.Network{
 			{
 				UUID: d.NetworkId,
 			},
 		}
 	}
 
-	log.Info("Creating machine...")
+	serverOpts = &servers.CreateOpts{
+		Name:             d.MachineName,
+		FlavorRef:        d.FlavorId,
+		ImageRef:         d.ImageId,
+		UserData:         d.UserData,
+		Networks:         networks,
+		SecurityGroups:   d.SecurityGroups,
+		AvailabilityZone: d.AvailabilityZone,
+		ConfigDrive:      &d.ConfigDrive,
+	}
 
-	server, err := servers.Create(c.Compute, keypairs.CreateOptsExt{
+	serverOpts = &keypairs.CreateOptsExt{
 		CreateOptsBuilder: serverOpts,
 		KeyName:           d.KeyPairName,
-	}).Extract()
+	}
+
+	log.Info("Creating machine...")
+
+	var server *servers.Server
+	var err error
+
+	if d.BootFromVolume {
+		blockDevices := []bootfromvolume.BlockDevice{
+			bootfromvolume.BlockDevice{
+				BootIndex:           0,
+				DeleteOnTermination: true,
+				DestinationType:     bootfromvolume.DestinationVolume,
+				SourceType:          bootfromvolume.SourceImage,
+				UUID:                d.ImageId,
+				VolumeType:          d.VolumeType,
+				VolumeSize:          d.VolumeSize,
+			},
+		}
+		serverOpts = &bootfromvolume.CreateOptsExt{
+			CreateOptsBuilder: serverOpts,
+			BlockDevice:       blockDevices,
+		}
+		server, err = bootfromvolume.Create(c.Compute, serverOpts).Extract()
+	} else {
+		server, err = servers.Create(c.Compute, serverOpts).Extract()
+	}
 	if err != nil {
 		return "", err
 	}

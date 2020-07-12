@@ -59,6 +59,7 @@ type Driver struct {
 	FloatingIpPoolId            string
 	IpVersion                   int
 	ConfigDrive                 bool
+	BootFromVolume              bool
 	VolumeName                  string
 	VolumeDevicePath            string
 	VolumeId                    string
@@ -296,6 +297,10 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "openstack-config-drive",
 			Usage:  "Enables the OpenStack config drive for the instance",
 		},
+		mcnflag.BoolFlag{
+			Name:  "openstack-boot-from-volume",
+			Usage: "Enables Openstack instance to boot from volume as ROOT",
+		},
 		mcnflag.StringFlag{
 			Name:  "openstack-volume-name",
 			Usage: "OpenStack volume name (creating); Default: 'rancher-machine-name'",
@@ -395,6 +400,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.PrivateKeyFile = flags.String("openstack-private-key-file")
 	d.ConfigDrive = flags.Bool("openstack-config-drive")
 
+	d.BootFromVolume = flags.Bool("openstack-boot-from-volume")
 	d.VolumeName = flags.String("openstack-volume-name")
 	d.VolumeDevicePath = flags.String("openstack-volume-device-path")
 	d.VolumeId = flags.String("openstack-volume-id")
@@ -517,7 +523,7 @@ func (d *Driver) Create() error {
 			return err
 		}
 	}
-	if d.VolumeSize > 0 {
+	if d.BootFromVolume == false && d.VolumeSize > 0 {
 		if err := d.volumeCreate(); err != nil {
 			return err
 		}
@@ -528,7 +534,7 @@ func (d *Driver) Create() error {
 	if err := d.waitForInstanceActive(); err != nil {
 		return d.failedToCreate(err)
 	}
-	if d.VolumeId != "" {
+	if d.BootFromVolume == false && d.VolumeId != "" {
 		if err := d.waitForVolumeAvailable(); err != nil {
 			return err
 		}
@@ -840,6 +846,9 @@ func (d *Driver) createMachine() error {
 	})
 
 	if err := d.initCompute(); err != nil {
+		return err
+	}
+	if err := d.initBlockStorage(); err != nil {
 		return err
 	}
 	instanceID, err := d.client.CreateInstance(d)
