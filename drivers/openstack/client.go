@@ -569,7 +569,7 @@ func (c *GenericClient) InitBlockStorageClient(d *Driver) error {
 		return nil
 	}
 
-	blockStorage, err := openstack.NewBlockStorageV1(c.Provider, gophercloud.EndpointOpts{
+	blockStorage, err := openstack.NewBlockStorageV3(c.Provider, gophercloud.EndpointOpts{
 		Region:       d.Region,
 		Availability: c.getEndpointType(d),
 	})
