@@ -114,6 +114,9 @@ func (c *GenericClient) CreateInstance(d *Driver) (string, error) {
 			CreateOptsBuilder: serverOpts,
 			BlockDevice:       blockDevices,
 		}
+		if d.VolumeType != "" {
+			c.Compute.Microversion = "2.67"
+		}
 		server, err = bootfromvolume.Create(c.Compute, serverOpts).Extract()
 	} else {
 		server, err = servers.Create(c.Compute, serverOpts).Extract()
