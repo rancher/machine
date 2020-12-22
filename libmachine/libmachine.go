@@ -167,6 +167,11 @@ func (api *Client) performCreate(h *host.Host) error {
 		return fmt.Errorf("Error detecting OS: %s", err)
 	}
 
+	if provisioner.String() == "no-op" {
+		log.Info("no-op provisioner does nothing, provisioning skipping")
+		return nil
+	}
+
 	log.Infof("Provisioning with %s...", provisioner.String())
 	if err := provisioner.Provision(*h.HostOptions.SwarmOptions, *h.HostOptions.AuthOptions, *h.HostOptions.EngineOptions); err != nil {
 		return fmt.Errorf("Error running provisioning: %s", err)

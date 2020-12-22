@@ -23,6 +23,7 @@ import (
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnerror"
 	"github.com/rancher/machine/libmachine/mcnflag"
+	"github.com/rancher/machine/libmachine/provision"
 	"github.com/rancher/machine/libmachine/swarm"
 	"github.com/urfave/cli"
 )
@@ -128,6 +129,10 @@ var (
 			Usage: "Support extra SANs for TLS certs",
 			Value: &cli.StringSlice{},
 		},
+		cli.BoolFlag{
+			Name:  "no-docker",
+			Usage: "Don't install Docker when provisioning the machine",
+		},
 	}
 )
 
@@ -223,6 +228,11 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 		return fmt.Errorf("Error setting machine configuration from flags provided: %s", err)
 	}
 
+	noDocker := c.Bool("no-docker")
+	if noDocker {
+		provision.NoDockerInstall()
+	}
+
 	if err := api.Create(h); err != nil {
 		// Wait for all the logs to reach the client
 		time.Sleep(2 * time.Second)
@@ -245,7 +255,9 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 		return fmt.Errorf("Error attempting to save store: %s", err)
 	}
 
-	log.Infof("To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: %s env %s", os.Args[0], name)
+	if !noDocker {
+		log.Infof("To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: %s env %s", os.Args[0], name)
+	}
 
 	return nil
 }
