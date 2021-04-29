@@ -21,7 +21,7 @@ func init() {
 
 func NewDebianProvisioner(d drivers.Driver) Provisioner {
 	return &DebianProvisioner{
-		NewSystemdProvisioner("debian", d),
+		NewSystemdProvisioner("debian", d, true),
 	}
 }
 
@@ -101,13 +101,6 @@ func (provisioner *DebianProvisioner) Provision(swarmOptions swarm.Options, auth
 	log.Debug("setting hostname")
 	if err := provisioner.SetHostname(provisioner.Driver.GetMachineName()); err != nil {
 		return err
-	}
-
-	log.Debug("installing base packages")
-	for _, pkg := range provisioner.Packages {
-		if err := provisioner.Package(pkg, pkgaction.Install); err != nil {
-			return err
-		}
 	}
 
 	if err := installDockerGeneric(provisioner, provisioner.EngineOptions.InstallURL); err != nil {

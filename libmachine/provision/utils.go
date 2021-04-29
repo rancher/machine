@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/machine/libmachine/engine"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnutils"
+	"github.com/rancher/machine/libmachine/provision/pkgaction"
 	"github.com/rancher/machine/libmachine/provision/serviceaction"
 )
 
@@ -29,8 +30,14 @@ func installDockerGeneric(p Provisioner, baseURL string) error {
 		log.Info("Skipping Docker installation")
 		return nil
 	}
-	// install docker - until cloudinit we use ubuntu everywhere so we
-	// just install it using the docker repos
+
+	for _, pkg := range p.GetPackages() {
+		log.Debugf("installing base package: name=%s", pkg)
+		if err := p.Package(pkg, pkgaction.Install); err != nil {
+			return err
+		}
+	}
+
 	log.Infof("Installing Docker from: %s", baseURL)
 	if output, err := p.SSHCommand(fmt.Sprintf("if ! type docker; then curl -sSL %s | sh -; fi", baseURL)); err != nil {
 		return fmt.Errorf("Error installing Docker: %s", output)

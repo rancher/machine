@@ -21,7 +21,7 @@ func init() {
 
 func NewArchProvisioner(d drivers.Driver) Provisioner {
 	return &ArchProvisioner{
-		NewSystemdProvisioner("arch", d),
+		NewSystemdProvisioner("arch", d, false),
 	}
 }
 

@@ -41,7 +41,7 @@ func init() {
 }
 
 func NewRedHatProvisioner(osReleaseID string, d drivers.Driver) *RedHatProvisioner {
-	systemdProvisioner := NewSystemdProvisioner(osReleaseID, d)
+	systemdProvisioner := NewSystemdProvisioner(osReleaseID, d, true)
 	systemdProvisioner.SSHCommander = RedHatSSHCommander{Driver: d}
 	return &RedHatProvisioner{
 		systemdProvisioner,
@@ -131,22 +131,16 @@ func (provisioner *RedHatProvisioner) Provision(swarmOptions swarm.Options, auth
 		return err
 	}
 
-	for _, pkg := range provisioner.Packages {
-		log.Debugf("installing base package: name=%s", pkg)
-		if err := provisioner.Package(pkg, pkgaction.Install); err != nil {
-			return err
-		}
-	}
-
 	if err := installDockerGeneric(provisioner, provisioner.EngineOptions.InstallURL); err != nil {
 		return err
-	} else if err == nil {
-		if err := provisioner.Service("docker", serviceaction.Restart); err != nil {
-			return err
-		}
-		if err := provisioner.Service("docker", serviceaction.Enable); err != nil {
-			return err
-		}
+	}
+
+	if err := provisioner.Service("docker", serviceaction.Restart); err != nil {
+		return err
+	}
+
+	if err := provisioner.Service("docker", serviceaction.Enable); err != nil {
+		return err
 	}
 
 	if err := mcnutils.WaitFor(provisioner.dockerDaemonResponding); err != nil {
@@ -190,7 +184,9 @@ func (provisioner *RedHatProvisioner) GenerateDockerOptions(dockerPort int) (*Do
 		DockerOptionsDir: provisioner.DockerOptionsDir,
 	}
 
-	t.Execute(&engineCfg, engineConfigContext)
+	if err := t.Execute(&engineCfg, engineConfigContext); err != nil {
+		return nil, err
+	}
 
 	daemonOptsDir := configPath
 	return &DockerOptions{

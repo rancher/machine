@@ -28,19 +28,19 @@ func init() {
 
 func NewSLEDProvisioner(d drivers.Driver) Provisioner {
 	return &SUSEProvisioner{
-		NewSystemdProvisioner("sled", d),
+		NewSystemdProvisioner("sled", d, true),
 	}
 }
 
 func NewSLESProvisioner(d drivers.Driver) Provisioner {
 	return &SUSEProvisioner{
-		NewSystemdProvisioner("sles", d),
+		NewSystemdProvisioner("sles", d, true),
 	}
 }
 
 func NewOpenSUSEProvisioner(d drivers.Driver) Provisioner {
 	return &SUSEProvisioner{
-		NewSystemdProvisioner("opensuse", d),
+		NewSystemdProvisioner("opensuse", d, true),
 	}
 }
 
@@ -133,13 +133,6 @@ func (provisioner *SUSEProvisioner) Provision(swarmOptions swarm.Options, authOp
 	log.Debug("Setting hostname")
 	if err := provisioner.SetHostname(provisioner.Driver.GetMachineName()); err != nil {
 		return err
-	}
-
-	log.Debug("Installing base packages")
-	for _, pkg := range provisioner.Packages {
-		if err := provisioner.Package(pkg, pkgaction.Install); err != nil {
-			return err
-		}
 	}
 
 	if err := installDockerGeneric(provisioner, provisioner.EngineOptions.InstallURL); err != nil {

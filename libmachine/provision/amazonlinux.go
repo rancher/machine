@@ -23,7 +23,7 @@ func init() {
 
 func NewAmazonLinuxProvisioner(d drivers.Driver) Provisioner {
 	return &AmazonLinuxProvisioner{
-		NewSystemdProvisioner("amzn", d),
+		NewSystemdProvisioner("amzn", d, false),
 	}
 }
 

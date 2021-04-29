@@ -22,7 +22,7 @@ func init() {
 
 func NewUbuntuSystemdProvisioner(d drivers.Driver) Provisioner {
 	return &UbuntuSystemdProvisioner{
-		NewSystemdProvisioner("ubuntu", d),
+		NewSystemdProvisioner("ubuntu", d, true),
 	}
 }
 
@@ -111,13 +111,6 @@ func (provisioner *UbuntuSystemdProvisioner) Provision(swarmOptions swarm.Option
 	log.Debug("setting hostname")
 	if err := provisioner.SetHostname(provisioner.Driver.GetMachineName()); err != nil {
 		return err
-	}
-
-	log.Debug("installing base packages")
-	for _, pkg := range provisioner.Packages {
-		if err := provisioner.Package(pkg, pkgaction.Install); err != nil {
-			return err
-		}
 	}
 
 	if err := installDockerGeneric(provisioner, provisioner.EngineOptions.InstallURL); err != nil {

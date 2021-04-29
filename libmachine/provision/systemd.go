@@ -18,18 +18,30 @@ func (p *SystemdProvisioner) String() string {
 	return "redhat"
 }
 
-func NewSystemdProvisioner(osReleaseID string, d drivers.Driver) SystemdProvisioner {
-	return SystemdProvisioner{
-		GenericProvisioner{
-			SSHCommander:      GenericSSHCommander{Driver: d},
-			DockerOptionsDir:  "/etc/docker",
-			DaemonOptionsFile: "/etc/systemd/system/docker.service.d/10-machine.conf",
-			OsReleaseID:       osReleaseID,
-			Packages: []string{
-				"curl",
+func NewSystemdProvisioner(osReleaseID string, d drivers.Driver, requireCurlForDownload bool) SystemdProvisioner {
+	if requireCurlForDownload == false {
+		return SystemdProvisioner{
+			GenericProvisioner{
+				SSHCommander:      GenericSSHCommander{Driver: d},
+				DockerOptionsDir:  "/etc/docker",
+				DaemonOptionsFile: "/etc/systemd/system/docker.service.d/10-machine.conf",
+				OsReleaseID:       osReleaseID,
+				Driver: d,
 			},
-			Driver: d,
-		},
+		}
+	} else {
+		return SystemdProvisioner{
+			GenericProvisioner{
+				SSHCommander:      GenericSSHCommander{Driver: d},
+				DockerOptionsDir:  "/etc/docker",
+				DaemonOptionsFile: "/etc/systemd/system/docker.service.d/10-machine.conf",
+				OsReleaseID:       osReleaseID,
+				Packages: []string{
+					"curl",
+				},
+				Driver: d,
+			},
+		}
 	}
 }
 
@@ -73,6 +85,10 @@ Environment={{range .EngineOptions.Env}}{{ printf "%q" . }} {{end}}
 		EngineOptions:     engineCfg.String(),
 		EngineOptionsPath: p.DaemonOptionsFile,
 	}, nil
+}
+
+func (p *SystemdProvisioner) GetPackages() []string {
+	return p.Packages
 }
 
 func (p *SystemdProvisioner) Service(name string, action serviceaction.ServiceAction) error {

@@ -128,12 +128,6 @@ func (provisioner *UbuntuProvisioner) Provision(swarmOptions swarm.Options, auth
 		return err
 	}
 
-	for _, pkg := range provisioner.Packages {
-		if err := provisioner.Package(pkg, pkgaction.Install); err != nil {
-			return err
-		}
-	}
-
 	if err := installDockerGeneric(provisioner, provisioner.EngineOptions.InstallURL); err != nil {
 		return err
 	}
