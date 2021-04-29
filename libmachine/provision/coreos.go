@@ -32,7 +32,7 @@ func init() {
 
 func NewCoreOSProvisioner(d drivers.Driver) Provisioner {
 	return &CoreOSProvisioner{
-		NewSystemdProvisioner("coreos", d),
+		NewSystemdProvisioner("coreos", d, false),
 	}
 }
 
