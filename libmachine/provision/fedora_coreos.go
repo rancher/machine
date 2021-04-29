@@ -22,7 +22,7 @@ func init() {
 // NewFedoraCoreOSProvisioner creates a new provisioner for a driver
 func NewFedoraCoreOSProvisioner(d drivers.Driver) Provisioner {
 	return &FedoraCoreOSProvisioner{
-		NewSystemdProvisioner("fedora", d),
+		NewSystemdProvisioner("fedora", d, false),
 	}
 }
 
