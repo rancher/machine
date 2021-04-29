@@ -26,7 +26,7 @@ func init() {
 // NewPhotonOSProvisioner creates a new provisioner for a driver
 func NewPhotonOSProvisioner(d drivers.Driver) Provisioner {
 	return &PhotonOSProvisioner{
-		NewSystemdProvisioner("photon", d),
+		NewSystemdProvisioner("photon", d, false),
 	}
 }
 
