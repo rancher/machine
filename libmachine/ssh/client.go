@@ -57,10 +57,6 @@ type Auth struct {
 type ClientType string
 
 const (
-	maxDialAttempts = 10
-)
-
-const (
 	External ClientType = "external"
 	Native   ClientType = "native"
 )
