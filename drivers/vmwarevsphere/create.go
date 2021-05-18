@@ -312,37 +312,14 @@ func (d *Driver) createFromLibraryName() error {
 	if err != nil {
 		return err
 	}
-	fr := vcenter.FilterRequest{Target: vcenter.Target{
-                        ResourcePoolID: d.resourcepool.Reference().Value,
-                        HostID:         hostId,
-                        FolderID:       folder.Reference().Value,
-        },
-        }
 
 	m := vcenter.NewManager(libManager.Client)
-	r, err := m.FilterLibraryItem(d.getCtx(), item.ID, fr)
-	if err != nil {
-                return err
-	}
-	if len(d.networks) != len(r.Networks) {
-		return fmt.Errorf("Mismatch in number of networks in content library template %s and rancher template", d.CloneFrom)
-	}
-	netIndex := 0
-	var nets []vcenter.NetworkMapping
-	for _, n := range d.networks {
-		nets = append(nets, vcenter.NetworkMapping{
-			Key:   r.Networks[netIndex],
-			Value: n.Reference().Value,
-		})
-		netIndex++
-	}
 
 	deploy := vcenter.Deploy{
 		DeploymentSpec: vcenter.DeploymentSpec{
 			Name:                d.MachineName,
 			DefaultDatastoreID:  ds.Reference().Value,
 			AcceptAllEULA:       true,
-			NetworkMappings:     nets,
 			StorageProvisioning: "thin",
 		},
 		Target: vcenter.Target{
@@ -362,10 +339,30 @@ func (d *Driver) createFromLibraryName() error {
 		return err
 	}
 
+	// At this point, the VM is deployed from content library with defaults from template
+	// Reconfiguration of the VM based on driver inputs follows
+
 	vm := obj.(*object.VirtualMachine)
+	spec := types.VirtualMachineConfigSpec{
+                NumCPUs:    int32(d.CPU),
+                MemoryMB:   int64(d.Memory),
+                VAppConfig: d.getVAppConfig(),
+        }
+
+	task, err := vm.Reconfigure(d.getCtx(), spec)
+
+	err = task.Wait(d.getCtx())
+	if err != nil {
+		return err
+	}
+
 	if err := d.resizeDisk(vm); err != nil {
 		return err
 	}
+
+        if err := d.addNetworks(vm, d.networks); err != nil {
+                return err
+        }
 
 	return d.postCreate(vm)
 }
