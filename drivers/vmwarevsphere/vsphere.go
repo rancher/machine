@@ -181,7 +181,7 @@ func (d *Driver) GetIP() (string, error) {
 		return "", err
 	}
 
-	configuredMacIPs, err := vm.WaitForNetIP(d.getCtx(), false)
+	configuredMacIPs, err := vm.WaitForNetIP(d.getCtx(), false, "ethernet-0")
 	if err != nil {
 		return "", err
 	}
