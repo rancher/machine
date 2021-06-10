@@ -848,8 +848,10 @@ func (d *Driver) createMachine() error {
 	if err := d.initCompute(); err != nil {
 		return err
 	}
-	if err := d.initBlockStorage(); err != nil {
-		return err
+	if d.BootFromVolume == true || d.VolumeSize > 0 {
+		if err := d.initBlockStorage(); err != nil {
+			return err
+		}
 	}
 	instanceID, err := d.client.CreateInstance(d)
 	if err != nil {
