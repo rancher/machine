@@ -183,7 +183,7 @@ func (provisioner *SUSEProvisioner) Provision(swarmOptions swarm.Options, authOp
 }
 
 func (provisioner *SUSEProvisioner) configureFirewall() error {
-	tcpPorts := "22 80 443 2376 2379 2380 6443 9099 9796 10250 10254 30000:32767"
+	tcpPorts := "22 80 443 2376 2379 2380 6443 8443 9099 9796 10250 10254 30000:32767"
 	udpPorts := "8472 30000:32767"
 	var cmds []string
 	// SLES15 has dropped SuSEfirewall2: https://www.suse.com/releasenotes/x86_64/SUSE-SLES/15/#fate-320794
