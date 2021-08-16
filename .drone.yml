@@ -137,6 +137,7 @@ volumes:
 ---
 
 kind: pipeline
+type: docker
 name: s390x
 
 platform:
