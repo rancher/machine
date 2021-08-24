@@ -21,7 +21,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-const machineConfigSecretKey = "extractedConfig"
+const (
+	machineConfigSecretKey = "extractedConfig"
+	ipAddressSecretKey     = "publicIPAddress"
+)
 
 type secretStore struct {
 	Store
@@ -59,17 +62,17 @@ func (s *secretStore) Remove(name string) error {
 	if err := s.Store.Remove(name); err != nil {
 		return fmt.Errorf("error removing directories for host %v: %v", name, err)
 	}
-	return s.saveSecret(name)
+	return s.saveSecret(nil)
 }
 
 func (s *secretStore) Save(host *host.Host) error {
 	if err := s.Store.Save(host); err != nil {
 		return fmt.Errorf("error saving with file store: %v", err)
 	}
-	return s.saveSecret(host.Name)
+	return s.saveSecret(host)
 }
 
-func (s *secretStore) saveSecret(hostName string) error {
+func (s *secretStore) saveSecret(host *host.Host) error {
 	// create the tar.gz file
 	destFile := &bytes.Buffer{}
 
@@ -94,15 +97,25 @@ func (s *secretStore) saveSecret(hostName string) error {
 		secret.Data = make(map[string][]byte)
 	}
 
-	if bytes.Compare(secret.Data[machineConfigSecretKey], destFile.Bytes()) == 0 {
-		return nil
+	var updateSecret bool
+	if !bytes.Equal(secret.Data[machineConfigSecretKey], destFile.Bytes()) {
+		updateSecret = true
+		secret.Data[machineConfigSecretKey] = destFile.Bytes()
 	}
 
-	secret.Data[machineConfigSecretKey] = destFile.Bytes()
+	if host != nil {
+		ipAddress, err := host.Driver.GetIP()
+		if err == nil && !bytes.Equal(secret.Data[ipAddressSecretKey], []byte(ipAddress)) {
+			updateSecret = true
+			secret.Data[ipAddress] = []byte(ipAddress)
+		}
+	}
 
-	secret, err = s.SecretClient.Update(context.Background(), secret, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("unable to update secret: %v", err)
+	if updateSecret {
+		secret, err = s.SecretClient.Update(context.Background(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("unable to update secret: %v", err)
+		}
 	}
 
 	return nil
