@@ -142,7 +142,7 @@ name: s390x
 
 platform:
   os: linux
-  arch: arm64
+  arch: amd64
 
 node: 
   drone_lab: true
