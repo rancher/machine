@@ -145,6 +145,7 @@ platform:
   arch: amd64
 
 node: 
+  drone_lab: true
   arch: s390x
 
 steps:
