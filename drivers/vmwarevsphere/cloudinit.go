@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -125,6 +126,25 @@ func (d *Driver) removeCloudInitIso(vm *object.VirtualMachine, dc *object.Datace
 	return nil
 }
 
+func fetchCloudInit(cloudInitURL string) (string, error) {
+	if _, err := url.ParseRequestURI(cloudInitURL); err != nil {
+		return "", fmt.Errorf("cloudinit is not a valid URL")
+	}
+
+	log.Debugf("fetching cloudinit from URL: %v", cloudInitURL)
+	resp, err := http.Get(cloudInitURL)
+	if err != nil {
+		return "", fmt.Errorf("error fetching cloud init from URL %v: %v", cloudInitURL, err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body while fetching cloud init: %v", err)
+	}
+
+	return string(body), nil
+}
+
 func (d *Driver) createCloudInitIso() error {
 	log.Infof("Creating cloud-init.iso")
 	//d.CloudConfig stat'ed and loaded in flag load.
@@ -133,7 +153,16 @@ func (d *Driver) createCloudInitIso() error {
 		return err
 	}
 
-	userdatacontent, err := addSSHUserToYaml(d.CloudConfig, d.SSHUser, d.SSHUserGroup, string(sshkey))
+	config := ""
+	if d.CloudConfig != "" {
+		config = d.CloudConfig
+	} else if d.CloudInit != "" {
+		if config, err = fetchCloudInit(d.CloudInit); err != nil {
+			return err
+		}
+	}
+
+	userdatacontent, err := addSSHUserToYaml(config, d.SSHUser, d.SSHUserGroup, string(sshkey))
 	if err != nil {
 		return err
 	}
