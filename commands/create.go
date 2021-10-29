@@ -531,8 +531,13 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, userdataFlag, customInst
 	if err := replaceUserdataFile(userdataContent, customScriptContent, modifiedUserdataFile); err != nil {
 		return err
 	}
-
-	driverOpts.Values[userdataFlag] = modifiedUserdataFile.Name()
+	
+	readUserData, err := ioutil.ReadFile(modifiedUserdataFile.Name())
+	if err != nil {
+		return err
+	}
+	
+	driverOpts.Values[userdataFlag] = string(readUserData)
 
 	return nil
 }
