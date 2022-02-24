@@ -539,11 +539,11 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, userdataFla
 // writeCloudConfig sets custom install script path to the runcmd directive
 // and passes the script path to commonCloudConfig
 func writeCloudConfig(machineName, encodedData, machineOS string, cf map[interface{}]interface{}, newUserDataFile *os.File) error {
-	path := "/usr/local/custom_script/install.sh"
+	path := "sh /usr/local/custom_script/install.sh"
 	if strings.Contains(machineOS, "windows") {
 		// the writeFile path should ideally be C:\usr\local\custom_script\install.ps1
 		// but we can't guarantee that directory exists or can be created on the target machine
-		path = "C:\\install.ps1"
+		path = "powershell C:\\install.ps1"
 	}
 	return commonCloudConfig(machineName, machineOS, encodedData, path, cf, newUserDataFile)
 }
@@ -564,7 +564,7 @@ func commonCloudConfig(machineName, machineOS, encodedData, path string, cf map[
 	}
 
 	// Add to the runcmd directive
-	if err := addToCloudConfig(cf, "runcmd", fmt.Sprintf("sh %s", writeFile["path"])); err != nil {
+	if err := addToCloudConfig(cf, "runcmd", fmt.Sprintf("%s", writeFile["path"])); err != nil {
 		return err
 	}
 
