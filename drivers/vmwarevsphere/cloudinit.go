@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 
-	"github.com/diskfs/go-diskfs/filesystem/iso9660"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -160,45 +160,9 @@ func (d *Driver) createCloudInitIso() error {
 	}
 
 	//making iso
-	blocksize := int64(2048)
 	diskImg := filepath.Join(isoDir, isoName)
-	iso, err := os.OpenFile(diskImg, os.O_CREATE|os.O_RDWR, perm)
-	if err != nil {
-		return err
-	}
-	defer iso.Close()
-
-	fs, err := iso9660.Create(iso, 0, 0, blocksize)
-	if err != nil {
-		return err
-	}
-
-	err = fs.Mkdir("/")
-	if err != nil {
-		return err
-	}
-
-	for filename, filepath := range map[string]string{"user-data": userdata, "meta-data": metadata} {
-		f, err := ioutil.ReadFile(filepath) // just pass the file name
-		if err != nil {
-			return err
-		}
-
-		rw, err := fs.OpenFile("/"+filename, os.O_CREATE|os.O_RDWR)
-		if err != nil {
-			return err
-		}
-
-		_, err = rw.Write(f)
-		if err != nil {
-			return err
-		}
-	}
-
-	return fs.Finalize(iso9660.FinalizeOptions{
-		RockRidge:        true,
-		VolumeIdentifier: "cidata",
-	})
+	iso := exec.Command("mkisofs", fmt.Sprintf("-o %s", diskImg), "-J", "-R", "-hfs", "-V cidata", "--quiet", fmt.Sprintf("%s,%s", userdata, metadata))
+	return iso.Run()
 }
 
 func (d *Driver) mountCloudInitIso(vm *object.VirtualMachine, dc *object.Datacenter, dss *object.Datastore) error {

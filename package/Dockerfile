@@ -3,7 +3,7 @@ FROM registry.suse.com/suse/sle15:15.3
 ENV SSL_CERT_DIR /etc/rancher/ssl
 
 RUN zypper -n update && \
-    zypper -n install git-core curl ca-certificates unzip xz gzip sed tar && \
+    zypper -n install git-core curl ca-certificates unzip mkisofs xz gzip sed tar && \
     zypper -n clean -a && \
     rm -rf /tmp/* /var/tmp/* /usr/share/doc/packages/*
 
