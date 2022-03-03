@@ -297,7 +297,7 @@ func (f *FileAttrFlag) Attr() types.BaseGuestFileAttributes {
 }
 
 func (d *Driver) SetMachineOSFromFlags(flags drivers.DriverOptions) error {
-	d.OS = strings.ToLower(flags.String("--vmwarevsphere-os"))
+	d.OS = strings.ToLower(flags.String("vmwarevsphere-os"))
 	if d.OS == "" {
 		d.OS = defaultMachineOS
 		return nil
