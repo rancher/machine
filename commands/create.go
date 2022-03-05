@@ -559,7 +559,7 @@ func commonCloudConfig(machineName, machineOS, encodedData, command, path string
 		"encoding":    "gzip+b64",
 		"content":     fmt.Sprintf("%s", encodedData),
 		"permissions": "0644",
-		"path":        command,
+		"path":        path,
 	}
 	if err := addToCloudConfig(cf, "write_files", writeFile); err != nil {
 		return err
