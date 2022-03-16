@@ -19,7 +19,6 @@ import (
 const (
 	isoName     = "user-data.iso"
 	isoDir      = "cloudinit"
-	mkisofsPath = "/usr/bin/mkisofs"
 	mkisofsName = "mkisofs"
 )
 
