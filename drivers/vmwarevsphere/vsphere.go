@@ -316,15 +316,12 @@ func (d *Driver) Create() error {
 
 	switch d.CreationType {
 	case "legacy":
-		log.Infof("creating VM...")
+		log.Infof("creating VM %s", d.MachineName)
 		b2dutils := mcnutils.NewB2dUtils(d.StorePath)
-		if b2dutils != nil {
-			if err := b2dutils.CopyIsoToMachineDir(d.Boot2DockerURL, d.MachineName); err != nil {
-				return err
-			}
-			return d.createLegacy()
+		if err := b2dutils.CopyIsoToMachineDir(d.Boot2DockerURL, d.MachineName); err != nil {
+			return err
 		}
-		return fmt.Errorf("unable to perform legacy provisioning of VM %s", d.MachineName)
+		return d.createLegacy()
 	case "library":
 		log.Infof("creating VM from /%s/%s...", d.ContentLibrary, d.CloneFrom)
 		return d.createFromLibraryName()

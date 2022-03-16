@@ -167,9 +167,8 @@ func (d *Driver) createCloudInitIso() error {
 			return fmt.Errorf("error: %s found when verifying that %s file was present for machine %s", err, filename, d.MachineName)
 		}
 	}
-	machineDir := filepath.Join(d.StorePath, "machines", d.MachineName)
 
-	err = os.Chdir(machineDir)
+	err = os.Chdir(filepath.Join(d.StorePath, "machines", d.MachineName))
 	if err != nil {
 		return err
 	}
@@ -181,7 +180,7 @@ func (d *Driver) createCloudInitIso() error {
 	// this maintains backwards compatibility with the previous go-diskfs method of creating ISOs
 	path, err := binaryPathLookup(mkisofsName)
 	if err != nil {
-		return fmt.Errorf("createCloudInitIso: path lookup for %s failed: %s", mkisofsName, err)
+		return fmt.Errorf("createCloudInitIso: path lookup for %s failed: %v", mkisofsName, err)
 	}
 
 	isoArgs := []string{"-J", "-r", "-hfs", "-iso-level", "1", "-V", "cidata", "-output",
@@ -194,12 +193,12 @@ func (d *Driver) createCloudInitIso() error {
 	iso.Stderr = os.Stderr
 	err = iso.Start()
 	if err != nil {
-		return fmt.Errorf("createCloudInitIso: mkisofs command failed to start with error %s", err.Error())
+		return fmt.Errorf("createCloudInitIso: mkisofs command failed to start with error %v", err)
 	}
 	log.Debugf("createCloudInitIso: Waiting for mkisofs command to finish...")
 	err = iso.Wait()
 	if err != nil {
-		return fmt.Errorf("createCloudInitIso: mkisofs command failed to complete with error: %v", err.Error())
+		return fmt.Errorf("createCloudInitIso: mkisofs command failed to complete with error: %v", err)
 	}
 	log.Debugf("createCloudInitIso: mkisofs command successfully finished")
 	return nil
@@ -312,7 +311,7 @@ func (d *Driver) addSSHUserToYaml(sshkey string) (string, error) {
 func binaryPathLookup(name string) (string, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("binaryPathLookup: error returned when trying to find [%s] executable: [%s]", name, err.Error())
+		return "", fmt.Errorf("binaryPathLookup: error returned when trying to find [%s] executable: [%v]", name, err)
 	}
 	return path, nil
 }
