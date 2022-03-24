@@ -45,6 +45,9 @@ const (
 	defaultSpotPrice            = "0.50"
 	defaultBlockDurationMinutes = 0
 	charset                     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	ec2VolumeResource           = "volume"
+	ec2NetworkInterfaceResource = "network-interface"
+	ec2InstanceResource         = "instance"
 )
 
 const (
@@ -680,6 +683,13 @@ func (d *Driver) innerCreate() error {
 		AssociatePublicIpAddress: aws.Bool(!d.PrivateIPOnly),
 	}}
 
+	log.Debug("Building tags for instance creation")
+	resourceTags := d.buildResourceTags([]string{
+		ec2InstanceResource, // required
+		ec2VolumeResource,   // EBS volume
+		ec2NetworkInterfaceResource,
+	})
+
 	regionZone := d.getRegionZone()
 	log.Debugf("launching instance in subnet %s", d.SubnetId)
 
@@ -703,8 +713,9 @@ func (d *Driver) innerCreate() error {
 				BlockDeviceMappings: bdmList,
 				UserData:            &userdata,
 			},
-			InstanceCount: aws.Int64(1),
-			SpotPrice:     &d.SpotPrice,
+			InstanceCount:     aws.Int64(1),
+			SpotPrice:         &d.SpotPrice,
+			TagSpecifications: resourceTags,
 		}
 		if d.BlockDurationMinutes != 0 {
 			req.BlockDurationMinutes = &d.BlockDurationMinutes
@@ -785,6 +796,7 @@ func (d *Driver) innerCreate() error {
 			EbsOptimized:        &d.UseEbsOptimizedInstance,
 			BlockDeviceMappings: bdmList,
 			UserData:            &userdata,
+			TagSpecifications:   resourceTags,
 		})
 
 		if err != nil {
@@ -822,13 +834,6 @@ func (d *Driver) innerCreate() error {
 		d.IPAddress,
 		d.PrivateIPAddress,
 	)
-
-	log.Debug("Settings tags for instance")
-	err := d.configureTags(d.Tags)
-
-	if err != nil {
-		return fmt.Errorf("Unable to tag instance %s: %s", d.InstanceId, err)
-	}
 
 	return nil
 }
@@ -1109,37 +1114,35 @@ func (d *Driver) securityGroupAvailableFunc(id string) func() bool {
 	}
 }
 
-func (d *Driver) configureTags(tagGroups string) error {
-
-	tags := []*ec2.Tag{}
-	tags = append(tags, &ec2.Tag{
-		Key:   aws.String("Name"),
-		Value: &d.MachineName,
-	})
-
-	if tagGroups != "" {
-		t := strings.Split(tagGroups, ",")
-		if len(t) > 0 && len(t)%2 != 0 {
-			log.Warnf("Tags are not key value in pairs. %d elements found", len(t))
-		}
-		for i := 0; i < len(t)-1; i += 2 {
-			tags = append(tags, &ec2.Tag{
-				Key:   &t[i],
-				Value: &t[i+1],
+// buildResourceTags accepts a list of AWS resources that should be tagged
+// upon creation of the EC2 instance. Driver.Tags will be applied to all resources
+// supplied, except for the ec2InstanceResource which will also have the
+// MachineName added as a tag.
+//
+// NB: The ec2InstanceResource must be passed for the EC2 instance to have a name.
+func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
+	tags := buildEC2Tags(d.Tags)
+	var tagSpecs []*ec2.TagSpecification
+	for i := 0; i < len(resources); i++ {
+		switch resources[i] {
+		case ec2InstanceResource:
+			// append instance name
+			instanceTags := append(tags, &ec2.Tag{
+				Key:   aws.String("Name"),
+				Value: &d.MachineName,
+			})
+			tagSpecs = append(tagSpecs, &ec2.TagSpecification{
+				ResourceType: &resources[i],
+				Tags:         instanceTags,
+			})
+		default:
+			tagSpecs = append(tagSpecs, &ec2.TagSpecification{
+				ResourceType: &resources[i],
+				Tags:         tags,
 			})
 		}
 	}
-
-	_, err := d.getClient().CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{&d.InstanceId},
-		Tags:      tags,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tagSpecs
 }
 
 func (d *Driver) configureSecurityGroups(groupNames []string) error {
@@ -1544,6 +1547,25 @@ func (d *Driver) getRegionZone() string {
 		return d.Region + d.Zone
 	}
 	return d.Zone
+}
+
+// buildEC2Tags accepts a string of tagGroups (in the format of 'key1,value1,key2,value2')
+// and returns a slice of ec2.Tag's which can be applied to various ec2 resources.
+func buildEC2Tags(tagGroups string) []*ec2.Tag {
+	var tags []*ec2.Tag
+	if tagGroups != "" {
+		t := strings.Split(tagGroups, ",")
+		if len(t) > 0 && len(t)%2 != 0 {
+			log.Warnf("Tags are not key value in pairs. %d elements found", len(t))
+		}
+		for i := 0; i < len(t)-1; i += 2 {
+			tags = append(tags, &ec2.Tag{
+				Key:   &t[i],
+				Value: &t[i+1],
+			})
+		}
+	}
+	return tags
 }
 
 func generateId() string {
