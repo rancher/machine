@@ -1124,22 +1124,18 @@ func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
 	tags := buildEC2Tags(d.Tags)
 	tagSpecs := make([]*ec2.TagSpecification, 0, len(resources)+1)
 	for i := range resources {
+		var instanceTags []*ec2.Tag
 		if resources[i] == ec2InstanceResource {
 			// append instance name
-			instanceTags := append(tags, &ec2.Tag{
+			instanceTags = append(instanceTags, &ec2.Tag{
 				Key:   aws.String("Name"),
 				Value: &d.MachineName,
 			})
-			tagSpecs = append(tagSpecs, &ec2.TagSpecification{
-				ResourceType: &resources[i],
-				Tags:         instanceTags,
-			})
-		} else {
-			tagSpecs = append(tagSpecs, &ec2.TagSpecification{
-				ResourceType: &resources[i],
-				Tags:         tags,
-			})
 		}
+		tagSpecs = append(tagSpecs, &ec2.TagSpecification{
+			ResourceType: &resources[i],
+			Tags:         append(tags, instanceTags...),
+		})
 	}
 	return tagSpecs
 }
@@ -1551,19 +1547,23 @@ func (d *Driver) getRegionZone() string {
 // buildEC2Tags accepts a string of tagGroups (in the format of 'key1,value1,key2,value2')
 // and returns a slice of ec2.Tag's which can be applied to various ec2 resources.
 func buildEC2Tags(tagGroups string) []*ec2.Tag {
-	tags := make([]*ec2.Tag, 0, len(tagGroups)/2)
-	if tagGroups != "" {
-		t := strings.Split(tagGroups, ",")
-		if len(t)%2 != 0 {
-			log.Warnf("Tags are not key value in pairs. %d elements found", len(t))
-		}
-		for i := 0; i < len(t)-1; i += 2 {
-			tags = append(tags, &ec2.Tag{
-				Key:   &t[i],
-				Value: &t[i+1],
-			})
-		}
+	if tagGroups == "" {
+		return []*ec2.Tag{}
 	}
+
+	t := strings.Split(tagGroups, ",")
+	if len(t)%2 != 0 {
+		fmt.Println("Tags are not key value in pairs. %d elements found", len(t))
+	}
+
+	tags := make([]*ec2.Tag, 0, len(t)/2)
+	for i := 0; i < len(t)-1; i += 2 {
+		tags = append(tags, &ec2.Tag{
+			Key:   &t[i],
+			Value: &t[i+1],
+		})
+	}
+
 	return tags
 }
 
