@@ -1122,10 +1122,9 @@ func (d *Driver) securityGroupAvailableFunc(id string) func() bool {
 // NB: The ec2InstanceResource must be passed for the EC2 instance to have a name.
 func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
 	tags := buildEC2Tags(d.Tags)
-	var tagSpecs []*ec2.TagSpecification
-	for i := 0; i < len(resources); i++ {
-		switch resources[i] {
-		case ec2InstanceResource:
+	tagSpecs := make([]*ec2.TagSpecification, 0, len(resources)+1)
+	for i := range resources {
+		if resources[i] == ec2InstanceResource {
 			// append instance name
 			instanceTags := append(tags, &ec2.Tag{
 				Key:   aws.String("Name"),
@@ -1135,7 +1134,7 @@ func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
 				ResourceType: &resources[i],
 				Tags:         instanceTags,
 			})
-		default:
+		} else {
 			tagSpecs = append(tagSpecs, &ec2.TagSpecification{
 				ResourceType: &resources[i],
 				Tags:         tags,
@@ -1552,10 +1551,10 @@ func (d *Driver) getRegionZone() string {
 // buildEC2Tags accepts a string of tagGroups (in the format of 'key1,value1,key2,value2')
 // and returns a slice of ec2.Tag's which can be applied to various ec2 resources.
 func buildEC2Tags(tagGroups string) []*ec2.Tag {
-	var tags []*ec2.Tag
+	tags := make([]*ec2.Tag, 0, len(tagGroups)/2)
 	if tagGroups != "" {
 		t := strings.Split(tagGroups, ",")
-		if len(t) > 0 && len(t)%2 != 0 {
+		if len(t)%2 != 0 {
 			log.Warnf("Tags are not key value in pairs. %d elements found", len(t))
 		}
 		for i := 0; i < len(t)-1; i += 2 {
