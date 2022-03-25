@@ -1122,6 +1122,17 @@ func (d *Driver) securityGroupAvailableFunc(id string) func() bool {
 // NB: The ec2InstanceResource must be passed for the EC2 instance to have a name.
 func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
 	tags := buildEC2Tags(d.Tags)
+	if len(tags) == 0 {
+		resource := ec2InstanceResource
+		return []*ec2.TagSpecification{{
+			ResourceType: &resource,
+			Tags: []*ec2.Tag{{
+				Key:   aws.String("Name"),
+				Value: &d.MachineName,
+			}},
+		}}
+	}
+
 	tagSpecs := make([]*ec2.TagSpecification, 0, len(resources)+1)
 	for i := range resources {
 		var instanceTags []*ec2.Tag
