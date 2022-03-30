@@ -1,10 +1,8 @@
 kind: pipeline
 name: amd64
-
 platform:
   os: linux
   arch: amd64
-
 steps:
   - name: build
     pull: default
@@ -13,29 +11,27 @@ steps:
       - dapper ci
     privileged: true
     volumes:
-    - name: docker
-      path: /var/run/docker.sock
+      - name: docker
+        path: /var/run/docker.sock
     when:
       event:
-      - tag
-      - pull_request
-
+        - tag
+        - pull_request
   - name: github_binary_release
     image: plugins/github-release
     settings:
       api_key:
         from_secret: github_token
       files:
-      - "dist/artifacts/*"
+        - "dist/artifacts/*"
     when:
       instance:
-      - drone-publish.rancher.io
+        - drone-publish.rancher.io
       ref:
-      - refs/head/master
-      - refs/tags/*
+        - refs/head/master
+        - refs/tags/*
       event:
-      - tag
-
+        - tag
   - name: stage-binaries
     image: rancher/dapper:v0.5.4
     commands:
@@ -43,7 +39,6 @@ steps:
     when:
       event:
         - tag
-
   - name: docker-publish
     image: plugins/docker
     settings:
@@ -59,21 +54,16 @@ steps:
     when:
       event:
         - tag
-
 volumes:
   - name: docker
     host:
       path: /var/run/docker.sock
-
 ---
-
 kind: pipeline
 name: arm64
-
 platform:
   os: linux
   arch: arm64
-
 steps:
   - name: build
     pull: default
@@ -88,23 +78,21 @@ steps:
       event:
         - tag
         - pull_request
-
   - name: github_binary_release
     image: plugins/github-release
     settings:
       api_key:
         from_secret: github_token
       files:
-      - "dist/artifacts/*"
+        - "dist/artifacts/*"
     when:
       instance:
-      - drone-publish.rancher.io
+        - drone-publish.rancher.io
       ref:
-      - refs/head/master
-      - refs/tags/*
+        - refs/head/master
+        - refs/tags/*
       event:
-      - tag
-
+        - tag
   - name: stage-binaries
     image: rancher/dapper:v0.5.4
     commands:
@@ -112,7 +100,6 @@ steps:
     when:
       event:
         - tag
-
   - name: docker-publish
     image: plugins/docker
     settings:
@@ -128,27 +115,20 @@ steps:
     when:
       event:
         - tag
-
 volumes:
   - name: docker
     host:
       path: /var/run/docker.sock
-
 ---
-
 kind: pipeline
 name: s390x
-
 platform:
   os: linux
   arch: amd64
-
 node:
   arch: s390x
-
 clone:
   disable: true
-
 steps:
   - name: clone
     pull: if-not-exists
@@ -157,7 +137,6 @@ steps:
       - git clone $DRONE_GIT_HTTP_URL  .
       - git fetch origin $DRONE_COMMIT_REF
       - git checkout $DRONE_COMMIT -b origin/$DRONE_TARGET_BRANCH
-
   - name: build
     pull: default
     image: rancher/dapper:v0.5.8
@@ -171,23 +150,21 @@ steps:
       event:
         - tag
         - pull_request
-
   - name: github_binary_release
     image: rancher/drone-images:github-release-s390x
     settings:
       api_key:
         from_secret: github_token
       files:
-      - "dist/artifacts/*"
+        - "dist/artifacts/*"
     when:
       instance:
-      - drone-publish.rancher.io
+        - drone-publish.rancher.io
       ref:
-      - refs/head/master
-      - refs/tags/*
+        - refs/head/master
+        - refs/tags/*
       event:
-      - tag
-
+        - tag
   - name: stage-binaries
     image: rancher/dapper:v0.5.8
     commands:
@@ -195,7 +172,6 @@ steps:
     when:
       event:
         - tag
-
   - name: docker-publish
     image: rancher/drone-images:docker-s390x
     volumes:
@@ -214,17 +190,13 @@ steps:
     when:
       event:
         - tag
-
 volumes:
   - name: docker
     host:
       path: /var/run/docker.sock
-
 ---
-
 kind: pipeline
 name: manifest
-
 steps:
   - name: push-manifest
     image: plugins/manifest:1.0.2
@@ -241,17 +213,14 @@ steps:
       template: "rancher/machine:${DRONE_TAG}-ARCH"
     when:
       event:
-      - tag
-
+        - tag
 volumes:
   - name: docker
     host:
       path: /var/run/docker.sock
-
 trigger:
   event:
     - tag
-
 depends_on:
   - amd64
   - arm64
