@@ -31,8 +31,7 @@ steps:
         - drone-publish.rancher.io
       ref:
         include:
-          - "refs/heads/master"
-          - "refs/heads/release-*"
+          - "refs/heads/*"
           - "refs/tags/v*"
           - "refs/pull/*"
       event:
