@@ -21,7 +21,7 @@ steps:
       - pull_request
       - push
 
-  - name: fossa
+  - name: fossa-analyze
     image: rancher/drone-fossa:latest
     failure: ignore
     settings:
@@ -39,13 +39,14 @@ steps:
         - push
         - tag
 
-  - name: fossa
+  - name: fossa-test
     image: rancher/drone-fossa:latest
     failure: ignore
     settings:
       api_key:
         from_secret: FOSSA_API_KEY
-    command: test
+    commands:
+      - test
     when:
       instance:
         - drone-publish.rancher.io
