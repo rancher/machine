@@ -28,8 +28,8 @@ require (
 	github.com/urfave/cli v1.20.0
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.23.2-0.20201015235820-81318771d0e0
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1
 	google.golang.org/api v0.20.0
@@ -88,7 +88,7 @@ require (
 	github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9 // indirect
 	go.opencensus.io v0.22.3 // indirect
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
-	golang.org/x/text v0.3.4 // indirect
+	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
