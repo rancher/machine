@@ -155,7 +155,7 @@ func (d *Driver) createCloudInitIso() error {
 		return err
 	}
 
-	md := []byte(fmt.Sprintf("hostname: %s\n", d.MachineName))
+	md := []byte(fmt.Sprintf("local-hostname: %s\n", d.MachineName))
 	if err = ioutil.WriteFile(metadata, md, perm); err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (d *Driver) addSSHUserToYaml(sshkey string) (string, error) {
 
 	switch d.OS {
 	default:
-		log.Debug("Adding linux ssh user to cloud-init")
+		log.Debug("[addSSHUserToYaml] Adding linux ssh user to cloud-init")
 		// implements https://github.com/canonical/cloud-init/blob/master/cloudinit/config/cc_users_groups.py#L28-L71
 		// technically not in the spec, see this code for context
 		// https://github.com/canonical/cloud-init/blob/master/cloudinit/distros/__init__.py#L394-L397
@@ -267,11 +267,11 @@ func (d *Driver) addSSHUserToYaml(sshkey string) (string, error) {
 		commonUser["no_user_group"] = true
 
 	// Administrator is the default ssh user on Windows Server 2019/2022
-	// This implements cloudbase-init for Windows VMs as cloudinit doesn't support Windows
+	// This implements cloudbase-init for Windows VMs as cloud-init doesn't support Windows
 	// https://cloudbase-init.readthedocs.io/en/latest/
 	// On Windows, primary_group and groups are concatenated.
 	case WindowsMachineOS:
-		log.Debug("Adding windows ssh user to cloud-init")
+		log.Debug("[addSSHUserToYaml] Adding windows ssh user to cloud-init")
 		commonUser["inactive"] = false
 	}
 

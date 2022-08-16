@@ -495,7 +495,7 @@ func gzipEncode(data []byte) (string, error) {
 	return encoded, nil
 }
 
-// updateUserdataFile If the user has provided a userdata file, then we add the customInstallScript to their userdata file.
+// updateUserdataFile If the user has provided an userdata file, then we add the customInstallScript to their userdata file.
 // This assumes that the user-provided userdata file start with a shebang or `#cloud-config`
 // If the user has not provided any userdata file, then we set the customInstallScript as the userdata file.
 func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, userdataFlag, osFlag, customInstallScript string) error {
@@ -536,16 +536,32 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, userdataFla
 	return nil
 }
 
-// writeCloudConfig sets custom install script path to the runcmd directive
+// writeCloudConfig sets the custom install script path for the runcmd directive
 // and passes the script path to commonCloudConfig
+// RK - sets the hostname based on OS as cloud-init (linux) and cloudbase-init (windows) diverge
+// on how hostnames are set in cloud-config (userdata)
 func writeCloudConfig(machineName, encodedData, machineOS string, cf map[interface{}]interface{}, newUserDataFile *os.File) error {
 	command := "sh"
 	path := "/usr/local/custom_script/install.sh"
 	if strings.Contains(machineOS, "windows") {
 		// the writeFile path should ideally be C:\usr\local\custom_script\install.ps1
-		// but we can't guarantee that directory exists or can be created on the target machine
+		// however, we can't guarantee that directory exists or can be created on the target machine
 		command = "powershell"
 		path = "C:\\install.ps1"
+		// set_hostname is a cloudbase-init specific cloud-config parameter
+		// that is only pertinent for windows VMs
+		// https://cloudbase-init.readthedocs.io/en/latest/userdata.html
+		if err := addToCloudConfig(cf, "set_hostname", machineName); err != nil {
+			log.Debugf("[writeCloudConfig] wrote set_hostname field for %s machine %s", machineName, machineOS)
+			return err
+		}
+	} else {
+		// Add the hostname
+		if _, ok := cf["hostname"]; !ok {
+			cf["hostname"] = machineName
+			log.Debugf("[writeCloudConfig] wrote hostname field for %s machine %s", machineName, machineOS)
+
+		}
 	}
 	return commonCloudConfig(machineName, machineOS, encodedData, command, path, cf, newUserDataFile)
 }
@@ -567,15 +583,6 @@ func commonCloudConfig(machineName, machineOS, encodedData, command, path string
 
 	// Add to the runcmd directive
 	if err := addToCloudConfig(cf, "runcmd", fmt.Sprintf("%s %s", command, writeFile["path"])); err != nil {
-		return err
-	}
-
-	// Add the hostname
-	if _, ok := cf["hostname"]; !ok {
-		cf["hostname"] = machineName
-	}
-	if err := addToCloudConfig(cf, "set_hostname", machineName); err != nil {
-		log.Debugf("writeCloudConfig: wrote set_hostname field for %s machine %s", machineName, machineOS)
 		return err
 	}
 
