@@ -495,7 +495,7 @@ func gzipEncode(data []byte) (string, error) {
 	return encoded, nil
 }
 
-// updateUserdataFile If the user has provided an userdata file, then we add the customInstallScript to their userdata file.
+// updateUserdataFile If the user has provided a userdata file, then we add the customInstallScript to their userdata file.
 // This assumes that the user-provided userdata file start with a shebang or `#cloud-config`
 // If the user has not provided any userdata file, then we set the customInstallScript as the userdata file.
 func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, userdataFlag, osFlag, customInstallScript string) error {
@@ -560,7 +560,6 @@ func writeCloudConfig(machineName, encodedData, machineOS string, cf map[interfa
 		if _, ok := cf["hostname"]; !ok {
 			cf["hostname"] = machineName
 			log.Debugf("[writeCloudConfig] wrote hostname field for %s machine %s", machineName, machineOS)
-
 		}
 	}
 	return commonCloudConfig(machineName, machineOS, encodedData, command, path, cf, newUserDataFile)
