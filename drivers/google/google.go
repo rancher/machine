@@ -21,6 +21,7 @@ type Driver struct {
 	Zone              string
 	MachineType       string
 	MachineImage      string
+	MinCPUPlatform    string
 	DiskType          string
 	Address           string
 	Network           string
@@ -32,21 +33,24 @@ type Driver struct {
 	DiskSize          int
 	Project           string
 	Tags              string
+	ThreadsPerCore    int
 	UseExisting       bool
 	OpenPorts         []string
 	Userdata          string
 }
 
 const (
-	defaultZone        = "us-central1-a"
-	defaultUser        = "docker-user"
-	defaultMachineType = "n1-standard-1"
-	defaultImageName   = "ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721"
-	defaultScopes      = "https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write"
-	defaultDiskType    = "pd-standard"
-	defaultDiskSize    = 10
-	defaultNetwork     = "default"
-	defaultSubnetwork  = ""
+	defaultZone           = "us-central1-a"
+	defaultUser           = "docker-user"
+	defaultMachineType    = "n1-standard-1"
+	defaultImageName      = "ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721"
+	defaultScopes         = "https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write"
+	defaultDiskType       = "pd-standard"
+	defaultDiskSize       = 10
+	defaultNetwork        = "default"
+	defaultSubnetwork     = ""
+	defaultMinCPUPlatform = ""
+	defaultThreadsPerCore = 0
 )
 
 // GetCreateFlags registers the flags this driver adds to
@@ -70,6 +74,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "GCE Machine Image Absolute URL",
 			Value:  defaultImageName,
 			EnvVar: "GOOGLE_MACHINE_IMAGE",
+		},
+		mcnflag.StringFlag{
+			Name:   "google-min-cpu-platform",
+			Usage:  "Minimal CPU Platform for created VM (use friendly name e.g. 'Intel Sandy Bridge')",
+			EnvVar: "GOOGLE_MIN_CPU_PLATFORM",
+			Value:  defaultMinCPUPlatform,
 		},
 		mcnflag.StringFlag{
 			Name:   "google-username",
@@ -133,6 +143,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "GOOGLE_TAGS",
 			Value:  "",
 		},
+		mcnflag.IntFlag{
+			Name:   "google-threads-per-core",
+			Usage:  "The number of visible threads per physical core",
+			EnvVar: "GOOGLE_THREDS_PER_CORE",
+			Value:  defaultThreadsPerCore,
+		},
 		mcnflag.BoolFlag{
 			Name:   "google-use-internal-ip",
 			Usage:  "Use internal GCE Instance IP rather than public one",
@@ -164,14 +180,16 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 // NewDriver creates a Driver with the specified storePath.
 func NewDriver(machineName string, storePath string) *Driver {
 	return &Driver{
-		Zone:         defaultZone,
-		DiskType:     defaultDiskType,
-		DiskSize:     defaultDiskSize,
-		MachineType:  defaultMachineType,
-		MachineImage: defaultImageName,
-		Network:      defaultNetwork,
-		Subnetwork:   defaultSubnetwork,
-		Scopes:       defaultScopes,
+		Zone:           defaultZone,
+		DiskType:       defaultDiskType,
+		DiskSize:       defaultDiskSize,
+		MachineType:    defaultMachineType,
+		MachineImage:   defaultImageName,
+		MinCPUPlatform: defaultMinCPUPlatform,
+		Network:        defaultNetwork,
+		Subnetwork:     defaultSubnetwork,
+		Scopes:         defaultScopes,
+		ThreadsPerCore: defaultThreadsPerCore,
 		BaseDriver: &drivers.BaseDriver{
 			SSHUser:     defaultUser,
 			MachineName: machineName,
@@ -212,6 +230,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		d.MachineType = flags.String("google-machine-type")
 		d.MachineImage = flags.String("google-machine-image")
 		d.MachineImage = strings.TrimPrefix(d.MachineImage, "https://www.googleapis.com/compute/v1/projects/")
+		d.MinCPUPlatform = flags.String("google-min-cpu-platform")
 		d.DiskSize = flags.Int("google-disk-size")
 		d.DiskType = flags.String("google-disk-type")
 		d.Address = flags.String("google-address")
@@ -222,6 +241,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		d.UseInternalIPOnly = flags.Bool("google-use-internal-ip-only")
 		d.Scopes = flags.String("google-scopes")
 		d.Tags = flags.String("google-tags")
+		d.ThreadsPerCore = flags.Int("google-threads-per-core")
 		d.OpenPorts = flags.StringSlice("google-open-port")
 	}
 	d.SSHUser = flags.String("google-username")

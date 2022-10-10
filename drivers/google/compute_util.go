@@ -40,6 +40,8 @@ type ComputeUtil struct {
 	SwarmMaster       bool
 	SwarmHost         string
 	openPorts         []string
+	threadsPerCore    int
+	minCPUPlatform    string
 }
 
 const (
@@ -85,6 +87,7 @@ func newComputeUtil(driver *Driver) (*ComputeUtil, error) {
 		project:           driver.Project,
 		diskTypeURL:       driver.DiskType,
 		address:           driver.Address,
+		minCPUPlatform:    driver.MinCPUPlatform,
 		network:           driver.Network,
 		subnetwork:        driver.Subnetwork,
 		preemptible:       driver.Preemptible,
@@ -262,9 +265,11 @@ func (c *ComputeUtil) createInstance(d *Driver) error {
 	}
 
 	instance := &raw.Instance{
+		AdvancedMachineFeatures: &raw.AdvancedMachineFeatures{},
 		Name:        c.instanceName,
 		Description: "docker host vm",
 		MachineType: c.zoneURL + "/machineTypes/" + d.MachineType,
+		MinCpuPlatform: c.minCPUPlatform,
 		Disks: []*raw.AttachedDisk{
 			{
 				Boot:       true,
@@ -290,6 +295,10 @@ func (c *ComputeUtil) createInstance(d *Driver) error {
 		Scheduling: &raw.Scheduling{
 			Preemptible: c.preemptible,
 		},
+	}
+
+	if d.ThreadsPerCore == 1 || d.ThreadsPerCore == 2 {
+		instance.AdvancedMachineFeatures.ThreadsPerCore = int64(d.ThreadsPerCore)
 	}
 
 	if strings.Contains(c.subnetwork, "/subnetworks/") {
