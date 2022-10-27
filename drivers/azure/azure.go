@@ -36,35 +36,36 @@ const (
 )
 
 const (
-	flAzureEnvironment       = "azure-environment"
-	flAzureSubscriptionID    = "azure-subscription-id"
-	flAzureTenantID          = "azure-tenant-id"
-	flAzureResourceGroup     = "azure-resource-group"
-	flAzureSSHUser           = "azure-ssh-user"
-	flAzureDockerPort        = "azure-docker-port"
-	flAzureLocation          = "azure-location"
-	flAzureSize              = "azure-size"
-	flAzureImage             = "azure-image"
-	flAzureVNet              = "azure-vnet"
-	flAzureSubnet            = "azure-subnet"
-	flAzureSubnetPrefix      = "azure-subnet-prefix"
-	flAzureAvailabilitySet   = "azure-availability-set"
-	flAzureManagedDisks      = "azure-managed-disks"
-	flAzureFaultDomainCount  = "azure-fault-domain-count"
-	flAzureUpdateDomainCount = "azure-update-domain-count"
-	flAzureDiskSize          = "azure-disk-size"
-	flAzurePorts             = "azure-open-port"
-	flAzurePrivateIPAddr     = "azure-private-ip-address"
-	flAzureUsePrivateIP      = "azure-use-private-ip"
-	flAzureStaticPublicIP    = "azure-static-public-ip"
-	flAzureNoPublicIP        = "azure-no-public-ip"
-	flAzureDNSLabel          = "azure-dns"
-	flAzureStorageType       = "azure-storage-type"
-	flAzureCustomData        = "azure-custom-data"
-	flAzureClientID          = "azure-client-id"
-	flAzureClientSecret      = "azure-client-secret"
-	flAzureNSG               = "azure-nsg"
-	flAzurePlan              = "azure-plan"
+	flAzureEnvironment           = "azure-environment"
+	flAzureSubscriptionID        = "azure-subscription-id"
+	flAzureTenantID              = "azure-tenant-id"
+	flAzureResourceGroup         = "azure-resource-group"
+	flAzureSSHUser               = "azure-ssh-user"
+	flAzureDockerPort            = "azure-docker-port"
+	flAzureLocation              = "azure-location"
+	flAzureSize                  = "azure-size"
+	flAzureImage                 = "azure-image"
+	flAzureVNet                  = "azure-vnet"
+	flAzureSubnet                = "azure-subnet"
+	flAzureSubnetPrefix          = "azure-subnet-prefix"
+	flAzureAvailabilitySet       = "azure-availability-set"
+	flAzureManagedDisks          = "azure-managed-disks"
+	flAzureFaultDomainCount      = "azure-fault-domain-count"
+	flAzureUpdateDomainCount     = "azure-update-domain-count"
+	flAzureDiskSize              = "azure-disk-size"
+	flAzurePorts                 = "azure-open-port"
+	flAzurePrivateIPAddr         = "azure-private-ip-address"
+	flAzureUsePrivateIP          = "azure-use-private-ip"
+	flAzureStaticPublicIP        = "azure-static-public-ip"
+	flAzureNoPublicIP            = "azure-no-public-ip"
+	flAzureDNSLabel              = "azure-dns"
+	flAzureStorageType           = "azure-storage-type"
+	flAzureCustomData            = "azure-custom-data"
+	flAzureClientID              = "azure-client-id"
+	flAzureClientSecret          = "azure-client-secret"
+	flAzureNSG                   = "azure-nsg"
+	flAzurePlan                  = "azure-plan"
+	flAzureAcceleratedNetworking = "azure-accelerated-networking"
 )
 
 const (
@@ -100,13 +101,14 @@ type Driver struct {
 	DiskSize        int
 	StorageType     string
 
-	OpenPorts      []string
-	PrivateIPAddr  string
-	UsePrivateIP   bool
-	NoPublicIP     bool
-	DNSLabel       string
-	StaticPublicIP bool
-	CustomDataFile string // Can provide cloud-config file here
+	AcceleratedNetworking bool
+	OpenPorts             []string
+	PrivateIPAddr         string
+	UsePrivateIP          bool
+	NoPublicIP            bool
+	DNSLabel              string
+	StaticPublicIP        bool
+	CustomDataFile        string // Can provide cloud-config file here
 
 	// Ephemeral fields
 	deploymentCtx *azureutil.DeploymentContext
@@ -289,6 +291,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Azure Service Principal Account password (optional, browser auth is used if not specified)",
 			EnvVar: "AZURE_CLIENT_SECRET",
 		},
+		mcnflag.BoolFlag{
+			Name:   flAzureAcceleratedNetworking,
+			Usage:  "Enable an accelerated networking NIC for your Azure network interface",
+			EnvVar: "AZURE_ACCELERATED_NETWORKING",
+		},
 	}
 }
 
@@ -323,6 +330,7 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	}
 
 	// Optional flags or Flags of other types
+	d.AcceleratedNetworking = fl.Bool(flAzureAcceleratedNetworking)
 	d.Environment = fl.String(flAzureEnvironment)
 	d.OpenPorts = fl.StringSlice(flAzurePorts)
 	d.PrivateIPAddr = fl.String(flAzurePrivateIPAddr)
@@ -453,7 +461,7 @@ func (d *Driver) Create() error {
 		}
 	}
 	if err := c.CreateNetworkInterface(ctx, d.deploymentCtx, d.ResourceGroup, d.naming().NIC(), d.Location,
-		d.deploymentCtx.PublicIPAddressID, d.deploymentCtx.SubnetID, d.deploymentCtx.NetworkSecurityGroupID, d.PrivateIPAddr); err != nil {
+		d.deploymentCtx.PublicIPAddressID, d.deploymentCtx.SubnetID, d.deploymentCtx.NetworkSecurityGroupID, d.PrivateIPAddr, d.AcceleratedNetworking); err != nil {
 		return err
 	}
 	if !d.ManagedDisks {

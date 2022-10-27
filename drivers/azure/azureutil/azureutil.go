@@ -311,7 +311,7 @@ func (a AzureClient) CleanupSubnetIfExists(ctx context.Context, resourceGroup, v
 }
 
 // CreateNetworkInterface creates a network interface
-func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *DeploymentContext, resourceGroup, name, location, publicIPAddressID, subnetID, nsgID, privateIPAddress string) error {
+func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *DeploymentContext, resourceGroup, name, location, publicIPAddressID, subnetID, nsgID, privateIPAddress string, acceleratedNetworkingEnabled bool) error {
 	// NOTE(ahmetalpbalkan) This method is expected to fail if the user
 	// specified Azure location is different than location of the virtual
 	// network as Azure does not support cross-region virtual networks. In this
@@ -331,6 +331,7 @@ func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *
 	future, err := networkInterfacesClient.CreateOrUpdate(ctx, resourceGroup, name, network.Interface{
 		Location: to.StringPtr(location),
 		InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+			EnableAcceleratedNetworking: to.BoolPtr(acceleratedNetworkingEnabled),
 			NetworkSecurityGroup: &network.SecurityGroup{
 				ID: to.StringPtr(nsgID),
 			},
