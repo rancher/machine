@@ -29,9 +29,9 @@ require (
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.23.2-0.20201015235820-81318771d0e0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
-	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
+	golang.org/x/net v0.4.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
+	golang.org/x/sys v0.3.0
 	google.golang.org/api v0.20.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.0
@@ -87,8 +87,8 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9 // indirect
 	go.opencensus.io v0.22.3 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
