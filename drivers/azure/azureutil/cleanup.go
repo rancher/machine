@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-12-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-12-01/network"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/rancher/machine/drivers/azure/logutil"
 	"github.com/rancher/machine/libmachine/log"
 )
@@ -274,7 +275,7 @@ func (c *vmCleanup) Get(ctx context.Context, a AzureClient) (err error) {
 
 func (c *vmCleanup) Delete(ctx context.Context, a AzureClient) error {
 	serviceClient := a.virtualMachinesClient()
-	future, err := serviceClient.Delete(ctx, c.rg, c.name)
+	future, err := serviceClient.Delete(ctx, c.rg, c.name, to.BoolPtr(false))
 	if err != nil {
 		return err
 	}
