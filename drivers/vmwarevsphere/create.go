@@ -29,7 +29,7 @@ func (d *Driver) preCreate() error {
 	if err != nil {
 		return err
 	}
-
+	log.Infof("Using datacenter %s", d.datacenter.InventoryPath)
 	d.finder.SetDatacenter(d.datacenter)
 	for _, netName := range d.Networks {
 		net, err := d.finder.NetworkOrDefault(d.getCtx(), netName)
@@ -37,6 +37,7 @@ func (d *Driver) preCreate() error {
 			return err
 		}
 		d.networks[netName] = net
+		log.Infof("Using network %s", net.GetInventoryPath())
 	}
 
 	if d.HostSystem != "" {
@@ -45,6 +46,7 @@ func (d *Driver) preCreate() error {
 		if err != nil {
 			return err
 		}
+		log.Infof("Using hostsystem %s", d.hostsystem.InventoryPath)
 	}
 
 	if d.Pool != "" {
@@ -66,6 +68,7 @@ func (d *Driver) preCreate() error {
 			return err
 		}
 	}
+	log.Infof("Using ResourcePool %s", d.resourcepool.InventoryPath)
 	return nil
 }
 

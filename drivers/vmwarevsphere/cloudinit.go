@@ -76,7 +76,7 @@ func (d *Driver) cloudInitGuestInfo(vm *object.VirtualMachine) error {
 }
 
 func (d *Driver) uploadCloudInitIso(vm *object.VirtualMachine, dc *object.Datacenter, ds *object.Datastore) error {
-	log.Infof("Uploading cloud-init.iso")
+	log.Infof("Uploading %s", isoName)
 	path, err := d.getVmFolder(vm)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (d *Driver) uploadCloudInitIso(vm *object.VirtualMachine, dc *object.Datace
 }
 
 func (d *Driver) removeCloudInitIso(vm *object.VirtualMachine, dc *object.Datacenter, ds *object.Datastore) error {
-	log.Infof("Removing cloud-init.iso")
+	log.Infof("Removing %s", isoName)
 	c, err := d.getSoapClient()
 	if err != nil {
 		return err

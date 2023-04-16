@@ -19,6 +19,7 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/debug"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
@@ -216,7 +217,7 @@ func (d *Driver) generateKeyBundle() error {
 }
 
 func (d *Driver) soapLogin() (*govmomi.Client, error) {
-	u, err := url.Parse(fmt.Sprintf("https://%s:%d/sdk", d.IP, d.Port))
+	u, err := soap.ParseURL(fmt.Sprintf("https://%s:%d", d.IP, d.Port))
 	if err != nil {
 		return nil, err
 	}

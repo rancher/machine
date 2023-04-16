@@ -465,7 +465,7 @@ func (d *Driver) Remove() error {
 	}
 
 	if vm.UUID(d.getCtx()) != d.MachineId {
-		return fmt.Errorf("Machine Id mismatch trying to delete %s but config has %s", vm.UUID(d.getCtx()), d.MachineId)
+		return fmt.Errorf("machine ID mismatch trying to delete %s but config has %s", vm.UUID(d.getCtx()), d.MachineId)
 	}
 
 	machineState, err := d.GetState()
@@ -500,10 +500,11 @@ func (d *Driver) Remove() error {
 		}
 	} else {
 		if err = d.removeCloudInitIso(vm, d.datacenter, ds); err != nil {
-			return nil
+			return err
 		}
 	}
 
+	log.Infof("Destroying VM %s (ID: %s)", d.MachineName, d.MachineId)
 	task, err = vm.Destroy(d.getCtx())
 	if err != nil {
 		return err

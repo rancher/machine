@@ -24,10 +24,10 @@ require (
 	github.com/rancher/wrangler v1.1.0
 	github.com/samalba/dockerclient v0.0.0-20151231000007-f661dd4754aa
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli v1.20.0
 	github.com/vmware/govcloudair v0.0.2
-	github.com/vmware/govmomi v0.23.2-0.20201015235820-81318771d0e0
+	github.com/vmware/govmomi v0.30.4
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/net v0.4.0
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
