@@ -38,14 +38,14 @@ func (ml *FmtMachineLogger) SetErrWriter(err io.Writer) {
 func (ml *FmtMachineLogger) Debug(args ...interface{}) {
 	ml.history.Record(args...)
 	if ml.debug {
-		fmt.Fprintln(ml.errWriter, args...)
+		fmt.Fprintln(ml.outWriter, args...)
 	}
 }
 
 func (ml *FmtMachineLogger) Debugf(fmtString string, args ...interface{}) {
 	ml.history.Recordf(fmtString, args...)
 	if ml.debug {
-		fmt.Fprintf(ml.errWriter, fmtString+"\n", args...)
+		fmt.Fprintf(ml.outWriter, fmtString+"\n", args...)
 	}
 }
 
