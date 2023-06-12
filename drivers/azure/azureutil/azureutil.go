@@ -327,6 +327,11 @@ func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *
 		publicIP = &network.PublicIPAddress{ID: to.StringPtr(publicIPAddressID)}
 	}
 
+	var nsg *network.SecurityGroup
+	if nsgID != "" {
+		nsg = &network.SecurityGroup{ID: to.StringPtr(nsgID)}
+	}
+
 	var privateIPAllocMethod = network.Dynamic
 	if privateIPAddress != "" {
 		privateIPAllocMethod = network.Static
@@ -336,9 +341,7 @@ func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *
 		Location: to.StringPtr(location),
 		InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
 			EnableAcceleratedNetworking: to.BoolPtr(enabledAcceleratedNetworking),
-			NetworkSecurityGroup: &network.SecurityGroup{
-				ID: to.StringPtr(nsgID),
-			},
+			NetworkSecurityGroup:        nsg,
 			IPConfigurations: &[]network.InterfaceIPConfiguration{
 				{
 					Name: to.StringPtr("ip"),

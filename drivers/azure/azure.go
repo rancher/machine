@@ -58,6 +58,7 @@ const (
 	flAzureUsePrivateIP              = "azure-use-private-ip"
 	flAzureStaticPublicIP            = "azure-static-public-ip"
 	flAzureNoPublicIP                = "azure-no-public-ip"
+	flAzureNoNSG                     = "azure-no-nsg"
 	flAzureDNSLabel                  = "azure-dns"
 	flAzureStorageType               = "azure-storage-type"
 	flAzureCustomData                = "azure-custom-data"
@@ -112,6 +113,7 @@ type Driver struct {
 	PrivateIPAddr  string
 	UsePrivateIP   bool
 	NoPublicIP     bool
+	NoNSG          bool
 	DNSLabel       string
 	StaticPublicIP bool
 	CustomDataFile string // Can provide cloud-config file here
@@ -275,6 +277,10 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "Do not create a public IP address for the machine",
 		},
 		mcnflag.BoolFlag{
+			Name:  flAzureNoNSG,
+			Usage: "Do not create a network security group for the machine",
+		},
+		mcnflag.BoolFlag{
 			Name:  flAzureStaticPublicIP,
 			Usage: "Assign a static public IP address to the machine",
 		},
@@ -360,6 +366,7 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.PrivateIPAddr = fl.String(flAzurePrivateIPAddr)
 	d.UsePrivateIP = fl.Bool(flAzureUsePrivateIP)
 	d.NoPublicIP = fl.Bool(flAzureNoPublicIP)
+	d.NoNSG = fl.Bool(flAzureNoNSG)
 	d.StaticPublicIP = fl.Bool(flAzureStaticPublicIP)
 	d.DockerPort = fl.Int(flAzureDockerPort)
 	d.DNSLabel = fl.String(flAzureDNSLabel)
@@ -485,8 +492,12 @@ func (d *Driver) Create() error {
 			return err
 		}
 	}
-	if err := c.CreateNetworkSecurityGroup(ctx, d.deploymentCtx, d.ResourceGroup, d.nsgResource, d.Location, d.nsgUsedInPool, d.deploymentCtx.FirewallRules); err != nil {
-		return err
+	if d.NoNSG {
+		log.Info("Not creating a network security group.")
+	} else {
+		if err := c.CreateNetworkSecurityGroup(ctx, d.deploymentCtx, d.ResourceGroup, d.nsgResource, d.Location, d.nsgUsedInPool, d.deploymentCtx.FirewallRules); err != nil {
+			return err
+		}
 	}
 	vnetResourceGroup, vNetName := parseVirtualNetwork(d.VirtualNetwork, d.ResourceGroup)
 	if err := c.CreateVirtualNetworkIfNotExists(ctx, vnetResourceGroup, vNetName, d.Location); err != nil {
