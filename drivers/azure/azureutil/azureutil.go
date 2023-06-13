@@ -643,12 +643,12 @@ func (a AzureClient) CreateVirtualMachine(ctx context.Context, resourceGroup, na
 	// in particular Availability Zones - you can only specify one or the other.
 	// if a user has provided an availability zone it is assumed that
 	// no availability sets should be created / used.
-	if availabilityZone == "" {
+	if availabilityZone != "" {
+		vm.Zones = to.StringSlicePtr([]string{availabilityZone})
+	} else if availabilitySetID != "" {
 		vm.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
 			ID: to.StringPtr(availabilitySetID),
 		}
-	} else {
-		vm.Zones = to.StringSlicePtr([]string{availabilityZone})
 	}
 
 	future, err := virtualMachinesClient.CreateOrUpdate(ctx, resourceGroup, name, vm)
