@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +30,8 @@ import (
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
+
+const customInstallScriptFlag = "custom-install-script"
 
 var (
 	errNoMachineName = errors.New("error: No machine name specified")
@@ -235,7 +236,7 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 	userdataFlag := drivers.DriverUserdataFlag(h.Driver)
 	osFlag := drivers.DriverOSFlag(h.Driver)
 
-	customInstallScript := c.String("custom-install-script")
+	customInstallScript := c.String(customInstallScriptFlag)
 	h.HostOptions.HostnameOverride = c.String("hostname-override")
 	if customInstallScript != "" {
 		h.HostOptions.CustomInstallScript = customInstallScript
@@ -524,17 +525,30 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, hostname, u
 	if err != nil {
 		return err
 	}
-	// Remove the shebang
-	customScriptContent = regexp.MustCompile(`^#!.*\n`).ReplaceAll(customScriptContent, nil)
 
-	modifiedUserdataFile, err := ioutil.TempFile("", "modified-user-data")
+	modifiedUserdataFile, err := os.CreateTemp("", "modified-user-data")
 	if err != nil {
 		return fmt.Errorf("[updateUserdataFile] unable to create tempfile [%v]\nError returned\n[%v]", modifiedUserdataFile, err)
 	}
 	defer modifiedUserdataFile.Close()
 
-	if err := replaceUserdataFile(machineName, machineOS, hostname, userdataContent, customScriptContent, modifiedUserdataFile); err != nil {
-		return err
+	if bytes.HasPrefix(customScriptContent, []byte("#cloud-config")) || bytes.HasPrefix(customScriptContent, []byte("## template: jinja\n#cloud-config")) {
+		// The custom install script is a cloudinit file. This is specifically to address v2prov, where there is no
+		// machine-driver agnostic user-data flag.
+		if userdataFile != "" {
+			return fmt.Errorf("cannot pass both machine-driver specific user-data flag %s and generic user-data flag %s in '#cloud-config' format", userdataFlag, customInstallScriptFlag)
+		}
+		_, err = modifiedUserdataFile.Write(customScriptContent)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Remove the shebang
+		customScriptContent = regexp.MustCompile(`^#!.*\n`).ReplaceAll(customScriptContent, nil)
+
+		if err = replaceUserdataFile(machineName, machineOS, hostname, userdataContent, customScriptContent, modifiedUserdataFile); err != nil {
+			return err
+		}
 	}
 
 	driverOpts.Values[userdataFlag] = modifiedUserdataFile.Name()
