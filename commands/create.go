@@ -366,7 +366,6 @@ func cmdCreateOuter(c CommandLine, api libmachine.API) error {
 		cmd := &c.Application().Commands[i]
 		if cmd.HasName("create") {
 			cmd = addDriverFlagsToCommand(cliFlags, cmd)
-			break
 		}
 	}
 
