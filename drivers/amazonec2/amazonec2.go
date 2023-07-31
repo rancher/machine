@@ -356,6 +356,9 @@ func (d *Driver) buildClient() Ec2Client {
 	config := aws.NewConfig()
 	alogger := AwsLogger()
 
+	// Check if credentials are available via envvars and, if so, use those. This will address cases where credentials
+	// for an existing remote machine are changed in between invocations of Rancher machine. This is done here because
+	// it can't easily be done on driver or CLI initialization due to constrains in this library.
 	if envAccessKey := os.Getenv("AWS_ACCESS_KEY_ID"); envAccessKey != "" {
 		d.AccessKey = envAccessKey
 	}
@@ -584,7 +587,7 @@ func (d *Driver) checkAMI() error {
 		d.DeviceName = *images.Images[0].RootDeviceName
 	}
 
-	//store bdm list && update size and encryption settings
+	// store bdm list && update size and encryption settings
 	d.bdmList = images.Images[0].BlockDeviceMappings
 
 	return nil

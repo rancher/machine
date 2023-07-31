@@ -39,6 +39,9 @@ func (r requiredOptionError) Error() string {
 // newAzureClient creates an AzureClient helper from the Driver context and
 // initiates authentication if required.
 func (d *Driver) newAzureClient(ctx context.Context) (*azureutil.AzureClient, error) {
+	// Check if credentials are available via envvars and, if so, use those. This will address cases where credentials
+	// for an existing remote machine are changed in between invocations of Rancher machine. This is done here because
+	// it can't easily be done on driver or CLI initialization due to constrains in this library.
 	if envEnvironment := os.Getenv("AZURE_ENVIRONMENT"); envEnvironment != "" {
 		d.Environment = envEnvironment
 	}

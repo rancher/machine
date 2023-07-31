@@ -55,6 +55,9 @@ func newComputeUtil(driver *Driver) (*ComputeUtil, error) {
 	ctx := context.Background()
 	var client *http.Client
 
+	// Check if credentials are available via envvars and, if so, use those. This will address cases where credentials
+	// for an existing remote machine are changed in between invocations of Rancher machine. This is done here because
+	// it can't easily be done on driver or CLI initialization due to constrains in this library.
 	if envAuth := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS_ENCODED_JSON"); envAuth != "" {
 		driver.Auth = envAuth
 	}
