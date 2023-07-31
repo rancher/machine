@@ -328,7 +328,7 @@ func cmdCreateOuter(c CommandLine, api libmachine.API) error {
 	// We didn't recognize the driver name.
 	driverName := flagHackLookup("--driver")
 	if driverName == "" {
-		//TODO: Check Environment have to include flagHackLookup function.
+		// TODO: Check Environment have to include flagHackLookup function.
 		driverName = os.Getenv("MACHINE_DRIVER")
 		if driverName == "" {
 			driverName = "virtualbox"
@@ -366,6 +366,7 @@ func cmdCreateOuter(c CommandLine, api libmachine.API) error {
 		cmd := &c.Application().Commands[i]
 		if cmd.HasName("create") {
 			cmd = addDriverFlagsToCommand(cliFlags, cmd)
+			break
 		}
 	}
 
@@ -441,7 +442,7 @@ func convertMcnFlagsToCliFlags(mcnFlags []mcnflag.Flag) ([]cli.Flag, error) {
 				EnvVar: f.EnvVar,
 				Usage:  f.Usage,
 
-				//TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
+				// TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
 				Value: &cli.StringSlice{},
 			})
 		default:

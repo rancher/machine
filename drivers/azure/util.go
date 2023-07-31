@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-12-01/network"
@@ -38,6 +39,22 @@ func (r requiredOptionError) Error() string {
 // newAzureClient creates an AzureClient helper from the Driver context and
 // initiates authentication if required.
 func (d *Driver) newAzureClient(ctx context.Context) (*azureutil.AzureClient, error) {
+	if envEnvironment := os.Getenv("AZURE_ENVIRONMENT"); envEnvironment != "" {
+		d.Environment = envEnvironment
+	}
+
+	if envSubscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID"); envSubscriptionID != "" {
+		d.SubscriptionID = envSubscriptionID
+	}
+
+	if envClientID := os.Getenv("AZURE_CLIENT_ID"); envClientID != "" {
+		d.ClientID = envClientID
+	}
+
+	if envClientSecret := os.Getenv("AZURE_CLIENT_SECRET"); envClientSecret != "" {
+		d.ClientSecret = envClientSecret
+	}
+
 	env, err := azure.EnvironmentFromName(d.Environment)
 	if err != nil {
 		supportedValues := strings.Join(supportedEnvironments, ", ")

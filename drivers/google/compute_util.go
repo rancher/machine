@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -53,6 +54,10 @@ const (
 func newComputeUtil(driver *Driver) (*ComputeUtil, error) {
 	ctx := context.Background()
 	var client *http.Client
+
+	if envAuth := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS_ENCODED_JSON"); envAuth != "" {
+		driver.Auth = envAuth
+	}
 
 	if driver.Auth != "" {
 		jsonCreds, err := base64.StdEncoding.DecodeString(driver.Auth)

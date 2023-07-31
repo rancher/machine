@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/rancher/machine/libmachine/log"
@@ -59,7 +60,7 @@ func (d *Driver) getDatastore(spec *types.VirtualMachineConfigSpec) (*object.Dat
 		return d.finder.Datastore(d.getCtx(), d.Datastore)
 	}
 
-	//nothing set, try default ds cluster then default ds
+	// nothing set, try default ds cluster then default ds
 	log.Infof("Finding default datastore cluster")
 	sp, err := d.finder.DefaultDatastoreCluster(d.getCtx())
 	if err != nil {
@@ -217,6 +218,22 @@ func (d *Driver) generateKeyBundle() error {
 }
 
 func (d *Driver) soapLogin() (*govmomi.Client, error) {
+	if envVCenter := os.Getenv("VSPHERE_VCENTER"); envVCenter != "" {
+		d.IP = envVCenter
+	}
+
+	if envPort, err := strconv.Atoi(os.Getenv("VSPHERE_VCENTER_PORT")); err == nil {
+		d.Port = envPort
+	}
+
+	if envUsername := os.Getenv("VSPHERE_USERNAME"); envUsername != "" {
+		d.Username = envUsername
+	}
+
+	if envPw := os.Getenv("VSPHERE_PASSWORD"); envPw != "" {
+		d.Password = envPw
+	}
+
 	u, err := soap.ParseURL(fmt.Sprintf("https://%s:%d", d.IP, d.Port))
 	if err != nil {
 		return nil, err

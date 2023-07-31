@@ -11,6 +11,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -354,6 +355,15 @@ func NewDriver(hostName, storePath string) *Driver {
 func (d *Driver) buildClient() Ec2Client {
 	config := aws.NewConfig()
 	alogger := AwsLogger()
+
+	if envAccessKey := os.Getenv("AWS_ACCESS_KEY_ID"); envAccessKey != "" {
+		d.AccessKey = envAccessKey
+	}
+
+	if envSecretKey := os.Getenv("AWS_SECRET_ACCESS_KEY"); envSecretKey != "" {
+		d.SecretKey = envSecretKey
+	}
+
 	config = config.WithRegion(d.Region)
 	config = config.WithCredentials(d.awsCredentialsFactory().Credentials())
 	config = config.WithLogger(alogger)

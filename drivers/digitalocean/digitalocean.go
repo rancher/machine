@@ -403,6 +403,10 @@ func (d *Driver) Remove() error {
 }
 
 func (d *Driver) getClient() *godo.Client {
+	if envToken := os.Getenv("DIGITALOCEAN_ACCESS_TOKEN"); envToken != "" {
+		d.AccessToken = envToken
+	}
+
 	token := &oauth2.Token{AccessToken: d.AccessToken}
 	tokenSource := oauth2.StaticTokenSource(token)
 	client := oauth2.NewClient(oauth2.NoContext, tokenSource)

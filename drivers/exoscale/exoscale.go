@@ -241,6 +241,14 @@ func (d *Driver) GetURL() (string, error) {
 }
 
 func (d *Driver) client() *egoscale.Client {
+	if envAPIKey := os.Getenv("EXOSCALE_API_KEY"); envAPIKey != "" {
+		d.APIKey = envAPIKey
+	}
+
+	if envSecret := os.Getenv("EXOSCALE_API_SECRET"); envSecret != "" {
+		d.APISecretKey = envSecret
+	}
+
 	return egoscale.NewClient(d.URL, d.APIKey, d.APISecretKey)
 }
 

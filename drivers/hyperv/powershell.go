@@ -4,10 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
-
-	"fmt"
 
 	"github.com/rancher/machine/libmachine/log"
 )
