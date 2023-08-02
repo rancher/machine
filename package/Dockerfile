@@ -1,4 +1,4 @@
-FROM registry.suse.com/bci/bci-base:15.4.27.14.23
+FROM registry.suse.com/bci/bci-base:15.5
 
 ENV SSL_CERT_DIR /etc/rancher/ssl
 
@@ -7,19 +7,20 @@ RUN zypper -n update && \
     zypper -n clean -a && \
     rm -rf /tmp/* /var/tmp/* /usr/share/doc/packages/*
 
-RUN useradd -u 1000 machine
+RUN useradd -m -u 1000 machine
 
-RUN mkdir -p .docker/machine/machines /etc/rancher/ssl /home/machine && \
-    chown -R machine /etc/rancher/ssl && \
+RUN mkdir -p .docker/machine/machines /etc/rancher/ssl /home/machine/bin && \
+    chown -R machine /etc/rancher/ssl
+
+COPY download_driver.sh rancher-machine entrypoint.sh /home/machine/bin/
+
+RUN chmod -R 700 /home/machine/bin && \
     chown -R machine /home/machine
 
-COPY download_driver.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/download_driver.sh
-
-COPY rancher-machine entrypoint.sh /usr/local/bin/
-RUN chmod 0777 /usr/local/bin
-
 USER 1000
+
+ENV PATH="$PATH:/home/machine/bin"
+
 WORKDIR /home/machine
 
 ENTRYPOINT ["entrypoint.sh"]
