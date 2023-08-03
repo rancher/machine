@@ -494,9 +494,14 @@ func (d *Driver) Create() error {
 		return err
 	}
 	// availability sets and availability zones cannot be used together. The presence of an Availability Zone indicates that an Availability set should not be created / used
-	if d.AvailabilityZone == "" && !d.NoAvailability {
-		if err := c.CreateAvailabilitySetIfNotExists(ctx, d.deploymentCtx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
-			return err
+	if d.NoAvailability {
+		log.Info("Not creating an availability zone or availability set.")
+	} else {
+		// availability sets and availability zones cannot be used together. The presence of an Availability Zone indicates that an Availability set should not be created / used
+		if d.AvailabilityZone == "" {
+			if err := c.CreateAvailabilitySetIfNotExists(ctx, d.deploymentCtx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
+				return err
+			}
 		}
 	}
 	if d.NoNSG {
