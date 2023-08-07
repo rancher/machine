@@ -549,16 +549,12 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, hostname, u
 func writeCloudConfig(machineName, encodedData, machineOS, hostname string, cf map[interface{}]interface{}, newUserDataFile *os.File) error {
 	command := "sh"
 	path := "/usr/local/custom_script/install.sh"
-	key := "hostname"
+	key := "set_hostname"
 	if strings.Contains(machineOS, "windows") {
 		// the writeFile path should ideally be C:\usr\local\custom_script\install.ps1
 		// however, we can't guarantee that directory exists or can be created on the target machine
 		command = "powershell"
 		path = "C:\\install.ps1"
-		// set_hostname is a cloudbase-init specific cloud-config parameter
-		// that is only pertinent for windows VMs
-		// https://cloudbase-init.readthedocs.io/en/latest/userdata.html
-		key = "set_hostname"
 	}
 	if _, ok := cf[key]; !ok {
 		if hostname != "" {
