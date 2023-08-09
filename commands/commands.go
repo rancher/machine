@@ -20,7 +20,10 @@ import (
 )
 
 const (
-	defaultMachineName = "default"
+	defaultMachineName    = "default"
+	singleMachineNameHelp = "Argument is a machine name. "
+	multiMachineNameHelp  = "Argument(s) are one or more machine names. "
+	driverFlagHelp        = `Driver-specific arguments can be passed after the '--' argument separator (e.g. "arg1 arg2 -- driver-arg --driver-flag"). `
 )
 
 var (
@@ -224,7 +227,7 @@ var Commands = []cli.Command{
 	{
 		Name:        "config",
 		Usage:       "Print the connection config for machine",
-		Description: "Argument is a machine name.",
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdConfig),
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -237,13 +240,13 @@ var Commands = []cli.Command{
 		Flags:       SharedCreateFlags,
 		Name:        "create",
 		Usage:       "Create a machine",
-		Description: fmt.Sprintf("Run '%s create --driver name --help' to include the create flags for that driver in the help text.", os.Args[0]),
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdCreate),
 	},
 	{
 		Name:        "env",
 		Usage:       "Display the commands to set up the environment for the Docker client",
-		Description: "Argument is a machine name.",
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdEnv),
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -267,7 +270,7 @@ var Commands = []cli.Command{
 	{
 		Name:        "inspect",
 		Usage:       "Inspect information about a machine",
-		Description: "Argument is a machine name.",
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdInspect),
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -280,13 +283,13 @@ var Commands = []cli.Command{
 	{
 		Name:        "ip",
 		Usage:       "Get the IP address of a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdIP),
 	},
 	{
 		Name:        "kill",
 		Usage:       "Kill a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdKill),
 	},
 	{
@@ -315,14 +318,15 @@ var Commands = []cli.Command{
 		},
 	},
 	{
-		Name:   "provision",
-		Usage:  "Re-provision existing machines",
-		Action: runCommand(cmdProvision),
+		Name:        "provision",
+		Usage:       "Re-provision existing machines",
+		Description: multiMachineNameHelp + driverFlagHelp,
+		Action:      runCommand(cmdProvision),
 	},
 	{
 		Name:        "regenerate-certs",
 		Usage:       "Regenerate TLS Certificates for a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp,
 		Action:      runCommand(cmdRegenerateCerts),
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -338,7 +342,7 @@ var Commands = []cli.Command{
 	{
 		Name:        "restart",
 		Usage:       "Restart a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdRestart),
 	},
 	{
@@ -360,14 +364,14 @@ var Commands = []cli.Command{
 	{
 		Name:            "ssh",
 		Usage:           "Log into or run a command on a machine with SSH.",
-		Description:     "Arguments are [machine-name] [command]",
+		Description:     "Arguments are [machine-name] [command]. " + driverFlagHelp,
 		Action:          runCommand(cmdSSH),
 		SkipFlagParsing: true,
 	},
 	{
 		Name:        "scp",
 		Usage:       "Copy files between machines",
-		Description: "Arguments are [[user@]machine:][path] [[user@]machine:][path].",
+		Description: "Arguments are [[user@]machine:][path] [[user@]machine:][path]. " + driverFlagHelp,
 		Action:      runCommand(cmdScp),
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -387,7 +391,7 @@ var Commands = []cli.Command{
 	{
 		Name:        "mount",
 		Usage:       "Mount or unmount a directory from a machine with SSHFS.",
-		Description: "Arguments are [machine:][path] [mountpoint]",
+		Description: "Arguments are [machine:][path] [mountpoint]. " + driverFlagHelp,
 		Action:      runCommand(cmdMount),
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -399,31 +403,31 @@ var Commands = []cli.Command{
 	{
 		Name:        "start",
 		Usage:       "Start a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdStart),
 	},
 	{
 		Name:        "status",
 		Usage:       "Get the status of a machine",
-		Description: "Argument is a machine name.",
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdStatus),
 	},
 	{
 		Name:        "stop",
 		Usage:       "Stop a machine",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdStop),
 	},
 	{
 		Name:        "upgrade",
 		Usage:       "Upgrade a machine to the latest version of Docker",
-		Description: "Argument(s) are one or more machine names.",
+		Description: multiMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdUpgrade),
 	},
 	{
 		Name:        "url",
 		Usage:       "Get the URL of a machine",
-		Description: "Argument is a machine name.",
+		Description: singleMachineNameHelp + driverFlagHelp,
 		Action:      runCommand(cmdURL),
 	},
 	{

@@ -1,10 +1,9 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"testing"
-
-	"bytes"
 
 	"github.com/rancher/machine/commands/commandstest"
 	"github.com/rancher/machine/libmachine/host"
