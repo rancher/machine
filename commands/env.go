@@ -76,7 +76,7 @@ func shellCfgSet(c CommandLine, api libmachine.API) (*ShellConfig, error) {
 		return nil, ErrExpectedOneMachine
 	}
 
-	target, err := targetHost(c, api, hostArgs)
+	target, err := targetHost(api, hostArgs)
 	if err != nil {
 		return nil, err
 	}

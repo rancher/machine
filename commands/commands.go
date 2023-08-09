@@ -78,7 +78,7 @@ func (c *contextCommandLine) Application() *cli.App {
 
 // targetHost returns a specific host name if one is provided in the list of hosts, or the default host name if
 // no host is specified.
-func targetHost(c CommandLine, api libmachine.API, hosts []string) (string, error) {
+func targetHost(api libmachine.API, hosts []string) (string, error) {
 	if len(hosts) == 0 {
 		defaultExists, err := api.Exists(defaultMachineName)
 		if err != nil {
@@ -105,7 +105,7 @@ func runAction(actionName string, c CommandLine, api libmachine.API) error {
 	// 'docker-machine stop' for convenience.
 	hostArgs, _ := util.SplitArgs(c.Args())
 	if len(hostArgs) == 0 {
-		target, err := targetHost(c, api, hostArgs)
+		target, err := targetHost(api, hostArgs)
 		if err != nil {
 			return err
 		}

@@ -18,7 +18,7 @@ func cmdConfig(c CommandLine, api libmachine.API) error {
 	log.SetOutWriter(os.Stderr)
 
 	hostArgs, _ := util.SplitArgs(c.Args())
-	target, err := targetHost(c, api, hostArgs)
+	target, err := targetHost(api, hostArgs)
 	if err != nil {
 		return err
 	}
