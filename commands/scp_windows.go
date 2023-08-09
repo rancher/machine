@@ -6,17 +6,18 @@ import (
 	"syscall"
 
 	"github.com/rancher/machine/libmachine"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 func cmdScp(c CommandLine, api libmachine.API) error {
-	args := c.Args()
-	if len(args) != 2 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) != 2 {
 		c.ShowHelp()
 		return errWrongNumberArguments
 	}
 
-	src := args[0]
-	dest := args[1]
+	src := hostArgs[0]
+	dest := hostArgs[1]
 
 	hostInfoLoader := &storeHostInfoLoader{api}
 

@@ -5,12 +5,14 @@
 package vmwarevcloudair
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strconv"
 	"strings"
 
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/vmware/govcloudair"
 
 	"github.com/rancher/machine/libmachine/drivers"
@@ -47,9 +49,8 @@ const (
 	defaultDockerPort  = 2376
 )
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "VCLOUDAIR_USERNAME",
@@ -147,6 +148,25 @@ func (d *Driver) GetSSHHostname() (string, error) {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "vmwarevcloudair"
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["vmwarevcloudair-username"]; ok {
+		d.UserName = driverOpts.String("vmwarevcloudair-username")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevcloudair-password"]; ok {
+		d.UserPassword = driverOpts.String("vmwarevcloudair-password")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

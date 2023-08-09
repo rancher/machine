@@ -8,15 +8,17 @@ import (
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnerror"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 func cmdRm(c CommandLine, api libmachine.API) error {
-	if len(c.Args()) == 0 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) == 0 {
 		c.ShowHelp()
 		return ErrNoMachineSpecified
 	}
 
-	log.Info(fmt.Sprintf("About to remove %s", strings.Join(c.Args(), ", ")))
+	log.Info(fmt.Sprintf("About to remove %s", strings.Join(hostArgs, ", ")))
 	log.Warn("WARNING: This action will delete both local reference and remote instance.")
 
 	force := c.Bool("force")
@@ -27,13 +29,13 @@ func cmdRm(c CommandLine, api libmachine.API) error {
 		return nil
 	}
 
-	for _, hostName := range c.Args() {
+	for _, hostName := range hostArgs {
 		err := removeRemoteMachine(hostName, api)
 		if err != nil {
 			if _, ok := err.(mcnerror.ErrHostDoesNotExist); !ok {
 				errorOccurred = collectError(fmt.Sprintf("Error removing host %q: %s", hostName, err), force, errorOccurred)
 			} else {
-				log.Infof("Machine config for %s does not exists, so nothing to do...", hostName)
+				log.Infof("Machine config for %s does not exist, so nothing to do...", hostName)
 			}
 		}
 

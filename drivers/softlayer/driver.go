@@ -1,6 +1,7 @@
 package softlayer
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/ssh"
@@ -81,7 +83,7 @@ func (d *Driver) GetSSHHostname() (string, error) {
 	return d.GetIP()
 }
 
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	// Set hourly billing to true by default since codegangsta cli doesn't take default bool values
 	if os.Getenv("SOFTLAYER_HOURLY_BILLING") == "" {
 		os.Setenv("SOFTLAYER_HOURLY_BILLING", "true")
@@ -213,6 +215,29 @@ func validateClientConfig(c *Client) error {
 
 	if c.Endpoint == "" {
 		return fmt.Errorf("Missing required setting - --softlayer-api-endpoint")
+	}
+
+	return nil
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["softlayer-api-endpoint"]; ok {
+		d.Client.Endpoint = driverOpts.String("softlayer-api-endpoint")
+	}
+
+	if _, ok := driverOpts.Values["softlayer-user"]; ok {
+		d.Client.User = driverOpts.String("softlayer-user")
+	}
+
+	if _, ok := driverOpts.Values["softlayer-api-key"]; ok {
+		d.Client.ApiKey = driverOpts.String("softlayer-api-key")
 	}
 
 	return nil

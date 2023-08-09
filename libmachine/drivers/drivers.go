@@ -19,9 +19,8 @@ type Driver interface {
 	// DriverName returns the name of the driver
 	DriverName() string
 
-	// GetCreateFlags returns the mcnflag.Flag slice representing the flags
-	// that can be set, their descriptions and defaults.
-	GetCreateFlags() []mcnflag.Flag
+	// GetFlags returns all flags for configuring the driver.
+	GetFlags() []mcnflag.Flag
 
 	// GetIP returns an IP or hostname that this host is available at
 	// e.g. 1.2.3.4 or docker-host-d60b70a14d3a.cloudapp.net
@@ -63,8 +62,10 @@ type Driver interface {
 	Restart() error
 
 	// SetConfigFromFlags configures the driver with the object that was returned
-	// by RegisterCreateFlags
+	// by GetFlags
 	SetConfigFromFlags(opts DriverOptions) error
+
+	LoadConfigFromJSON(data []byte) error
 
 	// Start a host
 	Start() error
@@ -111,7 +112,7 @@ func MustBeRunning(d Driver) error {
 
 // DriverUserdataFlag returns true if the driver is detected to have a userdata flag.
 func DriverUserdataFlag(d Driver) string {
-	for _, opt := range d.GetCreateFlags() {
+	for _, opt := range d.GetFlags() {
 		if nameIsUserData(opt.String()) {
 			return opt.String()
 		}
@@ -122,7 +123,7 @@ func DriverUserdataFlag(d Driver) string {
 
 // DriverOSFlag returns true if the driver is detected to have an OS flag.
 func DriverOSFlag(d Driver) string {
-	for _, opt := range d.GetCreateFlags() {
+	for _, opt := range d.GetFlags() {
 		if nameIsOS(opt.String()) {
 			return opt.String()
 		}

@@ -1,6 +1,7 @@
 package generic
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -27,9 +28,8 @@ const (
 	defaultTimeout = 15 * time.Second
 )
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.IntFlag{
 			Name:   "generic-engine-port",
@@ -89,6 +89,15 @@ func (d *Driver) GetSSHUsername() string {
 
 func (d *Driver) GetSSHKeyPath() string {
 	return d.SSHKeyPath
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

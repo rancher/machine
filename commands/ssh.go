@@ -5,6 +5,7 @@ import (
 
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/state"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 type errStateInvalidForSSH struct {
@@ -17,13 +18,20 @@ func (e errStateInvalidForSSH) Error() string {
 
 func cmdSSH(c CommandLine, api libmachine.API) error {
 	// Check for help flag -- Needed due to SkipFlagParsing
-	firstArg := c.Args().First()
+	hostArgs, _ := util.SplitArgs(c.Args())
+	var firstArg string
+	tailArgs := []string{}
+	if len(hostArgs) > 0 {
+		firstArg = hostArgs[0]
+		tailArgs = hostArgs[1:]
+	}
+
 	if firstArg == "-help" || firstArg == "--help" || firstArg == "-h" {
 		c.ShowHelp()
 		return nil
 	}
 
-	target, err := targetHost(c, api)
+	target, err := targetHost(c, api, hostArgs)
 	if err != nil {
 		return err
 	}
@@ -47,5 +55,5 @@ func cmdSSH(c CommandLine, api libmachine.API) error {
 		return err
 	}
 
-	return client.Shell(c.Args().Tail()...)
+	return client.Shell(tailArgs...)
 }

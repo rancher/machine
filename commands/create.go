@@ -28,6 +28,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnerror"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/swarm"
+	"github.com/rancher/machine/libmachine/util"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
@@ -147,16 +148,17 @@ var (
 )
 
 func cmdCreateInner(c CommandLine, api libmachine.API) error {
-	if len(c.Args()) > 1 {
-		return fmt.Errorf("[cmdCreateInner] invalid command line. Found extra arguments %v", c.Args()[1:])
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) > 1 {
+		return fmt.Errorf("[cmdCreateInner] invalid command line. Found extra arguments %v", hostArgs[1:])
 	}
 
-	name := c.Args().First()
-	if name == "" {
+	if len(hostArgs) == 0 {
 		c.ShowHelp()
 		return errNoMachineName
 	}
 
+	name := hostArgs[0]
 	if !host.ValidateHostName(name) {
 		return fmt.Errorf("[cmdCreateInner] error creating machine: [%s]", mcnerror.ErrInvalidHostname)
 	}
@@ -230,7 +232,7 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 	// driverOpts is the actual data we send over the wire to set the
 	// driver parameters (an interface fulfilling drivers.DriverOptions,
 	// concrete type rpcdriver.RpcFlags).
-	mcnFlags := h.Driver.GetCreateFlags()
+	mcnFlags := h.Driver.GetFlags()
 	driverOpts := getDriverOpts(c, mcnFlags)
 	userdataFlag := drivers.DriverUserdataFlag(h.Driver)
 	osFlag := drivers.DriverOSFlag(h.Driver)
@@ -328,7 +330,7 @@ func cmdCreateOuter(c CommandLine, api libmachine.API) error {
 	// We didn't recognize the driver name.
 	driverName := flagHackLookup("--driver")
 	if driverName == "" {
-		//TODO: Check Environment have to include flagHackLookup function.
+		// TODO: Check Environment have to include flagHackLookup function.
 		driverName = os.Getenv("MACHINE_DRIVER")
 		if driverName == "" {
 			driverName = "virtualbox"
@@ -353,7 +355,7 @@ func cmdCreateOuter(c CommandLine, api libmachine.API) error {
 	//
 	// mcnFlags is the data we get back over the wire (type mcnflag.Flag)
 	// to indicate which parameters are available.
-	mcnFlags := h.Driver.GetCreateFlags()
+	mcnFlags := h.Driver.GetFlags()
 
 	// This bit will actually make "create" display the correct flags based
 	// on the requested driver.
@@ -441,7 +443,7 @@ func convertMcnFlagsToCliFlags(mcnFlags []mcnflag.Flag) ([]cli.Flag, error) {
 				EnvVar: f.EnvVar,
 				Usage:  f.Usage,
 
-				//TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
+				// TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
 				Value: &cli.StringSlice{},
 			})
 		default:

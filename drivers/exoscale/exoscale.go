@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/exoscale/egoscale"
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -57,9 +59,8 @@ manage_etc_hosts: localhost
 `
 )
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "EXOSCALE_ENDPOINT",
@@ -185,8 +186,27 @@ func (d *Driver) DriverName() string {
 	return "exoscale"
 }
 
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["exoscale-api-key"]; ok {
+		d.APIKey = driverOpts.String("exoscale-api-key")
+	}
+
+	if _, ok := driverOpts.Values["exoscale-api-secret-key"]; ok {
+		d.APISecretKey = driverOpts.String("exoscale-api-secret-key")
+	}
+
+	return nil
+}
+
 // SetConfigFromFlags configures the driver with the object that was returned
-// by RegisterCreateFlags
+// by GetFlags
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.URL = flags.String("exoscale-url")
 	d.APIKey = flags.String("exoscale-api-key")

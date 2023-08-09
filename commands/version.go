@@ -7,6 +7,7 @@ import (
 
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/mcndockerclient"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 func cmdVersion(c CommandLine, api libmachine.API) error {
@@ -14,16 +15,17 @@ func cmdVersion(c CommandLine, api libmachine.API) error {
 }
 
 func printVersion(c CommandLine, api libmachine.API, out io.Writer) error {
-	if len(c.Args()) == 0 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) == 0 {
 		c.ShowVersion()
 		return nil
 	}
 
-	if len(c.Args()) != 1 {
+	if len(hostArgs) != 1 {
 		return ErrExpectedOneMachine
 	}
 
-	host, err := api.Load(c.Args().First())
+	host, err := api.Load(hostArgs[0])
 	if err != nil {
 		return err
 	}

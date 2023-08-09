@@ -9,6 +9,7 @@ import (
 
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/log"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 var (
@@ -21,16 +22,16 @@ var (
 )
 
 func cmdMount(c CommandLine, api libmachine.API) error {
-	args := c.Args()
-	if len(args) < 1 || len(args) > 2 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) < 1 || len(hostArgs) > 2 {
 		c.ShowHelp()
 		return errWrongNumberArguments
 	}
 
-	src := args[0]
+	src := hostArgs[0]
 	dest := ""
-	if len(args) > 1 {
-		dest = args[1]
+	if len(hostArgs) > 1 {
+		dest = hostArgs[1]
 	}
 
 	hostInfoLoader := &storeHostInfoLoader{api}

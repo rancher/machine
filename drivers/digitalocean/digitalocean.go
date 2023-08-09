@@ -2,6 +2,7 @@ package digitalocean
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/digitalocean/godo"
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -49,9 +51,8 @@ const (
 	defaultSize    = "s-1vcpu-1gb"
 )
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "DIGITALOCEAN_ACCESS_TOKEN",
@@ -150,6 +151,21 @@ func (d *Driver) GetSSHHostname() (string, error) {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "digitalocean"
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["digitalocean-access-token"]; ok {
+		d.AccessToken = driverOpts.String("digitalocean-access-token")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

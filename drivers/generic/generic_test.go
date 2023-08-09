@@ -16,7 +16,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"generic-ip-address":  "localhost",
 			"generic-ssh-key":     "path",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

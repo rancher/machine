@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/state"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 type notFoundError string
@@ -16,11 +17,12 @@ func (nf notFoundError) Error() string {
 }
 
 func cmdStatus(c CommandLine, api libmachine.API) error {
-	if len(c.Args()) > 1 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) > 1 {
 		return ErrExpectedOneMachine
 	}
 
-	target, err := targetHost(c, api)
+	target, err := targetHost(c, api, hostArgs)
 	if err != nil {
 		return err
 	}

@@ -52,8 +52,8 @@ func (d *MockDriver) DriverName() string {
 	return d.driverName
 }
 
-func (d *MockDriver) GetCreateFlags() []mcnflag.Flag {
-	d.calls.record("GetCreateFlags")
+func (d *MockDriver) GetFlags() []mcnflag.Flag {
+	d.calls.record("GetFlags")
 	return d.flags
 }
 
@@ -114,6 +114,12 @@ func (d *MockDriver) Remove() error {
 
 func (d *MockDriver) Restart() error {
 	d.calls.record("Restart")
+	return nil
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *MockDriver) LoadConfigFromJSON(_ []byte) error {
+	d.calls.record("LoadConfigFromJSON")
 	return nil
 }
 

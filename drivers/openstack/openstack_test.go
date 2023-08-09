@@ -19,7 +19,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"openstack-flavor-id": "ID",
 			"openstack-image-id":  "ID",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

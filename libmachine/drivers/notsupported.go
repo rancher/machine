@@ -40,7 +40,11 @@ func (d *DriverNotSupported) PreCreateCheck() error {
 	return NotSupported{d.DriverName()}
 }
 
-func (d *DriverNotSupported) GetCreateFlags() []mcnflag.Flag {
+func (d *DriverNotSupported) GetFlags() []mcnflag.Flag {
+	return nil
+}
+
+func (d *DriverNotSupported) LoadConfigFromJSON(data []byte) error {
 	return nil
 }
 

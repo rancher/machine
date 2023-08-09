@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/rancher/machine/libmachine"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 var funcMap = template.FuncMap{
@@ -21,12 +22,13 @@ var funcMap = template.FuncMap{
 }
 
 func cmdInspect(c CommandLine, api libmachine.API) error {
-	if len(c.Args()) > 1 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) > 1 {
 		c.ShowHelp()
 		return ErrExpectedOneMachine
 	}
 
-	target, err := targetHost(c, api)
+	target, err := targetHost(c, api, hostArgs)
 	if err != nil {
 		return err
 	}

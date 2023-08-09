@@ -14,7 +14,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 		FlagsValues: map[string]interface{}{
 			"digitalocean-access-token": "TOKEN",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -32,7 +32,7 @@ func TestDefaultSSHUserAndPort(t *testing.T) {
 		FlagsValues: map[string]interface{}{
 			"digitalocean-access-token": "TOKEN",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -53,7 +53,7 @@ func TestCustomSSHUserAndPort(t *testing.T) {
 			"digitalocean-ssh-user":     "user",
 			"digitalocean-ssh-port":     2222,
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -73,7 +73,7 @@ func TestSSHKeyFingerprint(t *testing.T) {
 			"digitalocean-access-token":        "TOKEN",
 			"digitalocean-ssh-key-fingerprint": "64:51:2b:9b:8b:f0:95:3c:f9:36:4d:8b:80:a8:8f:1e",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -91,7 +91,7 @@ func TestTags(t *testing.T) {
 			"digitalocean-access-token": "TOKEN",
 			"digitalocean-tags":         "docker,swarm, no-leading-space,,",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -106,7 +106,7 @@ func TestTagsEmpty(t *testing.T) {
 		FlagsValues: map[string]interface{}{
 			"digitalocean-access-token": "TOKEN",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

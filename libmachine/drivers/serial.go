@@ -1,9 +1,8 @@
 package drivers
 
 import (
-	"sync"
-
 	"encoding/json"
+	"sync"
 
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/state"
@@ -50,12 +49,12 @@ func (d *SerialDriver) DriverName() string {
 	return d.Driver.DriverName()
 }
 
-// GetCreateFlags returns the mcnflag.Flag slice representing the flags
+// GetFlags returns the mcnflag.Flag slice representing the flags
 // that can be set, their descriptions and defaults.
-func (d *SerialDriver) GetCreateFlags() []mcnflag.Flag {
+func (d *SerialDriver) GetFlags() []mcnflag.Flag {
 	d.Lock()
 	defer d.Unlock()
-	return d.Driver.GetCreateFlags()
+	return d.Driver.GetFlags()
 }
 
 // GetIP returns an IP or hostname that this host is available at
@@ -146,7 +145,7 @@ func (d *SerialDriver) Restart() error {
 }
 
 // SetConfigFromFlags configures the driver with the object that was returned
-// by RegisterCreateFlags
+// by GetFlags
 func (d *SerialDriver) SetConfigFromFlags(opts DriverOptions) error {
 	d.Lock()
 	defer d.Unlock()

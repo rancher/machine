@@ -1,6 +1,7 @@
 package virtualbox
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -102,9 +103,8 @@ func NewDriver(hostName, storePath string) *Driver {
 	}
 }
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.IntFlag{
 			Name:   "virtualbox-memory",
@@ -225,6 +225,15 @@ func (d *Driver) GetURL() (string, error) {
 		return "", nil
 	}
 	return fmt.Sprintf("tcp://%s:2376", ip), nil
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
@@ -916,7 +925,7 @@ func parseAndValidateCIDR(hostOnlyCIDR string) (net.IP, *net.IPNet, error) {
 // will be used for machine vm instances.
 func validateNoIPCollisions(hif HostInterfaces, hostOnlyNet *net.IPNet, currHostOnlyNets map[string]*hostOnlyNetwork) error {
 	hostOnlyByCIDR := map[string]*hostOnlyNetwork{}
-	//listHostOnlyAdapters returns a map w/ virtualbox net names as key.  Rekey to CIDRs
+	// listHostOnlyAdapters returns a map w/ virtualbox net names as key.  Rekey to CIDRs
 	for _, n := range currHostOnlyNets {
 		ipnet := net.IPNet{IP: n.IPv4.IP, Mask: n.IPv4.Mask}
 		hostOnlyByCIDR[ipnet.String()] = n

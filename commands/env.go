@@ -14,6 +14,7 @@ import (
 	"github.com/rancher/machine/libmachine/check"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/shell"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 const (
@@ -70,11 +71,12 @@ func cmdEnv(c CommandLine, api libmachine.API) error {
 }
 
 func shellCfgSet(c CommandLine, api libmachine.API) (*ShellConfig, error) {
-	if len(c.Args()) > 1 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) > 1 {
 		return nil, ErrExpectedOneMachine
 	}
 
-	target, err := targetHost(c, api)
+	target, err := targetHost(c, api, hostArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +117,7 @@ func shellCfgSet(c CommandLine, api libmachine.API) (*ShellConfig, error) {
 		case noProxyValue == "":
 			noProxyValue = ip
 		case strings.Contains(noProxyValue, ip):
-		//ip already in no_proxy list, nothing to do
+		// ip already in no_proxy list, nothing to do
 		default:
 			noProxyValue = fmt.Sprintf("%s,%s", noProxyValue, ip)
 		}
@@ -159,7 +161,8 @@ func shellCfgSet(c CommandLine, api libmachine.API) (*ShellConfig, error) {
 }
 
 func shellCfgUnset(c CommandLine, api libmachine.API) (*ShellConfig, error) {
-	if len(c.Args()) != 0 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) != 0 {
 		return nil, errImproperUnsetEnvArgs
 	}
 

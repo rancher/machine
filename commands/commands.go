@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnutils"
 	"github.com/rancher/machine/libmachine/persist"
 	"github.com/rancher/machine/libmachine/ssh"
+	"github.com/rancher/machine/libmachine/util"
 	"github.com/urfave/cli"
 )
 
@@ -75,10 +76,10 @@ func (c *contextCommandLine) Application() *cli.App {
 	return c.App
 }
 
-// targetHost returns a specific host name if one is indicated by the first CLI
-// arg, or the default host name if no host is specified.
-func targetHost(c CommandLine, api libmachine.API) (string, error) {
-	if len(c.Args()) == 0 {
+// targetHost returns a specific host name if one is provided in the list of hosts, or the default host name if
+// no host is specified.
+func targetHost(c CommandLine, api libmachine.API, hosts []string) (string, error) {
+	if len(hosts) == 0 {
 		defaultExists, err := api.Exists(defaultMachineName)
 		if err != nil {
 			return "", fmt.Errorf("Error checking if host %q exists: %s", defaultMachineName, err)
@@ -91,7 +92,7 @@ func targetHost(c CommandLine, api libmachine.API) (string, error) {
 		return "", ErrNoDefault
 	}
 
-	return c.Args()[0], nil
+	return hosts[0], nil
 }
 
 func runAction(actionName string, c CommandLine, api libmachine.API) error {
@@ -102,15 +103,16 @@ func runAction(actionName string, c CommandLine, api libmachine.API) error {
 	// If user did not specify a machine name explicitly, use the 'default'
 	// machine if it exists.  This allows short form commands such as
 	// 'docker-machine stop' for convenience.
-	if len(c.Args()) == 0 {
-		target, err := targetHost(c, api)
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) == 0 {
+		target, err := targetHost(c, api, hostArgs)
 		if err != nil {
 			return err
 		}
 
 		hostsToLoad = []string{target}
 	} else {
-		hostsToLoad = c.Args()
+		hostsToLoad = hostArgs
 	}
 
 	hosts, hostsInError := persist.LoadHosts(api, hostsToLoad)

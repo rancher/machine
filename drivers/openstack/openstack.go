@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -76,7 +78,7 @@ const (
 	defaultActiveTimeout = 200
 )
 
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "OS_AUTH_URL",
@@ -357,6 +359,33 @@ func (d *Driver) SetClient(client Client) {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "openstack"
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["openstack-auth-url"]; ok {
+		d.AuthUrl = driverOpts.String("openstack-auth-url")
+	}
+
+	if _, ok := driverOpts.Values["openstack-user-id"]; ok {
+		d.UserId = driverOpts.String("openstack-user-id")
+	}
+
+	if _, ok := driverOpts.Values["openstack-username"]; ok {
+		d.Username = driverOpts.String("openstack-username")
+	}
+
+	if _, ok := driverOpts.Values["openstack-password"]; ok {
+		d.Password = driverOpts.String("openstack-password")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

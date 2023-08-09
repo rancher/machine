@@ -83,7 +83,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"softlayer-domain":       "DOMAIN",
 			"softlayer-region":       "REGION",
 		},
-		CreateFlags: driver.GetCreateFlags(),
+		CreateFlags: driver.GetFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

@@ -115,13 +115,13 @@ func (r *RPCServerDriver) GetConfigRaw(_ *struct{}, reply *[]byte) error {
 	return nil
 }
 
-func (r *RPCServerDriver) GetCreateFlags(_ *struct{}, reply *[]mcnflag.Flag) error {
-	*reply = r.ActualDriver.GetCreateFlags()
+func (r *RPCServerDriver) GetFlags(_ *struct{}, reply *[]mcnflag.Flag) error {
+	*reply = r.ActualDriver.GetFlags()
 	return nil
 }
 
 func (r *RPCServerDriver) SetConfigRaw(data []byte, _ *struct{}) error {
-	return json.Unmarshal(data, &r.ActualDriver)
+	return r.ActualDriver.LoadConfigFromJSON(data)
 }
 
 func trapPanic(err *error) {

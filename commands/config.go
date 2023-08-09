@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/check"
 	"github.com/rancher/machine/libmachine/log"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 func cmdConfig(c CommandLine, api libmachine.API) error {
@@ -16,7 +17,8 @@ func cmdConfig(c CommandLine, api libmachine.API) error {
 	// being run (it is intended to be run in a subshell)
 	log.SetOutWriter(os.Stderr)
 
-	target, err := targetHost(c, api)
+	hostArgs, _ := util.SplitArgs(c.Args())
+	target, err := targetHost(c, api, hostArgs)
 	if err != nil {
 		return err
 	}

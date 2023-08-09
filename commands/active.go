@@ -3,12 +3,12 @@ package commands
 import (
 	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/persist"
 	"github.com/rancher/machine/libmachine/state"
+	"github.com/rancher/machine/libmachine/util"
 )
 
 const (
@@ -21,7 +21,8 @@ var (
 )
 
 func cmdActive(c CommandLine, api libmachine.API) error {
-	if len(c.Args()) > 0 {
+	hostArgs, _ := util.SplitArgs(c.Args())
+	if len(hostArgs) > 0 {
 		return ErrTooManyArguments
 	}
 

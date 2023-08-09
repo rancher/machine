@@ -7,6 +7,7 @@ package vmwarefusion
 import (
 	"archive/tar"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -57,9 +59,8 @@ const (
 	defaultMemory   = 1024
 )
 
-// GetCreateFlags registers the flags this driver adds to
-// "docker hosts create"
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+// GetFlags returns all flags for configuring the driver.
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "FUSION_BOOT2DOCKER_URL",
@@ -140,6 +141,25 @@ func (d *Driver) GetSSHUsername() string {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "vmwarefusion"
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["vmwarefusion-ssh-user"]; ok {
+		d.SSHUser = driverOpts.String("vmwarefusion-ssh-user")
+	}
+
+	if _, ok := driverOpts.Values["vmwarefusion-ssh-password"]; ok {
+		d.SSHPassword = driverOpts.String("vmwarefusion-ssh-password")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

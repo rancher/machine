@@ -61,10 +61,11 @@ const (
 	HeartbeatMethod          = `.Heartbeat`
 	GetVersionMethod         = `.GetVersion`
 	CloseMethod              = `.Close`
-	GetCreateFlagsMethod     = `.GetCreateFlags`
+	GetFlagsMethod           = `.GetFlags`
 	SetConfigRawMethod       = `.SetConfigRaw`
 	GetConfigRawMethod       = `.GetConfigRaw`
 	DriverNameMethod         = `.DriverName`
+	LoadConfigFromJSONMethod = `.LoadConfigFromJSON`
 	SetConfigFromFlagsMethod = `.SetConfigFromFlags`
 	GetURLMethod             = `.GetURL`
 	GetMachineNameMethod     = `.GetMachineName`
@@ -234,10 +235,10 @@ func (c *RPCClientDriver) rpcStringCall(method string) (string, error) {
 	return info, nil
 }
 
-func (c *RPCClientDriver) GetCreateFlags() []mcnflag.Flag {
+func (c *RPCClientDriver) GetFlags() []mcnflag.Flag {
 	var flags []mcnflag.Flag
 
-	if err := c.Client.Call(GetCreateFlagsMethod, struct{}{}, &flags); err != nil {
+	if err := c.Client.Call(GetFlagsMethod, struct{}{}, &flags); err != nil {
 		log.Warnf("Error attempting call to get create flags: %s", err)
 	}
 
@@ -266,6 +267,11 @@ func (c *RPCClientDriver) DriverName() string {
 	}
 
 	return driverName
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *RPCClientDriver) LoadConfigFromJSON(data []byte) error {
+	return d.Client.Call(LoadConfigFromJSONMethod, data, nil)
 }
 
 func (c *RPCClientDriver) SetConfigFromFlags(flags drivers.DriverOptions) error {

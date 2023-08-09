@@ -1,6 +1,7 @@
 package none
 
 import (
+	"encoding/json"
 	"fmt"
 	neturl "net/url"
 
@@ -28,7 +29,7 @@ func NewDriver(hostName, storePath string) *Driver {
 	}
 }
 
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:  "url",
@@ -85,6 +86,15 @@ func (d *Driver) Remove() error {
 
 func (d *Driver) Restart() error {
 	return fmt.Errorf("hosts without a driver cannot be restarted")
+}
+
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

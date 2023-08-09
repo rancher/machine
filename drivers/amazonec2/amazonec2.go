@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rancher/machine/drivers/driverutil"
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -144,7 +146,7 @@ type Driver struct {
 	HttpTokens   string
 }
 
-func (d *Driver) GetCreateFlags() []mcnflag.Flag {
+func (d *Driver) GetFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "amazonec2-access-key",
@@ -374,6 +376,25 @@ func (d *Driver) getClient() Ec2Client {
 	return d.clientFactory()
 }
 
+// LoadConfigFromJSON loads driver config from JSON.
+func (d *Driver) LoadConfigFromJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	if _, ok := driverOpts.Values["amazonec2-access-key"]; ok {
+		d.AccessKey = driverOpts.String("amazonec2-access-key")
+	}
+
+	if _, ok := driverOpts.Values["amazonec2-secret-key"]; ok {
+		d.SecretKey = driverOpts.String("amazonec2-secret-key")
+	}
+
+	return nil
+}
+
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.Endpoint = flags.String("amazonec2-endpoint")
 
@@ -574,7 +595,7 @@ func (d *Driver) checkAMI() error {
 		d.DeviceName = *images.Images[0].RootDeviceName
 	}
 
-	//store bdm list && update size and encryption settings
+	// store bdm list && update size and encryption settings
 	d.bdmList = images.Images[0].BlockDeviceMappings
 
 	return nil
