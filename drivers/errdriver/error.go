@@ -1,7 +1,6 @@
 package errdriver
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/rancher/machine/libmachine/drivers"
@@ -36,16 +35,7 @@ func (d *Driver) PreCreateCheck() error {
 	return NotLoadable{d.Name}
 }
 
-func (d *Driver) GetFlags() []mcnflag.Flag {
-	return nil
-}
-
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
-		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
-	}
-
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return nil
 }
 

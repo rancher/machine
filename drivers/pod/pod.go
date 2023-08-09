@@ -34,8 +34,8 @@ const (
 	defaultImage = "rancher/systemd-node"
 )
 
-// GetFlags returns all flags for configuring the driver.
-func (d *Driver) GetFlags() []mcnflag.Flag {
+// GetCreateFlags returns all flags for configuring the driver.
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "pod-userdata",
@@ -80,15 +80,6 @@ func (d *Driver) GetSSHUsername() string {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "pod"
-}
-
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
-		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
-	}
-
-	return nil
 }
 
 // SetConfigFromFlags initializes the driver based on the command line flags.

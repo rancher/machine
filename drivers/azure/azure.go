@@ -141,8 +141,8 @@ func NewDriver(hostName, storePath string) drivers.Driver {
 	return d
 }
 
-// GetFlags returns list of create flags driver accepts.
-func (d *Driver) GetFlags() []mcnflag.Flag {
+// GetCreateFlags returns list of create flags driver accepts.
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   flAzureEnvironment,
@@ -322,14 +322,19 @@ func (d *Driver) GetFlags() []mcnflag.Flag {
 	}
 }
 
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
 		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
 	}
 
+	*d = Driver(target)
+
 	// Make sure to reload values that are subject to change from envvars and os.Args.
-	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
 	if _, ok := driverOpts.Values[flAzureEnvironment]; ok {
 		d.Environment = driverOpts.String(flAzureEnvironment)
 	}

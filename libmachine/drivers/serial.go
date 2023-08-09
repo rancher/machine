@@ -49,12 +49,12 @@ func (d *SerialDriver) DriverName() string {
 	return d.Driver.DriverName()
 }
 
-// GetFlags returns the mcnflag.Flag slice representing the flags
+// GetCreateFlags returns the mcnflag.Flag slice representing the flags
 // that can be set, their descriptions and defaults.
-func (d *SerialDriver) GetFlags() []mcnflag.Flag {
+func (d *SerialDriver) GetCreateFlags() []mcnflag.Flag {
 	d.Lock()
 	defer d.Unlock()
-	return d.Driver.GetFlags()
+	return d.Driver.GetCreateFlags()
 }
 
 // GetIP returns an IP or hostname that this host is available at
@@ -145,7 +145,7 @@ func (d *SerialDriver) Restart() error {
 }
 
 // SetConfigFromFlags configures the driver with the object that was returned
-// by GetFlags
+// by GetCreateFlags
 func (d *SerialDriver) SetConfigFromFlags(opts DriverOptions) error {
 	d.Lock()
 	defer d.Unlock()

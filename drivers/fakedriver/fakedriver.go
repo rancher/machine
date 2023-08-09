@@ -1,7 +1,6 @@
 package fakedriver
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/rancher/machine/libmachine/drivers"
@@ -16,22 +15,13 @@ type Driver struct {
 	MockName  string
 }
 
-func (d *Driver) GetFlags() []mcnflag.Flag {
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{}
 }
 
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "Driver"
-}
-
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
-		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
-	}
-
-	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

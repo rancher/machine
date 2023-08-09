@@ -15,7 +15,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"exoscale-api-key":        "API_KEY",
 			"exoscale-api-secret-key": "API_SECRET_KEY",
 		},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

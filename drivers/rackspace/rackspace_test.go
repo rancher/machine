@@ -17,7 +17,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"rackspace-api-key":       "KEY",
 			"rackspace-endpoint-type": "publicURL",
 		},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

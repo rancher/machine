@@ -49,10 +49,10 @@ func SplitArgs(args []string) ([]string, []string) {
 	leftArgs, rightArgs := make([]string, 0), make([]string, 0)
 	foundSep := false
 	for _, arg := range args {
-		if !foundSep {
-			leftArgs = append(leftArgs, arg)
-		} else if strings.TrimSpace(arg) == "--" {
+		if !foundSep && strings.TrimSpace(arg) == "--" {
 			foundSep = true
+		} else if !foundSep {
+			leftArgs = append(leftArgs, arg)
 		} else {
 			rightArgs = append(rightArgs, arg)
 		}

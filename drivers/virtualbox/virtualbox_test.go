@@ -387,7 +387,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 
 	checkFlags := &drivers.CheckDriverOptions{
 		FlagsValues: map[string]interface{}{},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

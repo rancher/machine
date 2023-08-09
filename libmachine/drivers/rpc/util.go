@@ -8,29 +8,87 @@ import (
 	"github.com/rancher/machine/libmachine/mcnflag"
 )
 
-func GetDriverOpts(flags []mcnflag.Flag) *RPCFlags {
-	allFlags := GetAllFlags()
+// GetDriverOpts converts driver flags into RPCFlags.
+func GetDriverOpts(flags []mcnflag.Flag, args []string) *RPCFlags {
+	allFlags := getAllFlags(args)
 	foundFlags := make(map[string]any)
 
 	for _, f := range flags {
-		if boolFlag, ok := f.(mcnflag.BoolFlag); ok {
-			setFlag(boolFlag.Name, boolFlag.EnvVar, allFlags, foundFlags, toBool)
-		}
+		switch f.(type) {
+		case *mcnflag.BoolFlag:
+			flag := f.(*mcnflag.BoolFlag)
+			setFlag(flag.Name, flag.EnvVar, nil, allFlags, foundFlags, toBool)
 
-		if stringFlag, ok := f.(mcnflag.StringFlag); ok {
-			setFlag(stringFlag.Name, stringFlag.EnvVar, allFlags, foundFlags, toString)
-		}
+		case mcnflag.BoolFlag:
+			flag := f.(mcnflag.BoolFlag)
+			setFlag(flag.Name, flag.EnvVar, nil, allFlags, foundFlags, toBool)
 
-		if intFlag, ok := f.(mcnflag.IntFlag); ok {
-			setFlag(intFlag.Name, intFlag.EnvVar, allFlags, foundFlags, toInt)
-		}
+		case *mcnflag.StringFlag:
+			flag := f.(*mcnflag.StringFlag)
+			var defaultValue any
+			if flag.Value != "" {
+				defaultValue = flag.Value
+			}
+			setFlag(flag.Name, flag.EnvVar, defaultValue, allFlags, foundFlags, toString)
 
-		if stringSliceFlag, ok := f.(mcnflag.StringSliceFlag); ok {
-			setFlag(stringSliceFlag.Name, stringSliceFlag.EnvVar, allFlags, foundFlags, toStringSlice)
+		case mcnflag.StringFlag:
+			flag := f.(mcnflag.StringFlag)
+			var defaultValue any
+			if flag.Value != "" {
+				defaultValue = flag.Value
+			}
+			setFlag(flag.Name, flag.EnvVar, defaultValue, allFlags, foundFlags, toString)
+
+		case *mcnflag.IntFlag:
+			flag := f.(*mcnflag.IntFlag)
+			var defaultValue any
+			if flag.Value != 0 {
+				defaultValue = flag.Value
+			}
+			setFlag(flag.Name, flag.EnvVar, defaultValue, allFlags, foundFlags, toInt)
+
+		case mcnflag.IntFlag:
+			flag := f.(mcnflag.IntFlag)
+			var defaultValue any
+			if flag.Value != 0 {
+				defaultValue = flag.Value
+			}
+			setFlag(flag.Name, flag.EnvVar, defaultValue, allFlags, foundFlags, toInt)
+
+		case *mcnflag.StringSliceFlag:
+			flag := f.(*mcnflag.StringSliceFlag)
+			setFlag(flag.Name, flag.EnvVar, flag.Value, allFlags, foundFlags, toStringSlice)
+
+		case mcnflag.StringSliceFlag:
+			flag := f.(mcnflag.StringSliceFlag)
+			setFlag(flag.Name, flag.EnvVar, flag.Value, allFlags, foundFlags, toStringSlice)
 		}
 	}
 
 	return &RPCFlags{Values: foundFlags}
+}
+
+// getAllFlags retrieves all flags present in args. These flags are identified by their prefix, which can be "-" or
+// "--".
+func getAllFlags(args []string) map[string]any {
+	flagValues := make(map[string]any)
+	for i, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
+
+		trimmedFlag := strings.TrimLeft(arg, "-")
+		flagParts := strings.Split(trimmedFlag, "=")
+		if len(flagParts) > 1 {
+			flagValues[flagParts[0]] = flagParts[1]
+		} else if len(args) > i+1 && !strings.HasPrefix(args[i+1], "-") {
+			flagValues[trimmedFlag] = args[i+1]
+		} else {
+			flagValues[trimmedFlag] = true
+		}
+	}
+
+	return flagValues
 }
 
 func toBool(v any) any {
@@ -57,7 +115,7 @@ func toInt(v any) any {
 
 	// If v is a string, try converting it into an int.
 	if stringV := toString(v); stringV != nil {
-		if intV, err := strconv.Atoi(stringV.(string)); err != nil {
+		if intV, err := strconv.Atoi(stringV.(string)); err == nil {
 			return intV
 		}
 	}
@@ -76,6 +134,7 @@ func toStringSlice(v any) any {
 
 func setFlag(
 	name, envvar string,
+	defaultValue any,
 	allFlags map[string]any,
 	foundFlags map[string]any,
 	convertFunc func(any) any,
@@ -84,35 +143,13 @@ func setFlag(
 		if result := convertFunc(v); result != nil {
 			foundFlags[name] = result
 		}
-		return
-	}
-
-	if envvar != "" {
+	} else if envvar != "" {
 		if v, ok := os.LookupEnv(envvar); ok {
 			if result := convertFunc(v); result != nil {
 				foundFlags[name] = result
 			}
 		}
+	} else if defaultValue != nil {
+		foundFlags[name] = defaultValue
 	}
-}
-
-func GetAllFlags() map[string]any {
-	flagValues := make(map[string]any)
-	for i, arg := range os.Args {
-		if !strings.HasPrefix(arg, "-") {
-			continue
-		}
-
-		trimmedFlag := strings.TrimLeft(arg, "-")
-		flagParts := strings.Split(trimmedFlag, "=")
-		if len(flagParts) > 1 {
-			flagValues[flagParts[0]] = flagParts[1]
-		} else if len(os.Args) > i+1 && !strings.HasPrefix(os.Args[i+1], "-") {
-			flagValues[trimmedFlag] = os.Args[i+1]
-		} else {
-			flagValues[trimmedFlag] = true
-		}
-	}
-
-	return flagValues
 }

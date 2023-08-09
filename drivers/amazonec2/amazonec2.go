@@ -12,6 +12,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -146,7 +147,7 @@ type Driver struct {
 	HttpTokens   string
 }
 
-func (d *Driver) GetFlags() []mcnflag.Flag {
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "amazonec2-access-key",
@@ -376,14 +377,19 @@ func (d *Driver) getClient() Ec2Client {
 	return d.clientFactory()
 }
 
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
 		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
 	}
 
+	*d = Driver(target)
+
 	// Make sure to reload values that are subject to change from envvars and os.Args.
-	driverOpts := rpcdriver.GetDriverOpts(d.GetFlags())
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
 	if _, ok := driverOpts.Values["amazonec2-access-key"]; ok {
 		d.AccessKey = driverOpts.String("amazonec2-access-key")
 	}

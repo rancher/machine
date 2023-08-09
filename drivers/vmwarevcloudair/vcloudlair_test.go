@@ -17,7 +17,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 			"vmwarevcloudair-vdcid":    "ID",
 			"vmwarevcloudair-publicip": "IP",
 		},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

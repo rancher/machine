@@ -14,7 +14,7 @@ func TestSetConfigFromFlags(t *testing.T) {
 		FlagsValues: map[string]interface{}{
 			"google-project": "PROJECT",
 		},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

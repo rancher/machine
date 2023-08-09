@@ -12,7 +12,7 @@ func TestSetConfigFromDefaultFlags(t *testing.T) {
 
 	checkFlags := &drivers.CheckDriverOptions{
 		FlagsValues: map[string]interface{}{},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)
@@ -48,7 +48,7 @@ func TestSetConfigFromCustomFlags(t *testing.T) {
 			"hyperv-vlan-id":                2,
 			"hyperv-disable-dynamic-memory": true,
 		},
-		CreateFlags: driver.GetFlags(),
+		CreateFlags: driver.GetCreateFlags(),
 	}
 
 	err := driver.SetConfigFromFlags(checkFlags)

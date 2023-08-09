@@ -1,7 +1,6 @@
 package hyperv
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -49,8 +48,8 @@ func NewDriver(hostName, storePath string) *Driver {
 	}
 }
 
-// GetFlags returns all flags for configuring the driver.
-func (d *Driver) GetFlags() []mcnflag.Flag {
+// GetCreateFlags returns all flags for configuring the driver.
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "hyperv-boot2docker-url",
@@ -97,15 +96,6 @@ func (d *Driver) GetFlags() []mcnflag.Flag {
 			EnvVar: "HYPERV_DISABLE_DYNAMIC_MEMORY",
 		},
 	}
-}
-
-// LoadConfigFromJSON loads driver config from JSON.
-func (d *Driver) LoadConfigFromJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
-		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
-	}
-
-	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
