@@ -7,14 +7,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
 	"os"
 	"time"
-
-	"errors"
 
 	"github.com/rancher/machine/libmachine/auth"
 	"github.com/rancher/machine/libmachine/log"
@@ -276,7 +275,7 @@ func (xcg *X509CertGenerator) ValidateCertificate(addr string, authOptions *auth
 	return true, nil
 }
 
-func CheckCertificateDate(certPath string) (bool, error) {
+func CheckCertificateDate(certPath string, regenerationWindow time.Duration) (bool, error) {
 	log.Debugf("Reading certificate data from %s", certPath)
 	certBytes, err := ioutil.ReadFile(certPath)
 	if err != nil {
@@ -294,7 +293,14 @@ func CheckCertificateDate(certPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if time.Now().After(cert.NotAfter) {
+
+	notAfter := cert.NotAfter
+	log.Debugf("Valid Not After: %s", notAfter)
+	log.Debugf("Regeneration window: %s", regenerationWindow)
+	regenerationTime := notAfter.Add(regenerationWindow)
+	log.Debugf("Regeneration time: %s", regenerationTime)
+
+	if time.Now().After(regenerationTime) {
 		return false, nil
 	}
 

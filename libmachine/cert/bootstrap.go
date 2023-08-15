@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/rancher/machine/libmachine/auth"
 	"github.com/rancher/machine/libmachine/log"
@@ -72,6 +73,14 @@ func createCert(authOptions *auth.Options, org string, bits int) error {
 }
 
 func BootstrapCertificates(authOptions *auth.Options) error {
+	return bootstrapCertificates(authOptions, time.Duration(0))
+}
+
+func BootstrapCertificatesWithRegenerationWindow(authOptions *auth.Options, regenerationWindow time.Duration) error {
+	return bootstrapCertificates(authOptions, regenerationWindow)
+}
+
+func bootstrapCertificates(authOptions *auth.Options, regenerationWindow time.Duration) error {
 	certDir := authOptions.CertDir
 	caCertPath := authOptions.CaCertPath
 	clientCertPath := authOptions.ClientCertPath
@@ -101,7 +110,7 @@ func BootstrapCertificates(authOptions *auth.Options) error {
 			return err
 		}
 	} else {
-		current, err := CheckCertificateDate(caCertPath)
+		current, err := CheckCertificateDate(caCertPath, regenerationWindow)
 		if err != nil {
 			return err
 		}
@@ -119,7 +128,7 @@ func BootstrapCertificates(authOptions *auth.Options) error {
 			return err
 		}
 	} else {
-		current, err := CheckCertificateDate(clientCertPath)
+		current, err := CheckCertificateDate(clientCertPath, regenerationWindow)
 		if err != nil {
 			return err
 		}

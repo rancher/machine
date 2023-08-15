@@ -335,6 +335,23 @@ var Commands = []cli.Command{
 		},
 	},
 	{
+		Name:        "regenerate-base-certs",
+		Usage:       "Regenerate the base TLS Certificates only",
+		Description: "No arguments expected",
+		Action:      runCommand(cmdRegenerateBaseCerts),
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "force, f",
+				Usage: "Force rebuild and do not prompt",
+			},
+			cli.IntFlag{
+				Name:  "regenerate-before",
+				Usage: "Number of hours defining regeneration window. Existing certificates will be regenerated if current time exceeds `notAfter - regenerate-before`",
+				Value: 672, // 4 weeks * 7 days * 24 hours
+			},
+		},
+	},
+	{
 		Name:        "restart",
 		Usage:       "Restart a machine",
 		Description: "Argument(s) are one or more machine names.",
