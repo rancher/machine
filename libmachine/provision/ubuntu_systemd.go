@@ -76,7 +76,7 @@ func (provisioner *UbuntuSystemdProvisioner) Package(name string, action pkgacti
 		}
 	}
 
-	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get %s -y  %s", packageAction, name)
+	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get -o DPkg::Lock::Timeout=300  %s -y  %s", packageAction, name)
 
 	log.Debugf("package: action=%s name=%s", action.String(), name)
 
