@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -146,9 +145,9 @@ var (
 	}
 )
 
-func cmdCreateInner(c CommandLine, api libmachine.API) error {
+func cmdCreate(c CommandLine, api libmachine.API) error {
 	if len(c.Args()) > 1 {
-		return fmt.Errorf("[cmdCreateInner] invalid command line. Found extra arguments %v", c.Args()[1:])
+		return fmt.Errorf("invalid arguments: found extra arguments %v", c.Args()[1:])
 	}
 
 	name := c.Args().First()
@@ -158,11 +157,11 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 	}
 
 	if !host.ValidateHostName(name) {
-		return fmt.Errorf("[cmdCreateInner] error creating machine: [%s]", mcnerror.ErrInvalidHostname)
+		return fmt.Errorf("error creating machine: [%s]", mcnerror.ErrInvalidHostname)
 	}
 
 	if err := validateSwarmDiscovery(c.String("swarm-discovery")); err != nil {
-		return fmt.Errorf("[cmdCreateInner] error parsing swarm discovery: [%s]", err)
+		return fmt.Errorf("error parsing swarm discovery: [%s]", err)
 	}
 
 	// TODO: Fix hacky JSON solution
@@ -171,13 +170,13 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 		StorePath:   c.GlobalString("storage-path"),
 	})
 	if err != nil {
-		return fmt.Errorf("[cmdCreateInner] error attempting to marshal bare driver data: %s", err)
+		return fmt.Errorf("error attempting to marshal bare driver data: %s", err)
 	}
 
 	driverName := c.String("driver")
 	h, err := api.NewHost(driverName, rawDriver)
 	if err != nil {
-		return fmt.Errorf("[cmdCreateInner] error getting new host: %s", err)
+		return fmt.Errorf("error getting new host: %s", err)
 	}
 
 	h.HostOptions = &host.Options{
@@ -219,7 +218,7 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 
 	exists, err := api.Exists(h.Name)
 	if err != nil {
-		return fmt.Errorf("[cmdCreateInner] error checking if host exists: %s", err)
+		return fmt.Errorf("error checking if host exists: %s", err)
 	}
 	if exists {
 		return mcnerror.ErrHostAlreadyExists{
@@ -246,13 +245,13 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 		if userdataFlag != "" {
 			err = updateUserdataFile(driverOpts, name, h.HostOptions.HostnameOverride, userdataFlag, osFlag, customInstallScript)
 			if err != nil {
-				return fmt.Errorf("[cmdCreateInner] could not alter cloud-init file: %v", err)
+				return fmt.Errorf("could not alter cloud-init file: %v", err)
 			}
 		}
 	}
 
 	if err := h.Driver.SetConfigFromFlags(driverOpts); err != nil {
-		return fmt.Errorf("[cmdCreateInner] error setting machine configuration from flags provided: %s", err)
+		return fmt.Errorf("error setting machine configuration from flags provided: %s", err)
 	}
 
 	if err := api.Create(h); err != nil {
@@ -274,102 +273,14 @@ func cmdCreateInner(c CommandLine, api libmachine.API) error {
 	}
 
 	if err := api.Save(h); err != nil {
-		return fmt.Errorf("[cmdCreateInner] error attempting to save store: %s", err)
+		return fmt.Errorf("error attempting to save store: %s", err)
 	}
 
 	if customInstallScript == "" {
-		log.Infof("[cmdCreateInner] to see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: %s env %s", os.Args[0], name)
+		log.Infof("to see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: %s env %s", os.Args[0], name)
 	}
 
 	return nil
-}
-
-// flagHackLookup is needed because the CLI acrobatics that we're doing
-// (with having an "outer" and "inner" function each with their own custom
-// settings and flag parsing needs) are not well supported by codegangsta/cli.
-//
-// Instead of trying to make a convoluted series of flag parsing and relying on
-// codegangsta/cli internals work well, we simply read the flags we're
-// interested in from the outer function into module-level variables, and then
-// use them from the "inner" function.
-//
-// I'm not very pleased about this, but it seems to be the only decent
-// compromise without drastically modifying codegangsta/cli internals or our
-// own CLI.
-func flagHackLookup(flagName string) string {
-	// e.g. "-d" for "--driver"
-	flagPrefix := flagName[1:3]
-
-	// TODO: Should we support -flag-name (single hyphen) syntax as well?
-	for i, arg := range os.Args {
-		if strings.Contains(arg, flagPrefix) {
-			// format '--driver foo' or '-d foo'
-			if arg == flagPrefix || arg == flagName {
-				if i+1 < len(os.Args) {
-					return os.Args[i+1]
-				}
-			}
-
-			// format '--driver=foo' or '-d=foo'
-			if strings.HasPrefix(arg, flagPrefix+"=") || strings.HasPrefix(arg, flagName+"=") {
-				return strings.Split(arg, "=")[1]
-			}
-		}
-	}
-
-	return ""
-}
-
-func cmdCreateOuter(c CommandLine, api libmachine.API) error {
-	const (
-		flagLookupMachineName = "flag-lookup"
-	)
-
-	// We didn't recognize the driver name.
-	driverName := flagHackLookup("--driver")
-	if driverName == "" {
-		//TODO: Check Environment have to include flagHackLookup function.
-		driverName = os.Getenv("MACHINE_DRIVER")
-		if driverName == "" {
-			driverName = "virtualbox"
-		}
-	}
-
-	// TODO: Fix hacky JSON solution
-	rawDriver, err := json.Marshal(&drivers.BaseDriver{
-		MachineName: flagLookupMachineName,
-	})
-	if err != nil {
-		return fmt.Errorf("[cmdCreateOuter] error attempting to marshal bare driver data: %s", err)
-	}
-
-	h, err := api.NewHost(driverName, rawDriver)
-	if err != nil {
-		return err
-	}
-
-	// TODO: So much flag manipulation and voodoo here, it seems to be
-	// asking for trouble.
-	//
-	// mcnFlags is the data we get back over the wire (type mcnflag.Flag)
-	// to indicate which parameters are available.
-	mcnFlags := h.Driver.GetCreateFlags()
-
-	// This bit will actually make "create" display the correct flags based
-	// on the requested driver.
-	cliFlags, err := convertMcnFlagsToCliFlags(mcnFlags)
-	if err != nil {
-		return fmt.Errorf("[cmdCreateOuter] error trying to convert provided driver flags to cli flags: %s", err)
-	}
-
-	for i := range c.Application().Commands {
-		cmd := &c.Application().Commands[i]
-		if cmd.HasName("create") {
-			cmd = addDriverFlagsToCommand(cliFlags, cmd)
-		}
-	}
-
-	return c.Application().Run(os.Args)
 }
 
 func getDriverOpts(c CommandLine, mcnflags []mcnflag.Flag) *rpcdriver.RPCFlags {
@@ -441,7 +352,7 @@ func convertMcnFlagsToCliFlags(mcnFlags []mcnflag.Flag) ([]cli.Flag, error) {
 				EnvVar: f.EnvVar,
 				Usage:  f.Usage,
 
-				//TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
+				// TODO: Is this used with defaults? Can we convert the literal []string to cli.StringSlice properly?
 				Value: &cli.StringSlice{},
 			})
 		default:
@@ -451,14 +362,6 @@ func convertMcnFlagsToCliFlags(mcnFlags []mcnflag.Flag) ([]cli.Flag, error) {
 	}
 
 	return cliFlags, nil
-}
-
-func addDriverFlagsToCommand(cliFlags []cli.Flag, cmd *cli.Command) *cli.Command {
-	cmd.Flags = append(SharedCreateFlags, cliFlags...)
-	cmd.SkipFlagParsing = false
-	cmd.Action = runCommand(cmdCreateInner)
-	sort.Sort(ByFlagName(cmd.Flags))
-	return cmd
 }
 
 func validateSwarmDiscovery(discovery string) error {

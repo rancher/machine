@@ -1,14 +1,17 @@
 package commands
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/rancher/machine/commands/mcndirs"
 	"github.com/rancher/machine/libmachine"
 	"github.com/rancher/machine/libmachine/crashreport"
+	"github.com/rancher/machine/libmachine/drivers"
 	"github.com/rancher/machine/libmachine/host"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnerror"
@@ -30,7 +33,19 @@ var (
 	ErrTooManyArguments   = errors.New("Error: Too many arguments given")
 
 	osExit = func(code int) { os.Exit(code) }
+
+	// We have to declare the "update-config" flag in two different ways because of limitations in the CLI library
+	// we're using.
+	updateConfigGenericFlag = cli.GenericFlag{
+		Name: "update-config",
+	}
+	updateConfigBoolFlag = cli.BoolFlag{
+		Name: "update-config",
+	}
 )
+
+// cmdHandler is a function that handles a command.
+type cmdHandler func(CommandLine, libmachine.API) error
 
 // CommandLine contains all the information passed to the commands on the command line.
 type CommandLine interface {
@@ -232,11 +247,14 @@ var Commands = []cli.Command{
 		},
 	},
 	{
-		Flags:           SharedCreateFlags,
-		Name:            "create",
-		Usage:           "Create a machine",
-		Description:     fmt.Sprintf("Run '%s create --driver name --help' to include the create flags for that driver in the help text.", os.Args[0]),
-		Action:          runCommand(cmdCreateOuter),
+		Flags:       SharedCreateFlags,
+		Name:        "create",
+		Usage:       "Create a machine",
+		Description: fmt.Sprintf("Run '%s create --driver name --help' to include the create flags for that driver in the help text.", os.Args[0]),
+		Action: runCommand(withDriverFlags("create", false, &cli.GenericFlag{
+			Name:   "driver, d",
+			EnvVar: "MACHINE_DRIVER",
+		}, cmdCreate)),
 		SkipFlagParsing: true,
 	},
 	{
@@ -283,10 +301,12 @@ var Commands = []cli.Command{
 		Action:      runCommand(cmdIP),
 	},
 	{
-		Name:        "kill",
-		Usage:       "Kill a machine",
-		Description: "Argument(s) are one or more machine names.",
-		Action:      runCommand(cmdKill),
+		Name:            "kill",
+		Usage:           "Kill a machine",
+		Description:     "Argument(s) are one or more machine names.",
+		Action:          runCommand(withDriverFlags("kill", true, &updateConfigGenericFlag, cmdKill)),
+		Flags:           []cli.Flag{updateConfigBoolFlag},
+		SkipFlagParsing: true,
 	},
 	{
 		Name:   "ls",
@@ -314,9 +334,11 @@ var Commands = []cli.Command{
 		},
 	},
 	{
-		Name:   "provision",
-		Usage:  "Re-provision existing machines",
-		Action: runCommand(cmdProvision),
+		Name:            "provision",
+		Usage:           "Re-provision existing machines",
+		Action:          runCommand(withDriverFlags("provision", true, &updateConfigGenericFlag, cmdProvision)),
+		Flags:           []cli.Flag{updateConfigBoolFlag},
+		SkipFlagParsing: true,
 	},
 	{
 		Name:        "regenerate-certs",
@@ -350,17 +372,20 @@ var Commands = []cli.Command{
 				Name:  "y",
 				Usage: "Assumes automatic yes to proceed with remove, without prompting further user confirmation",
 			},
+			updateConfigBoolFlag,
 		},
-		Name:        "rm",
-		Usage:       "Remove a machine",
-		Description: "Argument(s) are one or more machine names.",
-		Action:      runCommand(cmdRm),
+		Name:            "rm",
+		Usage:           "Remove a machine",
+		Description:     "Argument(s) are one or more machine names.",
+		Action:          runCommand(withDriverFlags("rm", true, &updateConfigGenericFlag, cmdRm)),
+		SkipFlagParsing: true,
 	},
 	{
 		Name:            "ssh",
 		Usage:           "Log into or run a command on a machine with SSH.",
 		Description:     "Arguments are [machine-name] [command]",
-		Action:          runCommand(cmdSSH),
+		Action:          runCommand(withDriverFlags("ssh", true, &updateConfigGenericFlag, cmdSSH)),
+		Flags:           []cli.Flag{updateConfigBoolFlag},
 		SkipFlagParsing: true,
 	},
 	{
@@ -402,10 +427,12 @@ var Commands = []cli.Command{
 		Action:      runCommand(cmdStart),
 	},
 	{
-		Name:        "status",
-		Usage:       "Get the status of a machine",
-		Description: "Argument is a machine name.",
-		Action:      runCommand(cmdStatus),
+		Name:            "status",
+		Usage:           "Get the status of a machine",
+		Description:     "Argument is a machine name.",
+		Action:          runCommand(withDriverFlags("status", true, &updateConfigGenericFlag, cmdStatus)),
+		Flags:           []cli.Flag{updateConfigBoolFlag},
+		SkipFlagParsing: true,
 	},
 	{
 		Name:        "stop",
@@ -420,10 +447,12 @@ var Commands = []cli.Command{
 		Action:      runCommand(cmdUpgrade),
 	},
 	{
-		Name:        "url",
-		Usage:       "Get the URL of a machine",
-		Description: "Argument is a machine name.",
-		Action:      runCommand(cmdURL),
+		Name:            "url",
+		Usage:           "Get the URL of a machine",
+		Description:     "Argument is a machine name.",
+		Action:          runCommand(withDriverFlags("url", true, &updateConfigGenericFlag, cmdURL)),
+		Flags:           []cli.Flag{updateConfigBoolFlag},
+		SkipFlagParsing: true,
 	},
 	{
 		Name:   "version",
@@ -500,4 +529,145 @@ func consolidateErrs(errs []error) error {
 	}
 
 	return errors.New(strings.TrimSpace(finalErr))
+}
+
+// withDriverFlags wraps the given command `handler` with the given name with a handler that will look for
+// driver-specific flags and parse them before executing the command handler. If `fromExistingHost` is true, the wrapper
+// function will try to look up driver flags using an existing host named in a command-line argument. Otherwise, the
+// wrapper will try to look up driver flags using either the driver named in the `--driver` flag or the `MACHINE_DRIVER`
+// ennvar.
+func withDriverFlags(
+	cmdName string,
+	fromExistingHost bool,
+	requiredFlag *cli.GenericFlag,
+	handler cmdHandler,
+) cmdHandler {
+	return func(c CommandLine, api libmachine.API) error {
+		// If a required flag was specified, we need to make sure its value is set (either via envvars or CLI flags)
+		// before attempting to load driver config. If it is not set anywhere, we don't load driver config.
+		if requiredFlag != nil {
+			// Handle cases where flag names contain comma-separated long and short versions.
+			flagNameParts := strings.SplitN(requiredFlag.Name, ",", 2)
+			flagLong := "--" + strings.TrimSpace(flagNameParts[0])
+			flagShort := ""
+			if len(flagNameParts) > 1 {
+				flagShort = "-" + strings.TrimSpace(flagNameParts[1])
+			}
+
+			if _, ok := getFlagValue(c.Args(), flagLong, flagShort, requiredFlag.EnvVar); !ok {
+				fmt.Printf("args: %v\n", c.Args())
+				println("flag value not found, skipping wrapping", flagLong, flagShort, requiredFlag.EnvVar)
+				return updateAndRunCommand(c, cmdName, nil, handler)
+			}
+		}
+
+		// To determine what driver flags we need to parse, we'll either get the driver name from an existing host or
+		// from the --driver flag or MACHINE_DRIVER envvar.
+		var driverName string
+		if fromExistingHost {
+			hostName := firstArg(c.Args())
+			h, err := api.Load(hostName)
+			if err != nil {
+				return fmt.Errorf("error loading host %s: %w", hostName, err)
+			}
+
+			driverName = h.DriverName
+		} else {
+			var ok bool
+			if driverName, ok = getFlagValue(c.Args(), "--driver", "-d", "MACHINE_DRIVER"); !ok {
+				driverName = "virtualbox"
+			}
+		}
+
+		println("found driver:", driverName)
+
+		// If the driver is still not defined, we'll assume it's not available because it wasn't specified and just run
+		// the command.
+		if driverName == "" {
+			return updateAndRunCommand(c, cmdName, nil, handler)
+		}
+
+		println("wrapping handler using driver:", driverName)
+
+		// Create a new empty host object with the driver. Unfortunately, this is the only way of getting driver args
+		// at the moment.
+		rawDriver, err := json.Marshal(&drivers.BaseDriver{MachineName: "temp-driver-loader"})
+		if err != nil {
+			return fmt.Errorf("error marshalling base driver: %w", err)
+		}
+
+		h, err := api.NewHost(driverName, rawDriver)
+		if err != nil {
+			return err
+		}
+
+		// Convert driver flags into CLI flags.
+		driverFlags := h.Driver.GetCreateFlags()
+		driverCLIFlags, err := convertMcnFlagsToCliFlags(driverFlags)
+		if err != nil {
+			return fmt.Errorf("error converting driver flags to CLI flags: %w", err)
+		}
+
+		fmt.Printf("attaching flags %+#v\n", driverCLIFlags)
+
+		return updateAndRunCommand(c, cmdName, driverCLIFlags, handler)
+	}
+}
+
+// updateAndRunCommand add the given driver-specific flags to the command with the given name and reruns the CLI app
+// to execute the given handler function.
+func updateAndRunCommand(c CommandLine, cmdName string, flags []cli.Flag, handler cmdHandler) error {
+	// Get a pointer to the current command being executed. This has to be done by accessing the `Commands` slice
+	// directly, again, because of problems with the CLI library we're using.
+	for i := range c.Application().Commands {
+		cmd := &c.Application().Commands[i]
+		if cmd.HasName(cmdName) {
+			cmd.Flags = append(cmd.Flags, flags...)
+			cmd.SkipFlagParsing = false
+			cmd.Action = runCommand(handler)
+			sort.Sort(ByFlagName(cmd.Flags))
+
+			// Re-run the CLI app to the new flags are parsed and the handler command gets executed.
+			return c.Application().Run(os.Args)
+		}
+	}
+
+	return fmt.Errorf("command not found: %s", cmdName)
+}
+
+// getFlagValue returns the value associated with the given flag and true if the flag was found in the arguments or
+// envvars, or an empty string and false otherwise.
+func getFlagValue(args []string, long, short, envvar string) (string, bool) {
+	if value, ok := os.LookupEnv(envvar); ok {
+		return value, true
+	}
+
+	for i, arg := range args {
+		flagParts := strings.SplitN(arg, "=", 2)
+		if flagParts[0] == long || flagParts[0] == short {
+			// If the flag has multiple parts separated by "=", return everything in the flag to the right of "=".
+			if len(flagParts) > 1 {
+				return flagParts[1], true
+			}
+
+			// At this point we know the flag is either a simple boolean flag, or its value is the next arg.
+			if len(args) > i+1 && !strings.HasPrefix(args[i+1], "-") {
+				return args[i+1], true
+			}
+
+			return "", true
+		}
+	}
+
+	return "", false
+}
+
+func firstArg(args []string) string {
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			return arg
+		}
+	}
+
+	return ""
 }

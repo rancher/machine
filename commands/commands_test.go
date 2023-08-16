@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"flag"
+	"strings"
 	"testing"
 
 	"github.com/rancher/machine/commands/commandstest"
@@ -17,6 +18,40 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
+
+func TestGetFlagValue(t *testing.T) {
+	for _, tt := range []struct {
+		args        []string
+		flagShort   string
+		flagLong    string
+		envVar      string
+		expectValue string
+		expectOk    bool
+	}{
+		{
+			args:        strings.Split("--driver none myhost --url https://test.com", " "),
+			flagShort:   "--url",
+			flagLong:    "-u",
+			expectValue: "https://test.com",
+			expectOk:    true,
+		},
+		{
+			args:      strings.Split("myhost --url https://test.com", " "),
+			flagShort: "--driver",
+			flagLong:  "-d",
+		},
+		{
+			args:      strings.Split("create -f", " "),
+			flagShort: "--force",
+			flagLong:  "-f",
+			expectOk:  true,
+		},
+	} {
+		value, ok := getFlagValue(tt.args, tt.flagLong, tt.flagShort, tt.envVar)
+		assert.Equal(t, tt.expectValue, value)
+		assert.Equal(t, tt.expectOk, ok)
+	}
+}
 
 func TestRunActionForeachMachine(t *testing.T) {
 	defer provision.SetDetector(&provision.StandardDetector{})
