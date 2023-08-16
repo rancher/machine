@@ -92,11 +92,17 @@ func (provisioner *UbuntuProvisioner) Package(name string, action pkgaction.Pack
 		}
 	}
 
-	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get %s -y -o Dpkg::Options::=\"--force-confnew\" %s", packageAction, name)
+	lockTimeout := 300
+	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get %s -y -o DPkg::Lock::Timeout=%d -o Dpkg::Options::=\"--force-confnew\" %s", packageAction, lockTimeout, name)
 
 	log.Debugf("package: action=%s name=%s", action.String(), name)
 
-	return waitForLock(provisioner, command)
+	_, err := provisioner.SSHCommand(command)
+	if err != nil {
+		return fmt.Errorf("command failed: %s", err.Error())
+	}
+
+	return nil
 }
 
 func (provisioner *UbuntuProvisioner) dockerDaemonResponding() bool {

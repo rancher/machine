@@ -301,27 +301,14 @@ func DockerClientVersion(ssh SSHCommander) (string, error) {
 }
 
 func waitForLockAptGetUpdate(ssh SSHCommander) error {
-	return waitForLock(ssh, "sudo apt-get update")
-}
+	lockTimeout := 300
 
-func waitForLock(ssh SSHCommander, cmd string) error {
-	var sshErr error
-	err := mcnutils.WaitFor(func() bool {
-		_, sshErr = ssh.SSHCommand(cmd)
-		if sshErr != nil {
-			if strings.Contains(sshErr.Error(), "Could not get lock") {
-				sshErr = nil
-				return false
-			}
-			return true
-		}
-		return true
-	})
-	if sshErr != nil {
-		return fmt.Errorf("Error running %q: %s", cmd, sshErr)
-	}
+	cmd := fmt.Sprintf("sudo apt-get -o DPkg::Lock::Timeout=%d update", lockTimeout)
+
+	_, err := ssh.SSHCommand(cmd)
 	if err != nil {
-		return fmt.Errorf("Failed to obtain lock: %s", err)
+		return fmt.Errorf("apt-get update failed: %s", err.Error())
 	}
+
 	return nil
 }

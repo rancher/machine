@@ -60,11 +60,17 @@ func (provisioner *DebianProvisioner) Package(name string, action pkgaction.Pack
 		}
 	}
 
-	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get %s -y  %s", packageAction, name)
+	lockTimeout := 300
+	command := fmt.Sprintf("DEBIAN_FRONTEND=noninteractive sudo -E apt-get -o DPkg::Lock::Timeout=%d %s -y  %s", lockTimeout, packageAction, name)
 
 	log.Debugf("package: action=%s name=%s", action.String(), name)
 
-	return waitForLock(provisioner, command)
+	_, err := provisioner.SSHCommand(command)
+	if err != nil {
+		return fmt.Errorf("command failed: %s", err.Error())
+	}
+
+	return nil
 }
 
 func (provisioner *DebianProvisioner) dockerDaemonResponding() bool {
