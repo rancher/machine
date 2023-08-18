@@ -31,10 +31,9 @@ func NewDriver(hostName, storePath string) *Driver {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			Name:   "url",
-			Usage:  "URL of host when no driver is selected",
-			Value:  "",
-			EnvVar: "URL",
+			Name:  "url",
+			Usage: "URL of host when no driver is selected",
+			Value: "",
 		},
 	}
 }

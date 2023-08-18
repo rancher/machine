@@ -1,9 +1,8 @@
 package commands
 
 import (
-	"testing"
-
 	"errors"
+	"testing"
 
 	"github.com/rancher/machine/commands/commandstest"
 	"github.com/rancher/machine/drivers/fakedriver"
