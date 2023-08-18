@@ -654,13 +654,3 @@ func getFlagValue(args []string, long, short, envvar string) (string, bool) {
 
 	return "", false
 }
-
-func firstArg(args []string) string {
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			return arg
-		}
-	}
-
-	return ""
-}
