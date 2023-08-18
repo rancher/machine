@@ -1,22 +1,24 @@
-package none
+package noop
 
 import (
+	"encoding/json"
 	"fmt"
 	neturl "net/url"
+	"os"
 
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/state"
 )
 
-const driverName = "none"
+const driverName = "noop"
 
-// Driver is the driver used when no driver is selected. It is used to
-// connect to existing Docker hosts by specifying the URL of the host as
-// an option.
+// Driver is a noop driver that does nothing.
 type Driver struct {
 	*drivers.BaseDriver
-	URL string
+	URL   string
+	state state.State
 }
 
 func NewDriver(hostName, storePath string) *Driver {
@@ -25,6 +27,7 @@ func NewDriver(hostName, storePath string) *Driver {
 			MachineName: hostName,
 			StorePath:   storePath,
 		},
+		state: state.Running,
 	}
 }
 
@@ -32,7 +35,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "url",
-			Usage:  "URL of host when no driver is selected",
 			Value:  "",
 			EnvVar: "URL",
 		},
@@ -40,6 +42,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 }
 
 func (d *Driver) Create() error {
+	d.state = state.Running
 	return nil
 }
 
@@ -73,11 +76,13 @@ func (d *Driver) GetURL() (string, error) {
 }
 
 func (d *Driver) GetState() (state.State, error) {
-	return state.Running, nil
+	return d.state, nil
 }
 
 func (d *Driver) Kill() error {
-	return fmt.Errorf("hosts without a driver cannot be killed")
+	println("kill called")
+	d.state = state.Stopped
+	return nil
 }
 
 func (d *Driver) Remove() error {
@@ -85,18 +90,32 @@ func (d *Driver) Remove() error {
 }
 
 func (d *Driver) Restart() error {
-	return fmt.Errorf("hosts without a driver cannot be restarted")
+	return nil
+}
+
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	*d = Driver(target)
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
+	if _, ok := driverOpts.Values["url"]; ok {
+		d.URL = driverOpts.String("url")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
-	url := flags.String("url")
-
-	if url == "" {
-		return fmt.Errorf("--url option is required when no driver is selected")
-	}
-
-	d.URL = url
-	u, err := neturl.Parse(url)
+	d.URL = flags.String("url")
+	u, err := neturl.Parse(d.URL)
 	if err != nil {
 		return err
 	}
@@ -106,9 +125,9 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 }
 
 func (d *Driver) Start() error {
-	return fmt.Errorf("hosts without a driver cannot be started")
+	return nil
 }
 
 func (d *Driver) Stop() error {
-	return fmt.Errorf("hosts without a driver cannot be stopped")
+	return nil
 }

@@ -8,3 +8,4 @@ cover
 *.swp
 rancher-machine
 .DS_STORE
+test-data*

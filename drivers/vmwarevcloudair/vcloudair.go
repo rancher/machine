@@ -5,12 +5,15 @@
 package vmwarevcloudair
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/vmware/govcloudair"
 
 	"github.com/rancher/machine/libmachine/drivers"
@@ -147,6 +150,30 @@ func (d *Driver) GetSSHHostname() (string, error) {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "vmwarevcloudair"
+}
+
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	*d = Driver(target)
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
+	if _, ok := driverOpts.Values["vmwarevcloudair-username"]; ok {
+		d.UserName = driverOpts.String("vmwarevcloudair-username")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevcloudair-password"]; ok {
+		d.UserPassword = driverOpts.String("vmwarevcloudair-password")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

@@ -4,4 +4,13 @@ set -e
 
 cd $(dirname $0)/..
 
+# Run driver tests.
 go test -cover ./drivers/amazonec2/... ./drivers/azure/... ./drivers/digitalocean/... ./drivers/vmwarevsphere/...
+
+# Compile the rancher-machine binary because it is used by the tests in cmd/rancher-machine.
+cd ./cmd/rancher-machine
+go build .
+
+# Run CLI tests. We're using -v here to ensure that command output isn't swallowed by go test
+# if there are test failures.
+go test -v ./...

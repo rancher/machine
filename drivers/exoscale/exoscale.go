@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/exoscale/egoscale"
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/mcnutils"
@@ -183,6 +185,30 @@ func (d *Driver) GetSSHUsername() string {
 // DriverName returns the name of the driver
 func (d *Driver) DriverName() string {
 	return "exoscale"
+}
+
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	*d = Driver(target)
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
+	if _, ok := driverOpts.Values["exoscale-api-key"]; ok {
+		d.APIKey = driverOpts.String("exoscale-api-key")
+	}
+
+	if _, ok := driverOpts.Values["exoscale-api-secret-key"]; ok {
+		d.APISecretKey = driverOpts.String("exoscale-api-secret-key")
+	}
+
+	return nil
 }
 
 // SetConfigFromFlags configures the driver with the object that was returned

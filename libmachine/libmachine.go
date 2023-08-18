@@ -154,7 +154,7 @@ func (api *Client) performCreate(h *host.Host) error {
 	}
 
 	// TODO: Not really a fan of just checking "none" or "ci-test" here.
-	if h.Driver.DriverName() == "none" || h.Driver.DriverName() == "ci-test" {
+	if h.Driver.DriverName() == "none" || h.Driver.DriverName() == "noop" || h.Driver.DriverName() == "ci-test" {
 		return nil
 	}
 

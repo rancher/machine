@@ -555,8 +555,6 @@ func withDriverFlags(
 			}
 
 			if _, ok := getFlagValue(c.Args(), flagLong, flagShort, requiredFlag.EnvVar); !ok {
-				fmt.Printf("args: %v\n", c.Args())
-				println("flag value not found, skipping wrapping", flagLong, flagShort, requiredFlag.EnvVar)
 				return updateAndRunCommand(c, cmdName, nil, handler)
 			}
 		}
@@ -565,7 +563,8 @@ func withDriverFlags(
 		// from the --driver flag or MACHINE_DRIVER envvar.
 		var driverName string
 		if fromExistingHost {
-			hostName := firstArg(c.Args())
+			// The host name should be the last argument because the CLI library doesn't allow options after arguments.
+			hostName := c.Args()[len(c.Args())-1]
 			h, err := api.Load(hostName)
 			if err != nil {
 				return fmt.Errorf("error loading host %s: %w", hostName, err)
@@ -579,15 +578,11 @@ func withDriverFlags(
 			}
 		}
 
-		println("found driver:", driverName)
-
 		// If the driver is still not defined, we'll assume it's not available because it wasn't specified and just run
 		// the command.
 		if driverName == "" {
 			return updateAndRunCommand(c, cmdName, nil, handler)
 		}
-
-		println("wrapping handler using driver:", driverName)
 
 		// Create a new empty host object with the driver. Unfortunately, this is the only way of getting driver args
 		// at the moment.
@@ -607,8 +602,6 @@ func withDriverFlags(
 		if err != nil {
 			return fmt.Errorf("error converting driver flags to CLI flags: %w", err)
 		}
-
-		fmt.Printf("attaching flags %+#v\n", driverCLIFlags)
 
 		return updateAndRunCommand(c, cmdName, driverCLIFlags, handler)
 	}

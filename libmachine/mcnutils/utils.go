@@ -80,6 +80,7 @@ func CopyFile(src, dst string) error {
 
 func WaitForSpecificOrError(f func() (bool, error), maxAttempts int, waitInterval time.Duration) error {
 	for i := 0; i < maxAttempts; i++ {
+		println("waiting")
 		stop, err := f()
 		if err != nil {
 			return err

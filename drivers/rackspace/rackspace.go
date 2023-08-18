@@ -1,10 +1,13 @@
 package rackspace
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/rancher/machine/drivers/openstack"
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 )
@@ -118,6 +121,30 @@ func missingEnvOrOption(setting, envVar, opt string) error {
 		envVar,
 		opt,
 	)
+}
+
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	*d = Driver(target)
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
+	if _, ok := driverOpts.Values["rackspace-username"]; ok {
+		d.Username = driverOpts.String("rackspace-username")
+	}
+
+	if _, ok := driverOpts.Values["rackspace-api-key"]; ok {
+		d.APIKey = driverOpts.String("rackspace-api-key")
+	}
+
+	return nil
 }
 
 // SetConfigFromFlags assigns and verifies the command-line arguments presented to the driver.

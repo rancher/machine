@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/machine/drivers/google"
 	"github.com/rancher/machine/drivers/hyperv"
 	"github.com/rancher/machine/drivers/none"
+	"github.com/rancher/machine/drivers/noop"
 	"github.com/rancher/machine/drivers/openstack"
 	"github.com/rancher/machine/drivers/pod"
 	"github.com/rancher/machine/drivers/rackspace"
@@ -182,6 +183,7 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error(err)
+		os.Exit(1)
 	}
 }
 
@@ -219,6 +221,8 @@ func runDriver(driverName string) {
 		plugin.RegisterDriver(vmwarevsphere.NewDriver("", ""))
 	case "pod":
 		plugin.RegisterDriver(pod.NewDriver("", ""))
+	case "noop":
+		plugin.RegisterDriver(noop.NewDriver("", ""))
 	default:
 		fmt.Fprintf(os.Stderr, "Unsupported driver: %s\n", driverName)
 		os.Exit(1)

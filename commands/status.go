@@ -30,6 +30,13 @@ func cmdStatus(c CommandLine, api libmachine.API) error {
 		return err
 	}
 
+	// Save any host configuration that may have changed before returning.
+	defer func() {
+		if saveErr := api.Save(host); saveErr != nil {
+			log.Warnf("error saving updated host configuration: %v", saveErr)
+		}
+	}()
+
 	currentState, err := host.Driver.GetState()
 	if err != nil {
 		if !strings.Contains(strings.ToLower(err.Error()), "not found") {

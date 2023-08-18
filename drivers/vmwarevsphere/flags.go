@@ -1,12 +1,14 @@
 package vmwarevsphere
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/rancher/machine/libmachine/drivers"
+	rpcdriver "github.com/rancher/machine/libmachine/drivers/rpc"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/vmware/govmomi/vim25/types"
 )
@@ -197,6 +199,42 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "vSphere custom attribute, format key/value e.g. '200=my custom value'",
 		},
 	}
+}
+
+// UnmarshalJSON loads driver config from JSON.
+func (d *Driver) UnmarshalJSON(data []byte) error {
+	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
+	type targetDriver Driver
+	target := targetDriver{}
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
+	}
+
+	*d = Driver(target)
+
+	// Make sure to reload values that are subject to change from envvars and os.Args.
+	driverOpts := rpcdriver.GetDriverOpts(d.GetCreateFlags(), os.Args)
+	if _, ok := driverOpts.Values["vmwarevsphere-ssh-user"]; ok {
+		d.SSHUser = driverOpts.String("vmwarevsphere-ssh-user")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevsphere-ssh-password"]; ok {
+		d.SSHPassword = driverOpts.String("vmwarevsphere-ssh-password")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevsphere-vcenter"]; ok {
+		d.IP = driverOpts.String("vmwarevsphere-vcenter")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevsphere-user"]; ok {
+		d.Username = driverOpts.String("vmwarevsphere-user")
+	}
+
+	if _, ok := driverOpts.Values["vmwarevsphere-password"]; ok {
+		d.Password = driverOpts.String("vmwarevsphere-password")
+	}
+
+	return nil
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {

@@ -17,10 +17,25 @@ var (
 	// plugin server.
 	defaultTimeout               = 10 * time.Second
 	CurrentBinaryIsDockerMachine = false
-	CoreDrivers                  = []string{"amazonec2", "azure", "digitalocean",
-		"exoscale", "generic", "google", "hyperv", "none", "openstack",
-		"rackspace", "softlayer", "virtualbox", "vmwarefusion",
-		"vmwarevcloudair", "vmwarevsphere", "pod"}
+	CoreDrivers                  = []string{
+		"amazonec2",
+		"azure",
+		"digitalocean",
+		"exoscale",
+		"generic",
+		"google",
+		"hyperv",
+		"none",
+		"openstack",
+		"rackspace",
+		"softlayer",
+		"virtualbox",
+		"vmwarefusion",
+		"vmwarevcloudair",
+		"vmwarevsphere",
+		"pod",
+		"noop",
+	}
 )
 
 const (
@@ -93,9 +108,11 @@ func (e ErrPluginBinaryNotFound) Error() string {
 }
 
 // driverPath finds the path of a driver binary by its name.
-//  + If the driver is a core driver, there is no separate driver binary. We reuse current binary if it's `docker-machine`
+//   - If the driver is a core driver, there is no separate driver binary. We reuse current binary if it's `docker-machine`
+//
 // or we assume `docker-machine` is in the PATH.
-//  + If the driver is NOT a core driver, then the separate binary must be in the PATH and it's name must be
+//   - If the driver is NOT a core driver, then the separate binary must be in the PATH and it's name must be
+//
 // `docker-machine-driver-driverName`
 func driverPath(driverName string) string {
 	for _, coreDriver := range CoreDrivers {
@@ -135,7 +152,9 @@ func (lbe *Executor) Start() (*bufio.Scanner, *bufio.Scanner, error) {
 
 	log.Debugf("Launching plugin server for driver %s", lbe.DriverName)
 
-	lbe.cmd = exec.Command(lbe.binaryPath)
+	// The child process that gets executed when we run this subcommand will already inherit all this process' envvars,
+	// but we still need to pass all command-line arguments to it manually.
+	lbe.cmd = exec.Command(lbe.binaryPath, os.Args...)
 
 	lbe.pluginStdout, err = lbe.cmd.StdoutPipe()
 	if err != nil {
