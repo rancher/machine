@@ -384,8 +384,7 @@ var Commands = []cli.Command{
 		Name:            "ssh",
 		Usage:           "Log into or run a command on a machine with SSH.",
 		Description:     "Arguments are [machine-name] [command]",
-		Action:          runCommand(withDriverFlags("ssh", true, &updateConfigGenericFlag, cmdSSH)),
-		Flags:           []cli.Flag{updateConfigBoolFlag},
+		Action:          runCommand(cmdSSH),
 		SkipFlagParsing: true,
 	},
 	{
