@@ -2,6 +2,7 @@ package vmwarevsphere
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -198,6 +199,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "vmwarevsphere-custom-attribute",
 			Usage:  "vSphere custom attribute, format key/value e.g. '200=my custom value'",
 		},
+		mcnflag.IntFlag{
+			EnvVar: "VSPHERE_GRACEFUL_SHUTDOWN_TIMEOUT",
+			Name:   "vmwarevsphere-graceful-shutdown-timeout",
+			Usage:  "How many seconds to wait before timing out when attempting a graceful shutdown for a vSphere virtual machine. A force destroy will perform when the value is zero.",
+		},
 	}
 }
 
@@ -296,6 +302,11 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		if d.CloneFrom == "" {
 			return fmt.Errorf("creation type clone needs a VM name to clone from, use --vmwarevsphere-clone-from")
 		}
+	}
+
+	d.GracefulShutdownTimeout = flags.Int("vmwarevsphere-graceful-shutdown-timeout")
+	if d.GracefulShutdownTimeout < 0 {
+		return errors.New("vmwarevsphere-graceful-shutdown-timeout can not be negative")
 	}
 
 	return nil

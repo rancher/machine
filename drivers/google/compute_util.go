@@ -403,7 +403,7 @@ func (c *ComputeUtil) uploadSSHKeyAndUserdata(instance *raw.Instance, sshKeyPath
 	}
 
 	if userdata != "" {
-		metadata.Items = append(instance.Metadata.Items, &raw.MetadataItems{
+		metadata.Items = append(metadata.Items, &raw.MetadataItems{
 			Key:   "user-data",
 			Value: &userdata,
 		})

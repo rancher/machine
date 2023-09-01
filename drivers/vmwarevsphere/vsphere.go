@@ -34,6 +34,8 @@ const (
 	// B2DPass is the guest Pass for tools login
 	B2DPass      = "tcuser"
 	B2DUserGroup = "staff"
+
+	gracefulShutdownSleep = 3
 )
 
 type Driver struct {
@@ -46,41 +48,42 @@ type Driver struct {
 	CPUS           int
 	MachineId      string
 
-	IP                     string
-	Port                   int
-	Username               string
-	Password               string
-	Network                string
-	Networks               []string
-	Tags                   []string
-	CustomAttributes       []string
-	Datastore              string
-	DatastoreCluster       string
-	Datacenter             string
-	Folder                 string
-	Pool                   string
-	HostSystem             string
-	CfgParams              []string
-	CloudInit              string
-	CloudConfig            string
-	VAppIpProtocol         string
-	VAppIpAllocationPolicy string
-	VAppTransport          string
-	VAppProperties         []string
-	CreationType           string
-	ContentLibrary         string
-	CloneFrom              string
-	SSHPassword            string
-	SSHUserGroup           string
-	OS                     string
-	vms                    map[string]*object.VirtualMachine
-	soap                   *govmomi.Client
-	ctx                    context.Context
-	finder                 *find.Finder
-	datacenter             *object.Datacenter
-	networks               map[string]object.NetworkReference
-	hostsystem             *object.HostSystem
-	resourcepool           *object.ResourcePool
+	IP                      string
+	Port                    int
+	Username                string
+	Password                string
+	Network                 string
+	Networks                []string
+	Tags                    []string
+	CustomAttributes        []string
+	Datastore               string
+	DatastoreCluster        string
+	Datacenter              string
+	Folder                  string
+	Pool                    string
+	HostSystem              string
+	CfgParams               []string
+	CloudInit               string
+	CloudConfig             string
+	VAppIpProtocol          string
+	VAppIpAllocationPolicy  string
+	VAppTransport           string
+	VAppProperties          []string
+	CreationType            string
+	ContentLibrary          string
+	CloneFrom               string
+	SSHPassword             string
+	SSHUserGroup            string
+	OS                      string
+	GracefulShutdownTimeout int
+	vms                     map[string]*object.VirtualMachine
+	soap                    *govmomi.Client
+	ctx                     context.Context
+	finder                  *find.Finder
+	datacenter              *object.Datacenter
+	networks                map[string]object.NetworkReference
+	hostsystem              *object.HostSystem
+	resourcepool            *object.ResourcePool
 }
 
 const (
@@ -202,7 +205,7 @@ func (d *Driver) GetIP() (string, error) {
 					break
 				}
 			}
-			d.IPAddress = preferredIP //cache
+			d.IPAddress = preferredIP // cache
 			return preferredIP, nil
 		}
 	}
@@ -444,9 +447,12 @@ func (d *Driver) Kill() error {
 	return nil
 }
 
+// Remove removes a VM in vSphere.
+// It will perform a graceful shutdown on the Guest OS if the GracefulShutdownTimeout is greater than zero;
+// It will perform a power off if either the GracefulShutdownTimeout is zero or a graceful shutdown times out.
 func (d *Driver) Remove() error {
 	if d.MachineId == "" {
-		//no guid from config, nothing in vsphere to delete
+		// no guid from config, nothing in vsphere to delete
 		return nil
 	}
 
@@ -473,8 +479,37 @@ func (d *Driver) Remove() error {
 		return err
 	}
 	if machineState == state.Running {
-		if err = d.Kill(); err != nil {
-			return fmt.Errorf("can't stop VM: %s", err)
+		if d.GracefulShutdownTimeout > 0 {
+			// graceful shutdown the machine
+			log.Infof("Gracefully shutting down VM %s (ID: %s)", d.MachineName, d.MachineId)
+			if err := d.Stop(); err != nil {
+				return err
+			}
+			// wait for machine to stop
+			elapsed := 0
+			for elapsed <= d.GracefulShutdownTimeout {
+				if machineState, err = d.GetState(); err != nil {
+					return err
+				}
+				if machineState == state.Stopped {
+					break
+				}
+				elapsed += gracefulShutdownSleep
+				time.Sleep(gracefulShutdownSleep * time.Second)
+				log.Debugf("Waiting for VM %s (ID: %s) to stop. Elapsed time: %d second(s)", d.MachineName, d.MachineId, elapsed)
+			}
+			if elapsed > d.GracefulShutdownTimeout {
+				log.Infof("Timeout for graceful shutdown of VM %s (ID: %s)", d.MachineName, d.MachineId)
+			}
+		}
+		if machineState, err = d.GetState(); err != nil {
+			return err
+		}
+		if machineState != state.Stopped {
+			log.Infof("Starting power off VM %s (ID: %s)", d.MachineName, d.MachineId)
+			if err = d.Kill(); err != nil {
+				return fmt.Errorf("can't stop VM: %s", err)
+			}
 		}
 	}
 
