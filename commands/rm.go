@@ -47,7 +47,7 @@ func cmdRm(c CommandLine, api libmachine.API) error {
 		}
 	}
 
-	if len(errorOccurred) > 0 {
+	if len(errorOccurred) > 0 && !force {
 		return errors.New(strings.Join(errorOccurred, "\n"))
 	}
 

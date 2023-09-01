@@ -126,7 +126,7 @@ func assertFail(t *testing.T, args string) {
 // assert that the command invocation fails. Otherwise, it will assert that it succeeds.
 func testCmd(t *testing.T, args string, expectFail bool) {
 	// Create the command from the given args.
-	cmd := exec.Command("./rancher-machine", strings.Split(args, " ")...)
+	cmd := exec.Command(executablePath, strings.Split(args, " ")...)
 
 	// Set machine storage path to the test data path. This way, the command will write all its output files to that
 	// path instead of muddying up the host.
