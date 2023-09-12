@@ -121,7 +121,7 @@ func (provisioner *RedHatProvisioner) disableNetworkManagerSetupService8dot4() e
 	}
 
 	log.Debug("Patching NetworkManager")
-	cmd := "sudo systemctl list-units --all | grep -Fq %s; if [ $? -eq 0 ]; then sudo systemctl disable %s; else echo 0; fi"
+	cmd := "sudo systemctl is-enabled %s; if [ $? -eq 0 ]; then sudo systemctl disable %s && touch /tmp/rancher-machine-reboot; else echo 0; fi"
 	for _, service := range []string{"nm-cloud-setup.timer", "nm-cloud-setup.service"} {
 		if _, err := provisioner.SSHCommand(fmt.Sprintf(cmd, service, service)); err != nil {
 			return err
@@ -129,7 +129,7 @@ func (provisioner *RedHatProvisioner) disableNetworkManagerSetupService8dot4() e
 	}
 
 	// ignore errors here because the SSH connection will close
-	provisioner.SSHCommand("sudo reboot")
+	provisioner.SSHCommand("[ -f /tmp/rancher-machine-reboot ] && rm -f /tmp/rancher-machine-reboot && sudo reboot")
 
 	log.Debug("NetworkManager patched, waiting for machine to reboot...")
 	return drivers.WaitForSSH(provisioner.Driver)
