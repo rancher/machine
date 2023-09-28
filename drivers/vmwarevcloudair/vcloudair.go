@@ -152,7 +152,9 @@ func (d *Driver) DriverName() string {
 	return "vmwarevcloudair"
 }
 
-// UnmarshalJSON loads driver config from JSON.
+// UnmarshalJSON loads driver config from JSON. This function is used by the RPCServerDriver that wraps
+// all drivers as a means of populating an already-initialized driver with new configuration.
+// See `RPCServerDriver.SetConfigRaw`.
 func (d *Driver) UnmarshalJSON(data []byte) error {
 	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
 	type targetDriver Driver
