@@ -1,11 +1,26 @@
 package vmwarevcloudair
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/rancher/machine/libmachine/drivers"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestUnmarshalJSON(t *testing.T) {
+	driver := NewDriver("", "").(*Driver)
+
+	// Unmarhsal driver configuration from JSON, envvars, and args.
+	assert.NoError(t, os.Setenv("VCLOUDAIR_USERNAME", "test username"))
+	os.Args = append(os.Args, []string{"--vmwarevcloudair-password", "test pw"}...)
+	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	// Make sure that config has been pulled in from envvars and args.
+	assert.Equal(t, "test username", driver.UserName)
+	assert.Equal(t, "test pw", driver.UserPassword)
+}
 
 func TestSetConfigFromFlags(t *testing.T) {
 	driver := NewDriver("default", "path")

@@ -1,11 +1,24 @@
 package digitalocean
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/rancher/machine/libmachine/drivers"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestUnmarshalJSON(t *testing.T) {
+	driver := NewDriver("", "")
+
+	// Unmarhsal driver configuration from JSON and args.
+	os.Args = append(os.Args, []string{"--digitalocean-access-token", "test access token"}...)
+	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	// Make sure that config has been pulled in from envvars and args.
+	assert.Equal(t, "test access token", driver.AccessToken)
+}
 
 func TestSetConfigFromFlags(t *testing.T) {
 	driver := NewDriver("default", "path")

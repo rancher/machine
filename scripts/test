@@ -5,7 +5,7 @@ set -e
 cd $(dirname $0)/..
 
 # Run driver tests.
-go test -cover ./drivers/amazonec2/... ./drivers/azure/... ./drivers/digitalocean/... ./drivers/vmwarevsphere/...
+go test -cover ./drivers/...
 
 # Compile the rancher-machine binary because it is used by the tests in cmd/rancher-machine.
 cd ./cmd/rancher-machine

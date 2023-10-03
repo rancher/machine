@@ -239,8 +239,8 @@ func (d *Driver) UnmarshalJSON(data []byte) error {
 		d.IP = driverOpts.String("vmwarevsphere-vcenter")
 	}
 
-	if _, ok := driverOpts.Values["vmwarevsphere-user"]; ok {
-		d.Username = driverOpts.String("vmwarevsphere-user")
+	if _, ok := driverOpts.Values["vmwarevsphere-username"]; ok {
+		d.Username = driverOpts.String("vmwarevsphere-username")
 	}
 
 	if _, ok := driverOpts.Values["vmwarevsphere-password"]; ok {

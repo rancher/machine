@@ -1,6 +1,7 @@
 package softlayer
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -55,6 +56,21 @@ func getTestDriver() (*Driver, error) {
 	d.SetConfigFromFlags(getDefaultTestDriverFlags())
 	drv := d.(*Driver)
 	return drv, nil
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	driver := NewDriver("", "").(*Driver)
+
+	// Unmarhsal driver configuration from JSON, envvars, and args.
+	assert.NoError(t, os.Setenv("SOFTLAYER_API_ENDPOINT", "test API endpoint"))
+	os.Args = append(os.Args, []string{"--softlayer-user", "test user"}...)
+	os.Args = append(os.Args, []string{"--softlayer-api-key", "test API key"}...)
+	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	// Make sure that config has been pulled in from envvars and args.
+	assert.Equal(t, "test API endpoint", driver.Client.Endpoint)
+	assert.Equal(t, "test user", driver.Client.User)
+	assert.Equal(t, "test API key", driver.Client.ApiKey)
 }
 
 func TestSetConfigFromFlagsSetsImage(t *testing.T) {

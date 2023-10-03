@@ -1,6 +1,7 @@
 package amazonec2
 
 import (
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -55,6 +56,25 @@ var (
 		},
 	}
 )
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Create a new driver and make sure its function fields aren't nil.
+	driver := NewDriver("", "")
+	assert.NotNil(t, driver.awsCredentialsFactory)
+	assert.NotNil(t, driver.clientFactory)
+
+	// Unmarhsal driver configuration from JSON, envvars, and args.
+	assert.NoError(t, os.Setenv("AWS_ACCESS_KEY_ID", "test key ID"))
+	os.Args = append(os.Args, []string{"--amazonec2-secret-key", "test key"}...)
+	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	// Make sure the function fields on the have not been changed to nil and that
+	// config has been pulled in from envvars and args.
+	assert.NotNil(t, driver.awsCredentialsFactory)
+	assert.NotNil(t, driver.clientFactory)
+	assert.Equal(t, "test key ID", driver.AccessKey)
+	assert.Equal(t, "test key", driver.SecretKey)
+}
 
 func TestConfigureSecurityGroupPermissionsEmpty(t *testing.T) {
 	driver := NewTestDriver()

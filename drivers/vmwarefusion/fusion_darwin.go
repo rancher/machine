@@ -150,11 +150,16 @@ func (d *Driver) DriverName() string {
 func (d *Driver) UnmarshalJSON(data []byte) error {
 	// Unmarshal driver config into an aliased type to prevent infinite recursion on UnmarshalJSON.
 	type targetDriver Driver
-	target := targetDriver{}
+
+	// Copy data from `d` to `target` before unmarshalling. This will ensure that already-initialized values
+	// from `d` that are left untouched during unmarshal (like functions) are preserved.
+	target := targetDriver(*d)
+
 	if err := json.Unmarshal(data, &target); err != nil {
 		return fmt.Errorf("error unmarshalling driver config from JSON: %w", err)
 	}
 
+	// Copy unmarshalled data back to `d`.
 	*d = Driver(target)
 
 	// Make sure to reload values that are subject to change from envvars and os.Args.
