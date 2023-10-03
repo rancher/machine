@@ -15,7 +15,10 @@ func TestUnmarshalJSON(t *testing.T) {
 	// Unmarhsal driver configuration from JSON, envvars, and args.
 	assert.NoError(t, os.Setenv("VCLOUDAIR_USERNAME", "test username"))
 	os.Args = append(os.Args, []string{"--vmwarevcloudair-password", "test pw"}...)
-	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	driverBytes, err := json.Marshal(driver)
+	assert.NoError(t, err)
+	assert.NoError(t, json.Unmarshal(driverBytes, driver))
 
 	// Make sure that config has been pulled in from envvars and args.
 	assert.Equal(t, "test username", driver.UserName)

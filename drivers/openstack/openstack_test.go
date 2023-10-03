@@ -17,7 +17,10 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.NoError(t, os.Setenv("OS_USER_ID", "test user ID"))
 	os.Args = append(os.Args, []string{"--openstack-username", "test username"}...)
 	os.Args = append(os.Args, []string{"--openstack-password", "test pw"}...)
-	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	driverBytes, err := json.Marshal(driver)
+	assert.NoError(t, err)
+	assert.NoError(t, json.Unmarshal(driverBytes, driver))
 
 	// Make sure that config has been pulled in from envvars and args.
 	assert.Equal(t, "test auth URL", driver.AuthUrl)

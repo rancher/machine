@@ -66,7 +66,10 @@ func TestUnmarshalJSON(t *testing.T) {
 	// Unmarhsal driver configuration from JSON, envvars, and args.
 	assert.NoError(t, os.Setenv("AWS_ACCESS_KEY_ID", "test key ID"))
 	os.Args = append(os.Args, []string{"--amazonec2-secret-key", "test key"}...)
-	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	driverBytes, err := json.Marshal(driver)
+	assert.NoError(t, err)
+	assert.NoError(t, json.Unmarshal(driverBytes, driver))
 
 	// Make sure the function fields on the have not been changed to nil and that
 	// config has been pulled in from envvars and args.

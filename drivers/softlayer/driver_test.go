@@ -65,7 +65,10 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.NoError(t, os.Setenv("SOFTLAYER_API_ENDPOINT", "test API endpoint"))
 	os.Args = append(os.Args, []string{"--softlayer-user", "test user"}...)
 	os.Args = append(os.Args, []string{"--softlayer-api-key", "test API key"}...)
-	assert.NoError(t, json.Unmarshal([]byte("{}"), driver))
+
+	driverBytes, err := json.Marshal(driver)
+	assert.NoError(t, err)
+	assert.NoError(t, json.Unmarshal(driverBytes, driver))
 
 	// Make sure that config has been pulled in from envvars and args.
 	assert.Equal(t, "test API endpoint", driver.Client.Endpoint)
