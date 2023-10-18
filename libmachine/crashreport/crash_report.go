@@ -1,19 +1,14 @@
 package crashreport
 
 import (
-	"fmt"
-	"os"
-	"runtime"
-
 	"bytes"
-
-	"os/exec"
-
-	"path/filepath"
-
 	"errors"
-
+	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/rancher/machine/libmachine/log"
@@ -22,8 +17,8 @@ import (
 )
 
 const (
-	defaultAPIKey  = "a9697f9a010c33ee218a65e5b1f3b0c1"
-	noreportAPIKey = "no-report"
+	defaultDockerMachineAPIKey = "a9697f9a010c33ee218a65e5b1f3b0c1"
+	noreportAPIKey             = "no-report"
 )
 
 type CrashReporter interface {
@@ -51,7 +46,9 @@ type BugsnagCrashReporter struct {
 // NewCrashReporter creates a new bugsnag based CrashReporter. Needs an apiKey.
 var NewCrashReporter = func(baseDir string, apiKey string) CrashReporter {
 	if apiKey == "" {
-		apiKey = defaultAPIKey
+		apiKey = noreportAPIKey
+	} else if apiKey == "docker-machine-default" {
+		apiKey = defaultDockerMachineAPIKey
 	}
 
 	return &BugsnagCrashReporter{
