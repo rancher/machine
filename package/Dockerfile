@@ -1,4 +1,4 @@
-FROM registry.suse.com/bci/bci-base:15.4.27.14.23
+FROM registry.suse.com/bci/bci-base:15.5
 
 ENV SSL_CERT_DIR /etc/rancher/ssl
 
