@@ -27,5 +27,6 @@ else
          -X github.com/rancher/machine/version.Version=$VERSION
          -X github.com/rancher/machine/version.GitCommit=$COMMIT" \
         -o ./bin/rancher-machine ./cmd/rancher-machine
-    ./bin/rancher-machine --version
+    # Ignore the exec format error as the binary might be for a different arch from the action runner's
+    ./bin/rancher-machine --version || true
 fi
