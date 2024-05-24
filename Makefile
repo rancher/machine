@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 TARGETS := $(shell ls scripts)
 
 .dapper:

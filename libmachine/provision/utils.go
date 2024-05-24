@@ -33,7 +33,7 @@ func installDockerGeneric(p Provisioner, baseURL string) error {
 	// just install it using the docker repos
 	log.Infof("Installing Docker from: %s", baseURL)
 	if output, err := p.SSHCommand(fmt.Sprintf("if ! type docker; then curl -sSL %s | sh -; fi", baseURL)); err != nil {
-		return fmt.Errorf("Error installing Docker: %s", output)
+		return fmt.Errorf("Error installing Docker: %s : %s", output, err)
 	}
 
 	return nil
