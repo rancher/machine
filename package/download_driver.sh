@@ -48,5 +48,5 @@ else
 fi
 
 chmod +x $driver_path
-mv $driver_path /usr/local/bin/$driver_prefix$driver_name
+mv $driver_path /home/machine/bin/$driver_prefix$driver_name
 rm -rf driver_dir $driver_file $driver_path
