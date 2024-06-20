@@ -8,7 +8,8 @@ cd $(dirname $0)/..
 mkdir -p bin
 
 if [ "$CROSS" = 1 ]; then
-    CGO_ENABLED=0 GOOS=darwin go build -ldflags "-X main.VERSION=$VERSION"  -o ./bin/rancher-machine-Darwin-x86_64 ./cmd/rancher-machine
+    CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.VERSION=$VERSION"  -o ./bin/rancher-machine-Darwin-x86_64 ./cmd/rancher-machine
+    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.VERSION=$VERSION"  -o ./bin/rancher-machine-Darwin-arm64 ./cmd/rancher-machine
     CGO_ENABLED=0 GOOS=windows go build -ldflags "-X main.VERSION=$VERSION" -o ./bin/rancher-machine-Windows-x86_64.exe ./cmd/rancher-machine
     CGO_ENABLED=0 GOARCH=arm64 go build -a -tags netgo -installsuffix netgo -ldflags "-X main.VERSION=$VERSION" -o ./bin/rancher-machine-Linux-arm64 ./cmd/rancher-machine
     CGO_ENABLED=0 GOARCH=ppc64le go build -a -tags netgo -installsuffix netgo -ldflags "-X main.VERSION=$VERSION" -o ./bin/rancher-machine-Linux-ppc64le ./cmd/rancher-machine
