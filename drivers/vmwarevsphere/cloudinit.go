@@ -3,7 +3,6 @@ package vmwarevsphere
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -55,7 +54,7 @@ func (d *Driver) cloudInitGuestInfo(vm *object.VirtualMachine) error {
 			})
 		} else {
 			if _, err := os.Stat(d.CloudInit); err == nil {
-				if value, err := ioutil.ReadFile(d.CloudInit); err == nil {
+				if value, err := os.ReadFile(d.CloudInit); err == nil {
 					log.Infof("setting guestinfo.cloud-init.data to encoded content of %s\n", d.CloudInit)
 					encoded := base64.StdEncoding.EncodeToString(value)
 					opts = append(opts, &types.OptionValue{
@@ -129,7 +128,7 @@ func (d *Driver) removeCloudInitIso(vm *object.VirtualMachine, dc *object.Datace
 func (d *Driver) createCloudInitIso() error {
 	log.Infof("Creating cloud-init.iso")
 	//d.CloudConfig stat'ed and loaded in flag load.
-	sshkey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	sshkey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return err
 	}
@@ -151,12 +150,12 @@ func (d *Driver) createCloudInitIso() error {
 	}
 
 	writeYaml := fmt.Sprintf("#cloud-config\n%s", userdatacontent)
-	if err = ioutil.WriteFile(userdata, []byte(writeYaml), perm); err != nil {
+	if err = os.WriteFile(userdata, []byte(writeYaml), perm); err != nil {
 		return err
 	}
 
 	md := []byte(fmt.Sprintf("local-hostname: %s\n", d.MachineName))
-	if err = ioutil.WriteFile(metadata, md, perm); err != nil {
+	if err = os.WriteFile(metadata, md, perm); err != nil {
 		return err
 	}
 

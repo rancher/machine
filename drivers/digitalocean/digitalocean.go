@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -240,7 +239,7 @@ func (d *Driver) PreCreateCheck() error {
 func (d *Driver) Create() error {
 	var userdata string
 	if d.UserDataFile != "" {
-		buf, err := ioutil.ReadFile(d.UserDataFile)
+		buf, err := os.ReadFile(d.UserDataFile)
 		if err != nil {
 			return err
 		}
@@ -338,7 +337,7 @@ func (d *Driver) createSSHKey() (*godo.Key, error) {
 		return nil, err
 	}
 
-	publicKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	publicKey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return nil, err
 	}

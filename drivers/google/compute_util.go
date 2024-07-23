@@ -5,9 +5,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -386,7 +386,7 @@ func (c *ComputeUtil) addFirewallTag(instance *raw.Instance) error {
 func (c *ComputeUtil) uploadSSHKeyAndUserdata(instance *raw.Instance, sshKeyPath, userdata string) error {
 	log.Infof("Uploading SSH Key and userdata")
 
-	sshKey, err := ioutil.ReadFile(sshKeyPath + ".pub")
+	sshKey, err := os.ReadFile(sshKeyPath + ".pub")
 	if err != nil {
 		return err
 	}

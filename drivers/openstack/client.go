@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
@@ -703,7 +703,7 @@ func (c *GenericClient) SetTLSConfig(d *Driver) error {
 	if d.CaCert != "" {
 		// Use custom CA certificate(s) for root of trust
 		certpool := x509.NewCertPool()
-		pem, err := ioutil.ReadFile(d.CaCert)
+		pem, err := os.ReadFile(d.CaCert)
 		if err != nil {
 			log.Error("Unable to read specified CA certificate(s)")
 			return err

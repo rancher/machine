@@ -3,7 +3,6 @@ package softlayer
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"regexp"
@@ -515,7 +514,7 @@ func (d *Driver) createSSHKey() (*SSHKey, error) {
 		return nil, err
 	}
 
-	publicKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	publicKey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return nil, err
 	}
