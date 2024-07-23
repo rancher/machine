@@ -25,5 +25,5 @@ func (dv *defaultDockerVersioner) DockerVersion(host DockerHost) (string, error)
 		return "", fmt.Errorf("Unable to query docker version: %s", err)
 	}
 
-	return version.Version, nil
+	return version.Get("Version"), nil
 }
