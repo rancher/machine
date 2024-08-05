@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -584,7 +583,7 @@ func (d *Driver) Create() error {
 		if errM := os.MkdirAll(filepath.Dir(d.GetSSHKeyPath()), 0750); errM != nil {
 			return fmt.Errorf("Cannot create the folder to store the SSH private key. %s", errM)
 		}
-		if errW := ioutil.WriteFile(d.GetSSHKeyPath(), []byte(keyPair.PrivateKey), 0600); errW != nil {
+		if errW := os.WriteFile(d.GetSSHKeyPath(), []byte(keyPair.PrivateKey), 0600); errW != nil {
 			return fmt.Errorf("SSH private key could not be written. %s", errW)
 		}
 		d.KeyPair = keyPairName
@@ -603,7 +602,7 @@ func (d *Driver) Create() error {
 		}
 
 		// Sending the SSH public key through the cloud-init config
-		pubKey, errR := ioutil.ReadFile(sshKey + ".pub")
+		pubKey, errR := os.ReadFile(sshKey + ".pub")
 		if errR != nil {
 			return fmt.Errorf("Cannot read SSH public key %s", errR)
 		}
@@ -745,7 +744,7 @@ func (d *Driver) Remove() error {
 func (d *Driver) getCloudInit() ([]byte, error) {
 	var err error
 	if d.UserDataFile != "" {
-		d.UserData, err = ioutil.ReadFile(d.UserDataFile)
+		d.UserData, err = os.ReadFile(d.UserDataFile)
 	}
 
 	return d.UserData, err

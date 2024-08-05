@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -280,7 +279,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		if _, err := os.Stat(d.CloudConfig); err != nil {
 			return err
 		}
-		ud, err := ioutil.ReadFile(d.CloudConfig)
+		ud, err := os.ReadFile(d.CloudConfig)
 		if err != nil {
 			return err
 		}

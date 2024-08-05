@@ -3,7 +3,6 @@ package vmwarevsphere
 import (
 	"archive/tar"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -190,7 +189,7 @@ func (d *Driver) generateKeyBundle() error {
 		return err
 	}
 
-	pubKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	pubKey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return err
 	}

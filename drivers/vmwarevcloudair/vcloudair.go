@@ -7,7 +7,6 @@ package vmwarevcloudair
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -642,7 +641,7 @@ func (d *Driver) createSSHKey() (string, error) {
 		return "", err
 	}
 
-	publicKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	publicKey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return "", err
 	}

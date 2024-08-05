@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -506,7 +505,7 @@ func (d *Driver) Create() error {
 
 	var customData string
 	if d.CustomDataFile != "" {
-		buf, err := ioutil.ReadFile(d.CustomDataFile)
+		buf, err := os.ReadFile(d.CustomDataFile)
 		if err != nil {
 			return err
 		}

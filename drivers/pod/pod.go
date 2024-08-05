@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"time"
 
 	"github.com/rancher/machine/libmachine/drivers"
@@ -100,7 +100,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 func (d *Driver) PreCreateCheck() error {
 	if d.Userdata != "" {
 		// Check we can read user data
-		_, err := ioutil.ReadFile(d.Userdata)
+		_, err := os.ReadFile(d.Userdata)
 		if err != nil {
 			return fmt.Errorf("cannot read userdata file %v: %v", d.Userdata, err)
 		}
@@ -233,14 +233,14 @@ func (d *Driver) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
-	pubKeyData, err := ioutil.ReadFile(d.ResolveStorePath("id_rsa.pub"))
+	pubKeyData, err := os.ReadFile(d.ResolveStorePath("id_rsa.pub"))
 	if err != nil {
 		return err
 	}
 
 	var userdata []byte
 	if d.Userdata != "" {
-		userdata, err = ioutil.ReadFile(d.Userdata)
+		userdata, err = os.ReadFile(d.Userdata)
 		if err != nil {
 			return err
 		}

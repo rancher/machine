@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -219,7 +218,7 @@ func (*b2dReleaseGetter) download(dir, file, isoURL string) error {
 	defer src.Close()
 
 	// Download to a temp file first then rename it to avoid partial download.
-	f, err := ioutil.TempFile(dir, file+".tmp")
+	f, err := os.CreateTemp(dir, file+".tmp")
 	if err != nil {
 		return err
 	}
@@ -511,7 +510,7 @@ func MakeDiskImage(publicSSHKeyPath string) (*bytes.Buffer, error) {
 
 	log.Debug("Writing SSH key tar header")
 
-	pubKey, err := ioutil.ReadFile(publicSSHKeyPath)
+	pubKey, err := os.ReadFile(publicSSHKeyPath)
 	if err != nil {
 		return nil, err
 	}

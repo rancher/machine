@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -293,7 +292,7 @@ func (d *Driver) PreCreateCheck() error {
 	}
 
 	if d.Userdata != "" {
-		file, err := ioutil.ReadFile(d.Userdata)
+		file, err := os.ReadFile(d.Userdata)
 		if err != nil {
 			return fmt.Errorf("cannot read userdata file %v: %v", d.Userdata, err)
 		}

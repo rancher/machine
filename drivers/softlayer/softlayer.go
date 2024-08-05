@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -121,7 +121,7 @@ func (c *Client) newRequest(method, uri string, body interface{}) ([]byte, error
 		return nil, err
 	}
 	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if !c.isOkStatus(resp.StatusCode) {
 		type apiErr struct {
 			Err string `json:"error"`

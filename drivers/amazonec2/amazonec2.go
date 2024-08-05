@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mrand "math/rand"
 	"net"
 	"net/url"
@@ -666,7 +665,7 @@ func (d *Driver) securityGroupIds() (ids []string) {
 
 func (d *Driver) Base64UserData() (userdata string, err error) {
 	if d.UserDataFile != "" {
-		buf, ioerr := ioutil.ReadFile(d.UserDataFile)
+		buf, ioerr := os.ReadFile(d.UserDataFile)
 		if ioerr != nil {
 			log.Warnf("failed to read user data file %q: %s", d.UserDataFile, ioerr)
 			err = errorReadingUserData
@@ -1131,7 +1130,7 @@ func (d *Driver) createKeyPair() error {
 		keyPath = d.SSHPrivateKeyPath
 	}
 
-	publicKey, err := ioutil.ReadFile(keyPath + ".pub")
+	publicKey, err := os.ReadFile(keyPath + ".pub")
 	if err != nil {
 		return err
 	}

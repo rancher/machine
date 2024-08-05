@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -366,7 +366,7 @@ func (d *Driver) Create() error {
 		}
 		defer keyfh.Close()
 
-		if keycontent, err = ioutil.ReadAll(keyfh); err != nil {
+		if keycontent, err = io.ReadAll(keyfh); err != nil {
 			return err
 		}
 
@@ -530,7 +530,7 @@ func (d *Driver) getMacAddressFromVmx() (string, error) {
 	}
 	defer vmxfh.Close()
 
-	if vmxcontent, err = ioutil.ReadAll(vmxfh); err != nil {
+	if vmxcontent, err = io.ReadAll(vmxfh); err != nil {
 		return "", err
 	}
 
@@ -583,7 +583,7 @@ func (d *Driver) getIPfromVmnetConfigurationFile(conffile, macaddr string) (stri
 	}
 	defer conffh.Close()
 
-	if confcontent, err = ioutil.ReadAll(conffh); err != nil {
+	if confcontent, err = io.ReadAll(conffh); err != nil {
 		return "", err
 	}
 
@@ -689,7 +689,7 @@ func (d *Driver) getIPfromDHCPLeaseFile(dhcpfile, macaddr string) (string, error
 	}
 	defer dhcpfh.Close()
 
-	if dhcpcontent, err = ioutil.ReadAll(dhcpfh); err != nil {
+	if dhcpcontent, err = io.ReadAll(dhcpfh); err != nil {
 		return "", err
 	}
 
@@ -760,7 +760,7 @@ func (d *Driver) generateKeyBundle() error {
 	if err := tw.WriteHeader(file); err != nil {
 		return err
 	}
-	pubKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+	pubKey, err := os.ReadFile(d.publicSSHKeyPath())
 	if err != nil {
 		return err
 	}

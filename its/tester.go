@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"io/ioutil"
-
 	"os"
 
 	"fmt"
@@ -57,7 +55,7 @@ type Assertions interface {
 }
 
 func NewTest(t *testing.T) IntegrationTest {
-	storagePath, _ := ioutil.TempDir("", "docker")
+	storagePath, _ := os.MkdirTemp("", "docker")
 
 	return &dockerMachineTest{
 		t:           t,
@@ -249,7 +247,7 @@ func parseFields(commandLine string) []string {
 func (dmt *dockerMachineTest) TearDown() {
 	machines := filepath.Join(dmt.storagePath, "machines")
 
-	dirs, _ := ioutil.ReadDir(machines)
+	dirs, _ := os.ReadDir(machines)
 	for _, dir := range dirs {
 		dmt.Cmd("machine rm -f " + dir.Name())
 	}

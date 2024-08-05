@@ -3,7 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-12-01/network"
@@ -79,7 +79,7 @@ func (d *Driver) generateSSHKey(deploymentCtx *azureutil.DeploymentContext) erro
 	}
 	log.Debug("SSH key pair generated.")
 
-	publicKey, err := ioutil.ReadFile(pubPath)
+	publicKey, err := os.ReadFile(pubPath)
 	deploymentCtx.SSHPublicKey = string(publicKey)
 	return err
 }

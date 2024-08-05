@@ -1,14 +1,13 @@
 package ssh
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestGenerateSSHKey(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "machine-test-")
+	tmpDir, err := os.MkdirTemp("", "machine-test-")
 	if err != nil {
 		t.Fatal(err)
 	}

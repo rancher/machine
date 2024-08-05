@@ -3,7 +3,6 @@ package amazonec2
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -454,7 +453,7 @@ func TestBase64UserDataIsEmptyIfNoFileProvided(t *testing.T) {
 }
 
 func TestBase64UserDataGeneratesErrorIfFileNotFound(t *testing.T) {
-	dir, err := ioutil.TempDir("", "awsuserdata")
+	dir, err := os.MkdirTemp("", "awsuserdata")
 	assert.NoError(t, err, "Unable to create temporary directory.")
 
 	defer os.RemoveAll(dir)
@@ -469,7 +468,7 @@ func TestBase64UserDataGeneratesErrorIfFileNotFound(t *testing.T) {
 }
 
 func TestBase64UserDataIsCorrectWhenFileProvided(t *testing.T) {
-	dir, err := ioutil.TempDir("", "awsuserdata")
+	dir, err := os.MkdirTemp("", "awsuserdata")
 	assert.NoError(t, err, "Unable to create temporary directory.")
 
 	defer os.RemoveAll(dir)
@@ -479,7 +478,7 @@ func TestBase64UserDataIsCorrectWhenFileProvided(t *testing.T) {
 	content := []byte("#cloud-config\nhostname: userdata-test\nfqdn: userdata-test.amazonec2.driver\n")
 	contentBase64 := "I2Nsb3VkLWNvbmZpZwpob3N0bmFtZTogdXNlcmRhdGEtdGVzdApmcWRuOiB1c2VyZGF0YS10ZXN0LmFtYXpvbmVjMi5kcml2ZXIK"
 
-	err = ioutil.WriteFile(userdataPath, content, 0666)
+	err = os.WriteFile(userdataPath, content, 0666)
 	assert.NoError(t, err, "Unable to create temporary userdata file.")
 
 	driver := NewTestDriver()

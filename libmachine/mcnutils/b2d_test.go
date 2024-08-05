@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -103,7 +102,7 @@ func TestDownloadISO(t *testing.T) {
 
 	filename := "test"
 
-	tmpDir, err := ioutil.TempDir("", "machine-test-")
+	tmpDir, err := os.MkdirTemp("", "machine-test-")
 
 	assert.NoError(t, err)
 
@@ -112,7 +111,7 @@ func TestDownloadISO(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	data, err := ioutil.ReadFile(filepath.Join(tmpDir, filename))
+	data, err := os.ReadFile(filepath.Join(tmpDir, filename))
 
 	assert.NoError(t, err)
 	assert.Equal(t, testData, string(data))
@@ -198,7 +197,7 @@ func (m *mockReleaseGetter) download(dir, file, isoURL string) error {
 	path := filepath.Join(dir, file)
 	var err error
 	if _, e := os.Stat(path); os.IsNotExist(e) {
-		err = ioutil.WriteFile(path, dummyISOData("  ", m.ver), 0644)
+		err = os.WriteFile(path, dummyISOData("  ", m.ver), 0644)
 	}
 
 	// send a signal of downloading the latest version
@@ -255,7 +254,7 @@ func TestCopyDefaultISOToMachine(t *testing.T) {
 		if tt.create {
 			isopath, _, err = newDummyISO("cache", defaultISOFilename, tt.localVer)
 		} else {
-			if dir, e := ioutil.TempDir("", "machine-test"); e == nil {
+			if dir, e := os.MkdirTemp("", "machine-test"); e == nil {
 				isopath = filepath.Join(dir, "cache", defaultISOFilename)
 			}
 		}
@@ -314,7 +313,7 @@ func newTestServer(respText string) *httptest.Server {
 // newDummyISO creates a dummy ISO file that contains the given version info,
 // and returns its path and offset value to fetch the version info.
 func newDummyISO(dir, name, version string) (string, int64, error) {
-	tmpDir, err := ioutil.TempDir("", "machine-test-")
+	tmpDir, err := os.MkdirTemp("", "machine-test-")
 	if err != nil {
 		return "", 0, err
 	}
@@ -330,7 +329,7 @@ func newDummyISO(dir, name, version string) (string, int64, error) {
 	// dummy ISO data mimicking the real byte data of a Boot2Docker ISO image
 	padding := "     "
 	data := dummyISOData(padding, version)
-	return isopath, int64(len(padding)), ioutil.WriteFile(isopath, data, 0644)
+	return isopath, int64(len(padding)), os.WriteFile(isopath, data, 0644)
 }
 
 // dummyISOData returns mock data that contains given padding and version.

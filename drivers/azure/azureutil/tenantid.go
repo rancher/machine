@@ -3,7 +3,6 @@ package azureutil
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ func loadOrFindTenantID(ctx context.Context, env azure.Environment, subscription
 
 	// Load from cache
 	fp := tenantIDPath(subscriptionID)
-	b, err := ioutil.ReadFile(fp)
+	b, err := os.ReadFile(fp)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return "", fmt.Errorf("Failed to load tenant ID file: %v", err)
@@ -109,7 +108,7 @@ func saveTenantID(path string, tenantID string) error {
 		return fmt.Errorf("Failed to create directory %s: %v", dir, err)
 	}
 
-	f, err := ioutil.TempFile(dir, "tenantid")
+	f, err := os.CreateTemp(dir, "tenantid")
 	if err != nil {
 		return fmt.Errorf("Failed to create temp file: %v", err)
 	}
