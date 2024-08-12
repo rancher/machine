@@ -22,7 +22,7 @@ COPY download_driver.sh /chroot/usr/local/bin/
 RUN chmod +x /chroot/usr/local/bin/download_driver.sh
 
 COPY rancher-machine entrypoint.sh /chroot/usr/local/bin/
-RUN chmod 0777 /chroot/usr/local/bin
+RUN chmod 0755 /chroot/usr/local/bin
 
 FROM scratch
 
