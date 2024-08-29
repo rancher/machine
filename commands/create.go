@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -430,7 +429,7 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, hostname, u
 	// Remove the shebang
 	customScriptContent = regexp.MustCompile(`^#!.*\n`).ReplaceAll(customScriptContent, nil)
 
-	modifiedUserdataFile, err := ioutil.TempFile("", "modified-user-data")
+	modifiedUserdataFile, err := os.CreateTemp("", "modified-user-data")
 	if err != nil {
 		return fmt.Errorf("[updateUserdataFile] unable to create tempfile [%v]\nError returned\n[%v]", modifiedUserdataFile, err)
 	}

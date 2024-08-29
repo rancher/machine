@@ -3,43 +3,44 @@ package mcndockerclient
 import (
 	"fmt"
 
-	"github.com/rancher/machine/libmachine/cert"
-	"github.com/samalba/dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
 )
 
 // DockerClient creates a docker client for a given host.
-func DockerClient(dockerHost DockerHost) (*dockerclient.DockerClient, error) {
+func DockerClient(dockerHost DockerHost) (*docker.Client, error) {
 	url, err := dockerHost.URL()
 	if err != nil {
 		return nil, err
 	}
 
-	tlsConfig, err := cert.ReadTLSConfig(url, dockerHost.AuthOptions())
-	if err != nil {
-		return nil, fmt.Errorf("Unable to read TLS config: %s", err)
-	}
-
-	return dockerclient.NewDockerClient(url, tlsConfig)
+	auth := dockerHost.AuthOptions()
+	return docker.NewTLSClient(url, auth.ClientCertPath, auth.ClientKeyPath, auth.CaCertPath)
 }
 
 // CreateContainer creates a docker container.
-func CreateContainer(dockerHost DockerHost, config *dockerclient.ContainerConfig, name string) error {
-	docker, err := DockerClient(dockerHost)
+func CreateContainer(dockerHost DockerHost, config *docker.Config, hostConfig *docker.HostConfig, name string) error {
+	client, err := DockerClient(dockerHost)
 	if err != nil {
 		return err
 	}
 
-	if err = docker.PullImage(config.Image, nil); err != nil {
+	// Pull the image
+	if err := client.PullImage(docker.PullImageOptions{Repository: config.Image}, docker.AuthConfiguration{}); err != nil {
 		return fmt.Errorf("Unable to pull image: %s", err)
 	}
 
-	var authConfig *dockerclient.AuthConfig
-	containerID, err := docker.CreateContainer(config, name, authConfig)
+	// Create the container
+	container, err := client.CreateContainer(docker.CreateContainerOptions{
+		Name:       name,
+		Config:     config,
+		HostConfig: hostConfig,
+	})
 	if err != nil {
 		return fmt.Errorf("Error while creating container: %s", err)
 	}
 
-	if err = docker.StartContainer(containerID, &config.HostConfig); err != nil {
+	// Start the container
+	if err := client.StartContainer(container.ID, hostConfig); err != nil {
 		return fmt.Errorf("Error while starting container: %s", err)
 	}
 
