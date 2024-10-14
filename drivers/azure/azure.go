@@ -28,7 +28,7 @@ const (
 	defaultAzureLocation        = "westus"
 	defaultSSHUser              = "docker-user" // 'root' not allowed on Azure
 	defaultDockerPort           = 2376
-	defaultAzureImage           = "canonical:UbuntuServer:18.04-LTS:latest"
+	defaultAzureImage           = "canonical:ubuntu-24_04-lts:server-gen1:latest"
 	defaultAzureVNet            = "docker-machine-vnet"
 	defaultAzureSubnet          = "docker-machine"
 	defaultAzureSubnetPrefix    = "192.168.0.0/16"
@@ -193,7 +193,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   flAzureImage,
 			Usage:  "Azure virtual machine OS image",
 			EnvVar: "AZURE_IMAGE",
-			Value:  defaultAzureImage,
 		},
 		mcnflag.StringFlag{
 			Name:   flAzureVNet,
