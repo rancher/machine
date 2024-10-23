@@ -239,6 +239,7 @@ github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9 h1:/Bsw4C+DEdqPj
 github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9/go.mod h1:RHkNRtSLfOK7qBTHaeSX1D6BNpI3qw7NTxsmNr4RvN8=
 github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a h1:i6gus1o4iDkjlzGJCIvhbKmyk6zeIhIqgdSOcJi493g=
 github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
+github.com/urfave/cli/v2 v2.27.5/go.mod h1:3Sevf16NykTbInEnD0yKkjDAeZDS0A6bzhBH5hrMvTQ=
 github.com/vmware/govcloudair v0.0.2 h1:ki01OjlgpEWyEc7iZTTaWW9tISSWafiqj/PHLPB4Iwc=
 github.com/vmware/govcloudair v0.0.2/go.mod h1:Vxktpba+eP4dX5YzYP869DRPSm5ChQ2A/GUrmKSLvlo=
 github.com/vmware/govmomi v0.42.0 h1:MbvAlVfjNBE1mHMaQ7yOSop1KLB0/93x6VAGuCtjqtI=
