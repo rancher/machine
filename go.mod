@@ -32,7 +32,7 @@ require (
 	github.com/vmware/govmomi v0.42.0
 	golang.org/x/crypto v0.26.0
 	golang.org/x/net v0.28.0
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sys v0.25.0
 	google.golang.org/api v0.196.0
 	gopkg.in/yaml.v2 v2.4.0
