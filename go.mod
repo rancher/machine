@@ -23,7 +23,7 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
-	github.com/rancher/wrangler/v3 v3.0.1-rc.2
+	github.com/rancher/wrangler/v3 v3.1.0
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
 	github.com/stretchr/testify v1.9.0
@@ -65,9 +65,9 @@ require (
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-openapi/jsonpointer v0.19.6 // indirect
+	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
-	github.com/go-openapi/swag v0.22.4 // indirect
+	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
