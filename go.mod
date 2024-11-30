@@ -26,7 +26,7 @@ require (
 	github.com/rancher/wrangler/v3 v3.0.1-rc.2
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli v1.22.15
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.42.0
