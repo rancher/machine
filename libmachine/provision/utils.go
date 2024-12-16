@@ -272,8 +272,10 @@ func checkDaemonUp(p Provisioner, dockerPort int) func() bool {
 
 // waitForCloudInit runs `cloud-init status --wait` on the node in order to wait for the node to be ready before
 // continuing execution.
+// it also swallows the "bad" exit code that can be returned but is in reality just alerting us that there were benign
+// errors during cloud-init: https://docs.cloud-init.io/en/24.1/explanation/failure_states.html#recoverable-failure
 func waitForCloudInit(p Provisioner) error {
-	_, err := p.SSHCommand("sudo cloud-init status --wait")
+	_, err := p.SSHCommand(`sudo bash -c 'cloud-init status --wait >/dev/null || if [ $? == 2 ]; then true ; fi'`)
 	if err != nil {
 		return fmt.Errorf("failed to wait for cloud-init: %w", err)
 	}
