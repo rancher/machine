@@ -20,7 +20,8 @@ require (
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/exoscale/egoscale v0.12.3
-	github.com/gophercloud/gophercloud v0.7.0
+	github.com/gophercloud/gophercloud v0.0.0-20190212181753-892256c46858
+	github.com/gophercloud/gophercloud/v2 v2.4.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
 	github.com/rancher/wrangler/v3 v3.0.1-rc.2
@@ -30,10 +31,10 @@ require (
 	github.com/urfave/cli v1.22.15
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.42.0
-	golang.org/x/crypto v0.26.0
+	golang.org/x/crypto v0.30.0
 	golang.org/x/net v0.28.0
 	golang.org/x/oauth2 v0.22.0
-	golang.org/x/sys v0.25.0
+	golang.org/x/sys v0.28.0
 	google.golang.org/api v0.196.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.31.1
@@ -106,9 +107,9 @@ require (
 	go.opentelemetry.io/otel v1.29.0 // indirect
 	go.opentelemetry.io/otel/metric v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/term v0.23.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/grpc v1.66.0 // indirect
