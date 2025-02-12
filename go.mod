@@ -29,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli v1.22.15
 	github.com/vmware/govcloudair v0.0.2
-	github.com/vmware/govmomi v0.42.0
+	github.com/vmware/govmomi v0.48.1
 	golang.org/x/crypto v0.33.0
 	golang.org/x/net v0.35.0
 	golang.org/x/oauth2 v0.23.0
