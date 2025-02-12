@@ -22,7 +22,7 @@ require (
 	github.com/exoscale/egoscale v0.12.3
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
-	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
+	github.com/rackspace/gophercloud v1.0.0
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
@@ -93,6 +93,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/racker/perigee v0.1.0 // indirect
 	github.com/rancher/lasso v0.2.1 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181016170032-d91630c85102 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
