@@ -196,8 +196,10 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
-github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747 h1:Ney6Z2JleqcILrsaSePqF9xeeSEb1jt4BWPgXk3f9T8=
-github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747/go.mod h1:4bJ1FwuaBZ6dt1VcDX5/O662mwR8GWqS4l68H6hkoYQ=
+github.com/racker/perigee v0.1.0 h1:8RjBm1YGJKVVjUfO02Uok+npegz8lSSEVqjimDqlFYc=
+github.com/racker/perigee v0.1.0/go.mod h1:JUvG8J+Vrr1c/aQOanqN9XDS2nnVu4+vlwGjNPG2PJI=
+github.com/rackspace/gophercloud v1.0.0 h1:dI8jqEOOanEOgOSYcfvBRnETdeScNtlWg3KlJ4guUVQ=
+github.com/rackspace/gophercloud v1.0.0/go.mod h1:4bJ1FwuaBZ6dt1VcDX5/O662mwR8GWqS4l68H6hkoYQ=
 github.com/rancher/lasso v0.2.1 h1:SZTqMVQn8cAOqvwGBd1/EYOIJ/MGN+UfJrOWvHd4jHU=
 github.com/rancher/lasso v0.2.1/go.mod h1:KSV3jBXfdXqdCuMm2uC8kKB9q/wuDYb3h0eHZoRjShM=
 github.com/rancher/wrangler/v3 v3.2.0-rc.3 h1:MySHWLxLLrGrM2sq5YYp7Ol1kQqYt9lvIzjGR50UZ+c=
