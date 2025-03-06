@@ -1,6 +1,6 @@
 package commands
 
-import "github.com/urfave/cli"
+import "github.com/urfave/cli/v2"
 
 type ByFlagName []cli.Flag
 

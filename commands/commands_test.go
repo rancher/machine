@@ -16,7 +16,7 @@ import (
 	"github.com/rancher/machine/libmachine/provision"
 	"github.com/rancher/machine/libmachine/state"
 	"github.com/stretchr/testify/assert"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func TestGetFlagValue(t *testing.T) {

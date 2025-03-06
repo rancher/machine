@@ -26,7 +26,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnerror"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/swarm"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 )
 

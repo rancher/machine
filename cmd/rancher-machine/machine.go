@@ -29,7 +29,7 @@ import (
 	"github.com/rancher/machine/libmachine/drivers/plugin/localbinary"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/version"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var AppHelpTemplate = `Usage: {{.Name}} {{if .Flags}}[OPTIONS] {{end}}COMMAND [arg...]

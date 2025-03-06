@@ -18,7 +18,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnutils"
 	"github.com/rancher/machine/libmachine/persist"
 	"github.com/rancher/machine/libmachine/ssh"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
