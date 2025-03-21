@@ -23,7 +23,7 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
-	github.com/rancher/wrangler/v3 v3.2.0-rc.3
+	github.com/rancher/wrangler/v3 v3.2.0
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
 	github.com/stretchr/testify v1.10.0
