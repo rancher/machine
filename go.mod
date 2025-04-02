@@ -18,10 +18,10 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/bugsnag/bugsnag-go v2.5.0+incompatible
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
-	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/exoscale/egoscale v0.12.3
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
+	github.com/moby/term v0.5.2
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
 	github.com/rancher/wrangler/v3 v3.0.1-rc.2
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
@@ -45,7 +45,7 @@ require (
 	cloud.google.com/go/auth v0.9.3 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest/azure/cli v0.3.1 // indirect
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
@@ -58,6 +58,7 @@ require (
 	github.com/cenkalti/backoff v0.0.0-20141124221459-9831e1e25c87 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimchansky/utfbom v1.1.0 // indirect
+	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
