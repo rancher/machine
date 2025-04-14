@@ -415,6 +415,8 @@ func updateUserdataFile(driverOpts *rpcdriver.RPCFlags, machineName, hostname, u
 	if userdataFile == "" {
 		// Always convert to cloud config if user data is not provided
 		userdataContent = []byte("#cloud-config")
+	} else if strings.HasPrefix(userdataFile, "#cloud-config") {
+		userdataContent = []byte(userdataFile)
 	} else {
 		userdataContent, err = os.ReadFile(userdataFile)
 		if err != nil {
