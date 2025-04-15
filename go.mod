@@ -20,8 +20,8 @@ require (
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/exoscale/egoscale v0.12.3
-	github.com/gophercloud/gophercloud v0.7.0
-	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
+	github.com/gophercloud/gophercloud v1.3.0
+	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
@@ -81,6 +81,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
+	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
