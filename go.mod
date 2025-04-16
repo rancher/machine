@@ -18,7 +18,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/bugsnag/bugsnag-go v2.5.0+incompatible
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
-	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
+	github.com/docker/docker v0.12.0
 	github.com/exoscale/egoscale v0.12.3
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
