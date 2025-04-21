@@ -1,14 +1,18 @@
 package mcndockerclient
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/rancher/machine/libmachine/cert"
-	"github.com/samalba/dockerclient"
 )
 
 // DockerClient creates a docker client for a given host.
-func DockerClient(dockerHost DockerHost) (*dockerclient.DockerClient, error) {
+func DockerClient(dockerHost DockerHost) (*client.Client, error) {
 	url, err := dockerHost.URL()
 	if err != nil {
 		return nil, err
@@ -19,27 +23,38 @@ func DockerClient(dockerHost DockerHost) (*dockerclient.DockerClient, error) {
 		return nil, fmt.Errorf("Unable to read TLS config: %s", err)
 	}
 
-	return dockerclient.NewDockerClient(url, tlsConfig)
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	return client.NewClientWithOpts(
+		client.WithHost(url),
+		client.WithHTTPClient(httpClient),
+		client.WithAPIVersionNegotiation(),
+	)
 }
 
 // CreateContainer creates a docker container.
-func CreateContainer(dockerHost DockerHost, config *dockerclient.ContainerConfig, name string) error {
-	docker, err := DockerClient(dockerHost)
+func CreateContainer(dockerHost DockerHost, config *container.Config, hostConfig *container.HostConfig, name string) error {
+	cli, err := DockerClient(dockerHost)
 	if err != nil {
 		return err
 	}
+	ctx := context.Background()
 
-	if err = docker.PullImage(config.Image, nil); err != nil {
+	_, err = cli.ImagePull(ctx, config.Image, types.ImagePullOptions{})
+	if err != nil {
 		return fmt.Errorf("Unable to pull image: %s", err)
 	}
 
-	var authConfig *dockerclient.AuthConfig
-	containerID, err := docker.CreateContainer(config, name, authConfig)
+	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, name)
 	if err != nil {
 		return fmt.Errorf("Error while creating container: %s", err)
 	}
 
-	if err = docker.StartContainer(containerID, &config.HostConfig); err != nil {
+	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("Error while starting container: %s", err)
 	}
 
