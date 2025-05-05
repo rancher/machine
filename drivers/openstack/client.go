@@ -14,6 +14,8 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume"
 	compute_ips "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/schedulerhints"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/servergroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/volumeattach"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
@@ -48,6 +50,7 @@ type Client interface {
 	GetNetworkID(d *Driver) (string, error)
 	GetFlavorID(d *Driver) (string, error)
 	GetImageID(d *Driver) (string, error)
+	GetServerGroupID(d *Driver) (string, error)
 	AssignFloatingIP(d *Driver, floatingIP *FloatingIP) error
 	DeleteFloatingIP(d *Driver, floatingIP *FloatingIP) error
 	GetFloatingIPs(d *Driver) ([]FloatingIP, error)
@@ -93,6 +96,15 @@ func (c *GenericClient) CreateInstance(d *Driver) (string, error) {
 	serverOpts = &keypairs.CreateOptsExt{
 		CreateOptsBuilder: serverOpts,
 		KeyName:           d.KeyPairName,
+	}
+
+	if d.ServerGroupId != "" {
+		serverOpts = &schedulerhints.CreateOptsExt{
+			CreateOptsBuilder: serverOpts,
+			SchedulerHints: schedulerhints.SchedulerHints{
+				Group: d.ServerGroupId,
+			},
+		}
 	}
 
 	log.Info("Creating machine...")
@@ -368,6 +380,29 @@ func (c *GenericClient) GetImageID(d *Driver) (string, error) {
 	})
 
 	return imageID, err
+}
+
+func (c *GenericClient) GetServerGroupID(d *Driver) (string, error) {
+	pager := servergroups.List(c.Compute)
+	serverGroupID := ""
+
+	err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		serverGroupList, err := servergroups.ExtractServerGroups(page)
+		if err != nil {
+			return false, err
+		}
+
+		for _, i := range serverGroupList {
+			if i.Name == d.ServerGroupName {
+				serverGroupID = i.ID
+				return false, nil
+			}
+		}
+
+		return true, nil
+	})
+
+	return serverGroupID, err
 }
 
 func (c *GenericClient) GetPublicKey(keyPairName string) ([]byte, error) {
