@@ -20,7 +20,7 @@ func DockerClient(dockerHost DockerHost) (*client.Client, error) {
 
 	tlsConfig, err := cert.ReadTLSConfig(url, dockerHost.AuthOptions())
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read TLS config: %s", err)
+		return nil, fmt.Errorf("unable to read TLS config: %s", err)
 	}
 
 	httpClient := &http.Client{
@@ -46,16 +46,16 @@ func CreateContainer(dockerHost DockerHost, config *container.Config, hostConfig
 
 	_, err = cli.ImagePull(ctx, config.Image, types.ImagePullOptions{})
 	if err != nil {
-		return fmt.Errorf("Unable to pull image: %s", err)
+		return fmt.Errorf("unable to pull image: %s", err)
 	}
 
 	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, name)
 	if err != nil {
-		return fmt.Errorf("Error while creating container: %s", err)
+		return fmt.Errorf("error while creating container: %s", err)
 	}
 
-	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		return fmt.Errorf("Error while starting container: %s", err)
+	if err = cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("error while starting container: %s", err)
 	}
 
 	return nil
