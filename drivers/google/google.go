@@ -19,31 +19,34 @@ import (
 // Driver is a struct compatible with the docker.hosts.drivers.Driver interface.
 type Driver struct {
 	*drivers.BaseDriver
-	Auth              string
-	Zone              string
-	MachineType       string
-	MachineImage      string
-	DiskType          string
-	Address           string
-	Network           string
-	Subnetwork        string
-	Preemptible       bool
-	UseInternalIP     bool
-	UseInternalIPOnly bool
-	Scopes            string
-	DiskSize          int
-	Project           string
-	Tags              string
-	UseExisting       bool
-	OpenPorts         []string
-	Userdata          string
+	Auth                       string
+	Zone                       string
+	MachineType                string
+	MachineImage               string
+	DiskType                   string
+	Address                    string
+	Network                    string
+	Subnetwork                 string
+	Preemptible                bool
+	UseInternalIP              bool
+	UseInternalIPOnly          bool
+	Scopes                     string
+	DiskSize                   int
+	Project                    string
+	Tags                       string
+	Labels                     string
+	UseExisting                bool
+	OpenPorts                  []string
+	ExternalFirewallRulePrefix string
+	InternalFirewallRulePrefix string
+	Userdata                   string
 }
 
 const (
 	defaultZone        = "us-central1-a"
 	defaultUser        = "docker-user"
 	defaultMachineType = "n1-standard-1"
-	defaultImageName   = "ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721"
+	defaultImageName   = "ubuntu-os-cloud/global/images/ubuntu-2204-jammy-v20220420"
 	defaultScopes      = "https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write"
 	defaultDiskType    = "pd-standard"
 	defaultDiskSize    = 10
@@ -82,7 +85,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:   "google-auth-encoded-json",
 			Usage:  "Base64 encoded GCE auth json",
-			EnvVar: "GOOGLE_APPLICATION_CREDENTIALS_ENCODED_JSON",
+			EnvVar: "GOOGLE_AUTH_ENCODED_JSON",
 		},
 		mcnflag.StringFlag{
 			Name:   "google-project",
@@ -151,13 +154,30 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "GOOGLE_USE_EXISTING",
 		},
 		mcnflag.StringSliceFlag{
-			Name:  "google-open-port",
-			Usage: "Make the specified port number accessible from the Internet, e.g, 8080/tcp",
+			Name:   "google-open-port",
+			Usage:  "Make the specified port number accessible from the Internet, e.g, 8080/tcp",
+			EnvVar: "GOOGLE_OPEN_PORT",
+		},
+		mcnflag.StringFlag{
+			Name:   "google-external-firewall-rule-prefix",
+			Usage:  "A prefix to be added to the fire wall rule created when opening ports publicly to ensure uniqueness",
+			EnvVar: "GOOGLE_EXTERNAL_FIREWALL_RULE_PREFIX",
+		},
+		mcnflag.StringFlag{
+			Name:   "google-internal-firewall-rule-prefix",
+			Usage:  "A prefix to be added to the firewall rule created when exposing ports internally to ensure uniqueness",
+			EnvVar: "GOOGLE_INTERNAL_FIREWALL_RULE_PREFIX",
 		},
 		mcnflag.StringFlag{
 			Name:   "google-userdata",
 			Usage:  "A user-data file to be passed to cloud-init",
 			EnvVar: "GOOGLE_USERDATA",
+			Value:  "",
+		},
+		mcnflag.StringFlag{
+			Name:   "google-labels",
+			Usage:  "labels to add onto the created node",
+			EnvVar: "GOOGLE_LABELS",
 			Value:  "",
 		},
 	}
@@ -252,6 +272,9 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		d.Scopes = flags.String("google-scopes")
 		d.Tags = flags.String("google-tags")
 		d.OpenPorts = flags.StringSlice("google-open-port")
+		d.ExternalFirewallRulePrefix = flags.String("google-external-firewall-rule-prefix")
+		d.InternalFirewallRulePrefix = flags.String("google-internal-firewall-rule-prefix")
+		d.Labels = flags.String("google-labels")
 	}
 	d.SSHUser = flags.String("google-username")
 	d.SSHPort = 22
@@ -317,8 +340,21 @@ func (d *Driver) Create() error {
 		return err
 	}
 
-	if err := c.openFirewallPorts(d); err != nil {
-		return err
+	if len(d.OpenPorts) > 0 {
+		if d.ExternalFirewallRulePrefix == "" {
+			return fmt.Errorf("the 'google-external-firewall-rule-prefix' flag must be provided when opening ports publicly")
+		}
+		if err := c.openPublicFirewallPorts(d); err != nil {
+			return err
+		}
+	}
+
+	if d.InternalFirewallRulePrefix != "" {
+		if err := c.openInternalFirewallPorts(d); err != nil {
+			return err
+		}
+	} else {
+		log.Debugf("Not creating internal firewall rule as no prefix has been provided")
 	}
 
 	if d.UseExisting {
@@ -464,6 +500,27 @@ func (d *Driver) Remove() error {
 			log.Warn("Remote disk does not exist, proceeding")
 		} else {
 			return err
+		}
+	}
+
+	if len(d.OpenPorts) > 0 {
+		fwRule, err := c.externalFirewallRule()
+		if err != nil {
+			log.Warnf("failed to get external firewall rule '%s' while deleting VM: %v", c.externalFirewallRuleName(), err)
+		}
+		if err := c.CleanUpFirewallRule(fwRule, externalFirewallRuleLabelKey); err != nil {
+			log.Errorf("failed remove external firewall rule '%s': %v", c.externalFirewallRuleName(), err)
+		}
+	}
+
+	if c.internalFirewallRulePrefix != "" {
+		internalFwRule, err := c.internalFirewallRule()
+		if err != nil {
+			log.Warnf("failed to get internal firewall rule '%s' while delete VM: %v", c.internalFirewallRuleName(), err)
+		}
+
+		if err := c.CleanUpFirewallRule(internalFwRule, internalFirewallRuleLabelKey); err != nil {
+			log.Errorf("failed to remove internal firewall rule '%s': %v", c.internalFirewallRuleName(), err)
 		}
 	}
 

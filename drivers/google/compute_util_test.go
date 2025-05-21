@@ -3,26 +3,56 @@ package google
 import (
 	"testing"
 
+	"github.com/rancher/wrangler/v3/pkg/name"
 	"github.com/stretchr/testify/assert"
 	raw "google.golang.org/api/compute/v1"
 )
 
-func TestDefaultTag(t *testing.T) {
-	tags := parseTags(&Driver{Tags: ""})
+func TestAllTagTypes(t *testing.T) {
+	tags := parseTags(&Driver{
+		OpenPorts: []string{
+			"one",
+			"two",
+			"three",
+		},
+		Tags: "four,five,six",
+	}, &ComputeUtil{
+		externalFirewallRulePrefix: "outside",
+		internalFirewallRulePrefix: "inside",
+	})
 
-	assert.Equal(t, []string{"docker-machine"}, tags)
+	assert.Equal(t, []string{
+		"four",
+		"five",
+		"six",
+		name.SafeConcatName("inside", internalFirewallRuleSuffix),
+		name.SafeConcatName("outside", externalFirewallRuleSuffix),
+	}, tags)
 }
 
-func TestAdditionalTag(t *testing.T) {
-	tags := parseTags(&Driver{Tags: "tag1"})
+func TestInternalOnlyTag(t *testing.T) {
+	tags := parseTags(
+		&Driver{},
+		&ComputeUtil{
+			internalFirewallRulePrefix: "inside",
+		})
 
-	assert.Equal(t, []string{"docker-machine", "tag1"}, tags)
+	assert.Equal(t, []string{name.SafeConcatName("inside", internalFirewallRuleSuffix)}, tags)
 }
 
-func TestAdditionalTags(t *testing.T) {
-	tags := parseTags(&Driver{Tags: "tag1,tag2"})
+func TestExternalOnlyTag(t *testing.T) {
+	tags := parseTags(&Driver{
+		OpenPorts: []string{
+			"123",
+		},
+	}, &ComputeUtil{
+		externalFirewallRulePrefix: "outside",
+		openPorts: []string{
+			"123",
+		},
+	})
 
-	assert.Equal(t, []string{"docker-machine", "tag1", "tag2"}, tags)
+	assert.Equal(t, []string{name.SafeConcatName("outside", externalFirewallRuleSuffix)}, tags)
 }
 
 func TestPortsUsed(t *testing.T) {
@@ -32,10 +62,9 @@ func TestPortsUsed(t *testing.T) {
 		expectedPorts []string
 		expectedError error
 	}{
-		{"use docker port", &ComputeUtil{}, []string{"2376/tcp"}, nil},
-		{"use docker and swarm port", &ComputeUtil{SwarmMaster: true, SwarmHost: "tcp://host:3376"}, []string{"2376/tcp", "3376/tcp"}, nil},
-		{"use docker and non default swarm port", &ComputeUtil{SwarmMaster: true, SwarmHost: "tcp://host:4242"}, []string{"2376/tcp", "4242/tcp"}, nil},
-		{"include additional ports", &ComputeUtil{openPorts: []string{"80", "2377/udp"}}, []string{"2376/tcp", "80/tcp", "2377/udp"}, nil},
+		{"use swarm port", &ComputeUtil{SwarmMaster: true, SwarmHost: "tcp://host:3376"}, []string{"3376/tcp"}, nil},
+		{"use non default swarm port", &ComputeUtil{SwarmMaster: true, SwarmHost: "tcp://host:4242"}, []string{"4242/tcp"}, nil},
+		{"include additional ports", &ComputeUtil{openPorts: []string{"80", "2377/udp"}}, []string{"80/tcp", "2377/udp"}, nil},
 	}
 
 	for _, test := range tests {
@@ -68,5 +97,48 @@ func TestMissingOpenedPorts(t *testing.T) {
 		missingPorts := missingOpenedPorts(firewall, test.ports)
 
 		assert.Equal(t, test.expectedMissing, missingPorts, test.description)
+	}
+}
+
+func TestParseLabels(t *testing.T) {
+	var tests = []struct {
+		name     string
+		labels   string
+		expected map[string]string
+	}{
+		{
+			"empty",
+			"",
+			map[string]string{},
+		},
+		{
+			"valid label",
+			"one,two",
+			map[string]string{
+				"one": "two",
+			},
+		},
+		{
+			"valid labels",
+			"one,two,three,four",
+			map[string]string{
+				"one":   "two",
+				"three": "four",
+			},
+		},
+		{
+			"invalid format",
+			"one,two,three",
+			map[string]string{
+				"one": "two",
+			},
+		},
+	}
+
+	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, parseLabels(tt.labels))
+		})
 	}
 }

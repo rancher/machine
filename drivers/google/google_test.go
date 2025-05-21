@@ -13,7 +13,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	driver := NewDriver("", "")
 
 	// Unmarhsal driver configuration from JSON, envvars, and args.
-	assert.NoError(t, os.Setenv("GOOGLE_APPLICATION_CREDENTIALS_ENCODED_JSON", "test json"))
+	assert.NoError(t, os.Setenv("GOOGLE_AUTH_ENCODED_JSON", "test json"))
 
 	driverBytes, err := json.Marshal(driver)
 	assert.NoError(t, err)
