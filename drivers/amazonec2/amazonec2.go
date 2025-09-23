@@ -18,6 +18,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rancher/machine/drivers/driverutil"
@@ -34,6 +35,7 @@ import (
 const (
 	driverName                  = "amazonec2"
 	ipRange                     = "0.0.0.0/0"
+	ipv6Range                   = "::/0"
 	machineSecurityGroupName    = "rancher-nodes"
 	machineTag                  = "rancher-nodes"
 	defaultAmiId                = "ami-c60b90d1"
@@ -50,6 +52,7 @@ const (
 	ec2VolumeResource           = "volume"
 	ec2NetworkInterfaceResource = "network-interface"
 	ec2InstanceResource         = "instance"
+	description                 = "managed by rancher-machine"
 )
 
 const (
@@ -65,7 +68,7 @@ var (
 	sshPort                              int64 = 22
 	rancherWebhookPort                   int64 = 8443
 	httpsPort                            int64 = 443
-	supervisorPort                       int64 = 9345
+	supervisorPort                       int64 = 9345 // rke2 supervisor
 	nodeExporter                         int64 = 9796
 	etcdPorts                                  = []int64{2379, 2380}
 	clusterManagerPorts                        = []int64{6443, 6443}
@@ -75,15 +78,17 @@ var (
 	otherKubePorts                             = []int64{10250, 10252}
 	kubeProxyPorts                             = []int64{10256, 10256}
 	nodePorts                                  = []int64{30000, 32767}
-	calicoPort                           int64 = 179
+	calicoPort                           int64 = 179 // calico additional port: https://docs.tigera.io/calico/latest/getting-started/openstack/requirements#network-requirements
 	errorNoPrivateSSHKey                       = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
 	errorMissingCredentials                    = errors.New("amazonec2 driver requires AWS credentials configured with the --amazonec2-access-key and --amazonec2-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
 	errorNoVPCIdFound                          = errors.New("amazonec2 driver requires either the --amazonec2-subnet-id or --amazonec2-vpc-id option or an AWS Account with a default vpc-id")
-	errorNoSubnetsFound                        = errors.New("The desired subnet could not be located in this region. Is '--amazonec2-subnet-id' or AWS_SUBNET_ID configured correctly?")
+	errorNoSubnetsFound                        = errors.New("the desired subnet could not be located in this region. Please check if '--amazonec2-subnet-id' or AWS_SUBNET_ID is configured correctly")
 	errorDisableSSLWithoutCustomEndpoint       = errors.New("using --amazonec2-insecure-transport also requires --amazonec2-endpoint")
 	errorReadingUserData                       = errors.New("unable to read --amazonec2-userdata file")
 	errorInvalidValueForHTTPToken              = errors.New("httpToken must be either optional or required")
 	errorInvalidValueForHTTPEndpoint           = errors.New("httpEndpoint must be either enabled or disabled")
+	errorInvalidValueForHTTPProtocolIpv6       = errors.New("httpProtocolIpv6 must be either enabled or disabled")
+	errorInvalidValueForIpv6AddressCount       = errors.New("ipv6AddressCount must be greater than zero when Ipv6AddressOnly is true")
 )
 
 type Driver struct {
@@ -144,6 +149,25 @@ type Driver struct {
 	// Metadata Options
 	HttpEndpoint string
 	HttpTokens   string
+
+	// Enables or disables the IPv6 endpoint for the instance metadata service.
+	// Options: enabled, disabled
+	HttpProtocolIpv6 string
+
+	// Indicates whether the instance’s first assigned IPv6 address is set as the primary IPv6 address.
+	// Enable this option if the instance requires a stable, persistent IPv6 address.
+	// This option does not affect whether IPv6 addresses are assigned to the instance.
+	// For more information, see EnablePrimaryIpv6 on
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html
+	EnablePrimaryIpv6 bool
+
+	// The number of IPv6 addresses to assign to the network interface.
+	// It must be greater than zero when Ipv6AddressOnly is true
+	Ipv6AddressCount int64
+
+	// Indicates whether the instance has only IPv6 address.
+	// Useful when the VPC or subnet is configured as IPv6-only.
+	Ipv6AddressOnly bool
 }
 
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
@@ -325,6 +349,34 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "The state of token usage for your instance metadata requests.",
 			EnvVar: "AWS_HTTP_TOKENS",
 		},
+		mcnflag.StringFlag{
+			Name: "amazonec2-http-protocol-ipv6",
+			Usage: "Enables or disables the IPv6 endpoint for the instance metadata service." +
+				" Options: enabled, disabled (default).",
+			EnvVar: "AWS_HTTP_PROTOCOL_IPV6",
+			Value:  "disabled",
+		},
+		mcnflag.IntFlag{
+			Name: "amazonec2-ipv6-address-count",
+			Usage: "The number of IPv6 addresses to assign to the network interface (default: 0)." +
+				" Must be greater than zero when amazonec2-ipv6-address-only is true.",
+			EnvVar: "AWS_IPV6_ADDRESS_COUNT",
+			Value:  0,
+		},
+		mcnflag.BoolFlag{
+			Name: "amazonec2-enable-primary-ipv6",
+			Usage: "Indicates whether the first IPv6 address assigned to the instance should be marked as the primary IPv6 address." +
+				" Enable this option if the instance requires a stable, non-changing IPv6 address." +
+				" This option does not affect whether IPv6 addresses are assigned to the instance.",
+			EnvVar: "AWS_ENABLE_PRIMARY_IPV6",
+		},
+		mcnflag.BoolFlag{
+			Name: "amazonec2-ipv6-address-only",
+			Usage: "Indicates whether the instance has only IPv6 address. Useful when the VPC or subnet is configured as IPv6-only." +
+				" When set to true, the instance will have IPv6 as its sole address." +
+				" When set to true, amazonec2-ipv6-address-count must be greater than zero.",
+			EnvVar: "AWS_IPV6_ADDRESS_ONLY",
+		},
 	}
 }
 
@@ -365,6 +417,8 @@ func (d *Driver) buildClient() Ec2Client {
 		config = config.WithEndpoint(d.Endpoint)
 		config = config.WithDisableSSL(d.DisableSSL)
 	}
+	// use AWS dual stack endpoint to support both IPv6 and IPv4
+	config.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
 	return ec2.New(session.New(config))
 }
 
@@ -444,6 +498,9 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.SSHPort = 22
 	d.PrivateIPOnly = flags.Bool("amazonec2-private-address-only")
 	d.UsePrivateIP = flags.Bool("amazonec2-use-private-address")
+	d.Ipv6AddressOnly = flags.Bool("amazonec2-ipv6-address-only")
+	d.Ipv6AddressCount = int64(flags.Int("amazonec2-ipv6-address-count"))
+	d.EnablePrimaryIpv6 = flags.Bool("amazonec2-enable-primary-ipv6")
 	d.Monitoring = flags.Bool("amazonec2-monitoring")
 	d.UseEbsOptimizedInstance = flags.Bool("amazonec2-use-ebs-optimized-instance")
 	d.SSHPrivateKeyPath = flags.String("amazonec2-ssh-keypath")
@@ -469,6 +526,18 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			return errorInvalidValueForHTTPToken
 		}
 		d.HttpTokens = httpTokens
+	}
+
+	httpProtocolIpv6 := flags.String("amazonec2-http-protocol-ipv6")
+	if httpProtocolIpv6 != "" {
+		if httpProtocolIpv6 != "disabled" && httpProtocolIpv6 != "enabled" {
+			return errorInvalidValueForHTTPProtocolIpv6
+		}
+		d.HttpProtocolIpv6 = httpProtocolIpv6
+	}
+
+	if d.Ipv6AddressOnly && d.Ipv6AddressCount < 1 {
+		return errorInvalidValueForIpv6AddressCount
 	}
 
 	kmskeyid := flags.String("amazonec2-kms-key")
@@ -626,16 +695,47 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) instanceIpAvailable() bool {
+	switch {
+	case d.Ipv6AddressOnly:
+		// IPv6-only mode
+		return d.checkIPv6()
+	case d.Ipv6AddressCount >= 1:
+		// Dual-stack mode
+		hasIPv6 := d.checkIPv6()
+		hasIPv4 := d.checkIPv4()
+		return hasIPv6 && hasIPv4
+	default:
+		// IPv4-only mode
+		return d.checkIPv4()
+	}
+}
+
+func (d *Driver) checkIPv6() bool {
+	ipv6, err := d.GetIPv6()
+	if err != nil {
+		log.Debugf("Error fetching IPv6 address: %s", err.Error())
+	}
+	if ipv6 == "" {
+		return false
+	}
+
+	d.IPv6Address = ipv6
+	log.Debugf("Get the IPv6 address: %q", d.IPv6Address)
+	return true
+}
+
+func (d *Driver) checkIPv4() bool {
 	ip, err := d.GetIP()
 	if err != nil {
-		log.Debug(err)
+		log.Debugf("Error fetching IPv4 address: %s", err.Error())
 	}
-	if ip != "" {
-		d.IPAddress = ip
-		log.Debugf("Got the IP Address, it's %q", d.IPAddress)
-		return true
+	if ip == "" {
+		return false
 	}
-	return false
+
+	d.IPAddress = ip
+	log.Debugf("Get the IPv4 address: %q", d.IPAddress)
+	return true
 }
 
 func makePointerSlice(stackSlice []string) []*string {
@@ -667,7 +767,7 @@ func (d *Driver) Base64UserData() (userdata string, err error) {
 	if d.UserDataFile != "" {
 		buf, ioerr := os.ReadFile(d.UserDataFile)
 		if ioerr != nil {
-			log.Warnf("failed to read user data file %q: %s", d.UserDataFile, ioerr)
+			log.Warnf("Failed to read user data file %q: %s", d.UserDataFile, ioerr)
 			err = errorReadingUserData
 			return
 		}
@@ -680,7 +780,7 @@ func (d *Driver) Create() error {
 	// PreCreateCheck has already been called
 
 	if err := d.innerCreate(); err != nil {
-		log.Warnf("error encountered during instance creation: %s", err.Error())
+		log.Warnf("Error encountered during instance creation: %s", err.Error())
 		// cleanup partially created resources
 		if removalErr := d.Remove(); removalErr != nil {
 			return removalErr
@@ -711,15 +811,23 @@ func (d *Driver) innerCreate() error {
 
 	bdmList := d.updateBDMList()
 
+	associatePublicIpAddress := !d.PrivateIPOnly
+	if d.Ipv6AddressOnly {
+		// We cannot assign public IPv4 address in IPv6-only subnet
+		associatePublicIpAddress = false
+	}
+
 	netSpecs := []*ec2.InstanceNetworkInterfaceSpecification{{
 		DeviceIndex:              aws.Int64(0), // eth0
 		Groups:                   makePointerSlice(d.securityGroupIds()),
 		SubnetId:                 &d.SubnetId,
-		AssociatePublicIpAddress: aws.Bool(!d.PrivateIPOnly),
+		AssociatePublicIpAddress: aws.Bool(associatePublicIpAddress),
+		PrimaryIpv6:              aws.Bool(d.EnablePrimaryIpv6),
+		Ipv6AddressCount:         aws.Int64(d.Ipv6AddressCount),
 	}}
 
 	regionZone := d.getRegionZone()
-	log.Debugf("launching instance in subnet %s", d.SubnetId)
+	log.Debugf("Launching instance in subnet %s", d.SubnetId)
 
 	var instance *ec2.Instance
 	if d.RequestSpotInstance {
@@ -758,12 +866,16 @@ func (d *Driver) innerCreate() error {
 			req.MetadataOptions.HttpTokens = aws.String(d.HttpTokens)
 		}
 
+		if d.HttpProtocolIpv6 != "" {
+			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
+		}
+
 		if d.BlockDurationMinutes != 0 {
 			req.InstanceMarketOptions.SpotOptions.BlockDurationMinutes = &d.BlockDurationMinutes
 		}
 		res, err := d.getClient().RunInstances(&req)
 		if err != nil {
-			return fmt.Errorf("Error request spot instance: %s", err)
+			return fmt.Errorf("error request spot instance: %s", err)
 		}
 		d.spotInstanceRequestId = *res.Instances[0].SpotInstanceRequestId
 
@@ -780,7 +892,7 @@ func (d *Driver) innerCreate() error {
 						continue
 					}
 				}
-				return fmt.Errorf("Error fulfilling spot request: %v", err)
+				return fmt.Errorf("error fulfilling spot request: %v", err)
 			}
 			break
 		}
@@ -796,7 +908,7 @@ func (d *Driver) innerCreate() error {
 			})
 			if err != nil {
 				// Unexpected; no need to retry
-				return fmt.Errorf("Error describing previously made spot instance request: %v", err)
+				return fmt.Errorf("error describing previously made spot instance request: %v", err)
 			}
 			maybeInstanceId := resolvedSpotInstance.SpotInstanceRequests[0].InstanceId
 			if maybeInstanceId != nil {
@@ -816,7 +928,7 @@ func (d *Driver) innerCreate() error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("Error resolving spot instance to real instance: %v", err)
+			return fmt.Errorf("error resolving spot instance to real instance: %v", err)
 		}
 	} else {
 		log.Debug("Building tags for instance creation")
@@ -854,17 +966,25 @@ func (d *Driver) innerCreate() error {
 			req.MetadataOptions.HttpTokens = aws.String(d.HttpTokens)
 		}
 
+		if d.HttpProtocolIpv6 != "" {
+			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
+		}
+
 		res, err := d.getClient().RunInstances(&req)
 
 		if err != nil {
-			return fmt.Errorf("Error launching instance: %s", err)
+			return fmt.Errorf("error launching instance: %s", err)
 		}
 		instance = res.Instances[0]
 	}
 
+	if instance == nil {
+		return fmt.Errorf("instance is not found in the client's response")
+	}
+
 	d.InstanceId = *instance.InstanceId
 
-	log.Debug("waiting for ip address to become available")
+	log.Debug("Waiting for ip address to become available")
 	if err := mcnutils.WaitFor(d.instanceIpAvailable); err != nil {
 		return err
 	}
@@ -873,6 +993,7 @@ func (d *Driver) innerCreate() error {
 		d.PrivateIPAddress = *instance.PrivateIpAddress
 	}
 
+	log.Debug("Waiting for instance to be in the running state")
 	if err := d.waitForInstance(); err != nil {
 		return err
 	}
@@ -889,10 +1010,11 @@ func (d *Driver) innerCreate() error {
 		}
 	}
 
-	log.Debugf("created instance ID %s, IP address %s, Private IP address %s",
+	log.Debugf("Created instance ID %s, Public IPv4 address %s, Private IPv4 address %s, IPv6 address %s",
 		d.InstanceId,
 		d.IPAddress,
 		d.PrivateIPAddress,
+		d.IPv6Address,
 	)
 
 	return nil
@@ -926,11 +1048,33 @@ func (d *Driver) GetURL() (string, error) {
 	if err := drivers.MustBeRunning(d); err != nil {
 		return "", err
 	}
+	var ip string
+	var err error
 
-	ip, err := d.GetIP()
-	if err != nil {
-		return "", err
+	switch {
+	case d.Ipv6AddressOnly:
+		// IPv6-only mode
+		if ip, err = d.GetIPv6(); err != nil {
+			return "", err
+		}
+	case d.Ipv6AddressCount >= 1:
+		// Dual-stack mode
+		// preference: IPv4 address, then IPv6 address
+		if ip, err = d.GetIP(); err != nil {
+			log.Warnf("Rrror getting IPv4 address: %s", err)
+			log.Debug("Getting IPv6 address")
+			ip, err = d.GetIPv6()
+			if err != nil {
+				return "", err
+			}
+		}
+	default:
+		// IPv4-only mode
+		if ip, err = d.GetIP(); err != nil {
+			return "", err
+		}
 	}
+
 	if ip == "" {
 		return "", nil
 	}
@@ -946,22 +1090,37 @@ func (d *Driver) GetIP() (string, error) {
 
 	if d.PrivateIPOnly {
 		if inst.PrivateIpAddress == nil {
-			return "", fmt.Errorf("No private IP for instance %v", *inst.InstanceId)
+			return "", fmt.Errorf("no private IPv4 address for instance %v", *inst.InstanceId)
 		}
 		return *inst.PrivateIpAddress, nil
 	}
 
 	if d.UsePrivateIP {
 		if inst.PrivateIpAddress == nil {
-			return "", fmt.Errorf("No private IP for instance %v", *inst.InstanceId)
+			return "", fmt.Errorf("no private IPv4 address for instance %v", *inst.InstanceId)
 		}
 		return *inst.PrivateIpAddress, nil
 	}
 
 	if inst.PublicIpAddress == nil {
-		return "", fmt.Errorf("No IP for instance %v", *inst.InstanceId)
+		return "", fmt.Errorf("no public IPv4 address for instance %v", *inst.InstanceId)
 	}
 	return *inst.PublicIpAddress, nil
+}
+
+func (d *Driver) GetIPv6() (string, error) {
+	if d.Ipv6AddressCount == 0 {
+		log.Warn("Attempting to get IPv6 address when Ipv6AddressCount is zero, please check your configuration")
+	}
+	inst, err := d.getInstance()
+	if err != nil {
+		return "", err
+	}
+
+	if inst.Ipv6Address == nil {
+		return "", fmt.Errorf("no IPv6 address for instance %v", *inst.InstanceId)
+	}
+	return *inst.Ipv6Address, nil
 }
 
 func (d *Driver) GetState() (state.State, error) {
@@ -983,14 +1142,32 @@ func (d *Driver) GetState() (state.State, error) {
 	case ec2.InstanceStateNameTerminated:
 		return state.Error, fmt.Errorf("valid machine %v not found", d.MachineName)
 	default:
-		log.Warnf("unrecognized instance state: %v", *inst.State.Name)
+		log.Warnf("Unrecognized instance state: %v", *inst.State.Name)
 		return state.Error, nil
 	}
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
 	// TODO: use @nathanleclaire retry func here (ehazlett)
-	return d.GetIP()
+	switch {
+	case d.Ipv6AddressOnly:
+		// IPv6-only mode
+		return d.GetIPv6()
+	case d.Ipv6AddressCount >= 1:
+		// Dual-stack mode
+		// preference: IPv4 address, then IPv6 address
+		if ip, err := d.GetIP(); err != nil {
+			log.Warnf("Error getting IPv4 address: %s", err)
+			log.Debug("Getting IPv6 address")
+			return d.GetIPv6()
+		} else {
+			return ip, nil
+		}
+
+	default:
+		// IPv4-only mode
+		return d.GetIP()
+	}
 }
 
 func (d *Driver) GetSSHUsername() string {
@@ -1142,7 +1319,7 @@ func (d *Driver) createKeyPair() error {
 	}
 	keyName := d.MachineName + "-" + string(b)
 
-	log.Debugf("creating key pair: %s", keyName)
+	log.Debugf("Creating key pair: %s", keyName)
 	_, err = d.getClient().ImportKeyPair(&ec2.ImportKeyPairInput{
 		KeyName:           &keyName,
 		PublicKeyMaterial: publicKey,
@@ -1160,7 +1337,7 @@ func (d *Driver) terminate() error {
 		return nil
 	}
 
-	log.Debugf("terminating instance: %s", d.InstanceId)
+	log.Debugf("Terminating instance: %s", d.InstanceId)
 	_, err := d.getClient().TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: []*string{&d.InstanceId},
 	})
@@ -1237,11 +1414,11 @@ func (d *Driver) buildResourceTags(resources []string) []*ec2.TagSpecification {
 
 func (d *Driver) configureSecurityGroups(groupNames []string) error {
 	if len(groupNames) == 0 {
-		log.Debugf("no security groups to configure in %s", d.VpcId)
+		log.Debugf("No security groups to configure in %s", d.VpcId)
 		return nil
 	}
 
-	log.Debugf("configuring security groups in %s", d.VpcId)
+	log.Debugf("Configuring security groups in %s", d.VpcId)
 	v := version.Version
 
 	filters := []*ec2.Filter{
@@ -1271,10 +1448,10 @@ func (d *Driver) configureSecurityGroups(groupNames []string) error {
 		var group *ec2.SecurityGroup
 		securityGroup, ok := groupsByName[groupName]
 		if ok {
-			log.Debugf("found existing security group (%s) in %s", groupName, d.VpcId)
+			log.Debugf("Found existing security group (%s) in %s", groupName, d.VpcId)
 			group = securityGroup
 		} else {
-			log.Debugf("creating security group (%s) in %s", groupName, d.VpcId)
+			log.Debugf("Creating security group (%s) in %s", groupName, d.VpcId)
 			groupResp, err := d.getClient().CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
 				GroupName:   aws.String(groupName),
 				Description: aws.String("Rancher Nodes"),
@@ -1336,271 +1513,215 @@ func (d *Driver) configureSecurityGroups(groupNames []string) error {
 			}
 
 			// wait until created (dat eventual consistency)
-			log.Debugf("waiting for group (%s) to become available", *group.GroupId)
+			log.Debugf("Waiting for group (%s) to become available", *group.GroupId)
 			if err := mcnutils.WaitFor(d.securityGroupAvailableFunc(*group.GroupId)); err != nil {
 				return err
 			}
 		}
 		d.SecurityGroupIds = append(d.SecurityGroupIds, *group.GroupId)
 
-		inboundPerms, err := d.configureSecurityGroupPermissions(group)
+		ingressPerms, err := d.ingressPermissions(group)
 		if err != nil {
 			return err
 		}
 
-		if len(inboundPerms) != 0 {
-			log.Debugf("authorizing group %s with inbound permissions: %v", groupNames, inboundPerms)
+		if len(ingressPerms) > 0 {
+			log.Debugf("Adding the following ingress rules to the security group %s: %v", groupName, ingressPerms)
 			_, err := d.getClient().AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
 				GroupId:       group.GroupId,
-				IpPermissions: inboundPerms,
+				IpPermissions: ingressPerms,
 			})
-			if err != nil && !strings.Contains(err.Error(), "already exists") {
-				return err
+			if err != nil {
+				if strings.Contains(err.Error(), "already exists") {
+					log.Debugf("Skip updating the security group due to: %s", err.Error())
+				} else {
+					return err
+				}
 			}
 		}
 
+		egressPerms, err := d.egressPermissions(group)
+		if err != nil {
+			return err
+		}
+		if len(egressPerms) > 0 {
+			log.Debugf("Adding the following engress rules to the security group %s: %v", groupName, egressPerms)
+			_, err = d.getClient().AuthorizeSecurityGroupEgress(&ec2.AuthorizeSecurityGroupEgressInput{
+				GroupId:       group.GroupId,
+				IpPermissions: egressPerms,
+			})
+			if err != nil {
+				if strings.Contains(err.Error(), "already exists") {
+					log.Debugf("Skip updating the security group due to: %s", err.Error())
+				} else {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
 }
 
-func (d *Driver) configureSecurityGroupPermissions(group *ec2.SecurityGroup) ([]*ec2.IpPermission, error) {
+func (d *Driver) ingressPermissions(group *ec2.SecurityGroup) ([]*ec2.IpPermission, error) {
 	if d.SecurityGroupReadOnly {
-		log.Debug("Skipping permission configuration on security groups")
+		log.Debugf("Skip checking ingress permission configuration on security group %s", *group.GroupName)
 		return nil, nil
 	}
-	hasPortsInbound := make(map[string]struct{})
+
+	hasV4Inbound := map[string]struct{}{}
+	hasV6Inbound := map[string]struct{}{}
+	hasGroupRule := map[string]struct{}{}
+
+	// check existing rules
 	for _, p := range group.IpPermissions {
-		if p.FromPort != nil {
-			hasPortsInbound[fmt.Sprintf("%d/%s", *p.FromPort, *p.IpProtocol)] = struct{}{}
+		if p == nil || p.FromPort == nil || p.IpProtocol == nil {
+			continue
+		}
+		key := fmt.Sprintf("%d/%s", *p.FromPort, *p.IpProtocol)
+		// v4
+		if len(p.IpRanges) > 0 {
+			hasV4Inbound[key] = struct{}{}
+		}
+		// v6
+		if len(p.Ipv6Ranges) > 0 {
+			hasV6Inbound[key] = struct{}{}
+		}
+		if len(p.UserIdGroupPairs) > 0 {
+			hasGroupRule[key] = struct{}{}
 		}
 	}
 
-	inboundPerms := []*ec2.IpPermission{}
+	var inboundPerms []*ec2.IpPermission
 
-	// we are only adding ports when the group is rancher-nodes
+	// Helper for dual-stack internet-facing rules
+	addDualStack := func(proto string, from, to int64) {
+		key := fmt.Sprintf("%d/%s", from, proto)
+		// IPv4
+		if _, ok := hasV4Inbound[key]; !ok {
+			inboundPerms = append(inboundPerms,
+				newIpPermission(proto, from, to,
+					[]*ec2.IpRange{{CidrIp: aws.String(ipRange), Description: aws.String(description)}},
+					nil))
+		}
+		// IPv6
+		if _, ok := hasV6Inbound[key]; !ok {
+			inboundPerms = append(inboundPerms,
+				newIpPermission(proto, from, to, nil,
+					[]*ec2.Ipv6Range{{CidrIpv6: aws.String(ipv6Range), Description: aws.String(description)}}))
+		}
+	}
+
+	// Helper for group-based rules
+	addGroupRule := func(proto string, from, to int64) {
+		key := fmt.Sprintf("%d/%s", from, proto)
+		if _, ok := hasGroupRule[key]; !ok {
+			inboundPerms = append(inboundPerms,
+				newIpPermission(proto, from, to, nil, nil,
+					&ec2.UserIdGroupPair{GroupId: group.GroupId, Description: aws.String(description)}))
+		}
+	}
+
+	// Rules for rancher-nodes security group
 	if *group.GroupName == defaultSecurityGroup && hasTagKey(group.Tags, machineSecurityGroupName) {
-		if _, ok := hasPortsInbound["22/tcp"]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(sshPort),
-				ToPort:     aws.Int64(sshPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
+		// dual-stack ports
+		addDualStack("tcp", sshPort, sshPort)
+		addDualStack("tcp", dockerPort, dockerPort)
+		addDualStack("tcp", rancherWebhookPort, rancherWebhookPort)
+		addDualStack("tcp", kubeApiPort, kubeApiPort)
+		addDualStack("tcp", httpPort, httpPort)
+		addDualStack("tcp", httpsPort, httpsPort)
+		addDualStack("tcp", nodePorts[0], nodePorts[1])
+		addDualStack("udp", nodePorts[0], nodePorts[1])
 
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", dockerPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(dockerPort),
-				ToPort:     aws.Int64(dockerPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", rancherWebhookPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(rancherWebhookPort),
-				ToPort:     aws.Int64(rancherWebhookPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		// kubeapi
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", kubeApiPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(kubeApiPort),
-				ToPort:     aws.Int64(kubeApiPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		// rke2 supervisor
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", supervisorPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(supervisorPort),
-				ToPort:     aws.Int64(supervisorPort),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// etcd
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", etcdPorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(etcdPorts[0]),
-				ToPort:     aws.Int64(etcdPorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// vxlan
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/udp", vxlanPorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("udp"),
-				FromPort:   aws.Int64(vxlanPorts[0]),
-				ToPort:     aws.Int64(vxlanPorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// typha
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", typhaPorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(typhaPorts[0]),
-				ToPort:     aws.Int64(typhaPorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// flannel
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/udp", flannelPorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("udp"),
-				FromPort:   aws.Int64(flannelPorts[0]),
-				ToPort:     aws.Int64(flannelPorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// others
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", otherKubePorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(otherKubePorts[0]),
-				ToPort:     aws.Int64(otherKubePorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// kube proxy
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", kubeProxyPorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(kubeProxyPorts[0]),
-				ToPort:     aws.Int64(kubeProxyPorts[1]),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// node exporter
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", nodeExporter)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(nodeExporter),
-				ToPort:     aws.Int64(nodeExporter),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
-
-		// nodePorts
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", nodePorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(nodePorts[0]),
-				ToPort:     aws.Int64(nodePorts[1]),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/udp", nodePorts[0])]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("udp"),
-				FromPort:   aws.Int64(nodePorts[0]),
-				ToPort:     aws.Int64(nodePorts[1]),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		// nginx ingress
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", httpPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(httpPort),
-				ToPort:     aws.Int64(httpPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", httpsPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(httpsPort),
-				ToPort:     aws.Int64(httpsPort),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
-		}
-
-		// calico additional port: https://docs.projectcalico.org/getting-started/openstack/requirements#network-requirements
-		if _, ok := hasPortsInbound[fmt.Sprintf("%d/tcp", calicoPort)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(calicoPort),
-				ToPort:     aws.Int64(calicoPort),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{
-					{
-						GroupId: group.GroupId,
-					},
-				},
-			})
-		}
+		// group-pair rules
+		addGroupRule("tcp", supervisorPort, supervisorPort)
+		addGroupRule("tcp", etcdPorts[0], etcdPorts[1])
+		addGroupRule("tcp", typhaPorts[0], typhaPorts[1])
+		addGroupRule("tcp", otherKubePorts[0], otherKubePorts[1])
+		addGroupRule("tcp", kubeProxyPorts[0], kubeProxyPorts[1])
+		addGroupRule("tcp", nodeExporter, nodeExporter)
+		addGroupRule("tcp", calicoPort, calicoPort)
+		addGroupRule("udp", vxlanPorts[0], vxlanPorts[1])
+		addGroupRule("udp", flannelPorts[0], flannelPorts[1])
 	}
 
+	// Custom open ports from configuration
 	for _, p := range d.OpenPorts {
 		port, protocol := driverutil.SplitPortProto(p)
 		portNum, err := strconv.ParseInt(port, 10, 0)
 		if err != nil {
 			return nil, fmt.Errorf("invalid port number %s: %s", port, err)
 		}
-		if _, ok := hasPortsInbound[fmt.Sprintf("%s/%s", port, protocol)]; !ok {
-			inboundPerms = append(inboundPerms, &ec2.IpPermission{
-				IpProtocol: aws.String(protocol),
-				FromPort:   aws.Int64(portNum),
-				ToPort:     aws.Int64(portNum),
-				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
-			})
+		addDualStack(protocol, portNum, portNum)
+	}
+
+	if len(inboundPerms) > 0 {
+		log.Debugf("Configuring security group %s ingress rules for IPv4 %s and IPv6 %s", *group.GroupName, ipRange, ipv6Range)
+	}
+	return inboundPerms, nil
+}
+
+func (d *Driver) egressPermissions(group *ec2.SecurityGroup) ([]*ec2.IpPermission, error) {
+	if d.SecurityGroupReadOnly || *group.GroupName != defaultSecurityGroup || !hasTagKey(group.Tags, machineSecurityGroupName) {
+		log.Debugf("Skipping egress permission configuration on security group %s", *group.GroupName)
+		return nil, nil
+	}
+
+	hasV4Outbound := false
+	hasV6Outbound := false
+
+	// check existing egress rules
+	for _, p := range group.IpPermissionsEgress {
+		if p == nil || p.IpProtocol == nil || *p.IpProtocol != "-1" {
+			continue
+		}
+		for _, v := range p.IpRanges {
+			if v != nil && v.CidrIp != nil && *v.CidrIp == ipRange {
+				hasV4Outbound = true
+			}
+		}
+		for _, v := range p.Ipv6Ranges {
+			if v != nil && v.CidrIpv6 != nil && *v.CidrIpv6 == ipv6Range {
+				hasV6Outbound = true
+			}
 		}
 	}
 
-	log.Debugf("configuring security group authorization for %s", ipRange)
+	var outboundPerms []*ec2.IpPermission
 
-	return inboundPerms, nil
+	// IPv4 "allow all"
+	if !hasV4Outbound {
+		outboundPerms = append(outboundPerms, &ec2.IpPermission{
+			IpProtocol: aws.String("-1"),
+			IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
+		})
+	}
+
+	// IPv6 "allow all"
+	if !hasV6Outbound {
+		outboundPerms = append(outboundPerms, &ec2.IpPermission{
+			IpProtocol: aws.String("-1"),
+			Ipv6Ranges: []*ec2.Ipv6Range{{CidrIpv6: aws.String(ipv6Range)}},
+		})
+	}
+
+	if len(outboundPerms) > 0 {
+		log.Debugf("Configuring security group %s egress for IPv4 %s and IPv6 %s", *group.GroupName, ipRange, ipv6Range)
+	}
+	return outboundPerms, nil
+}
+
+// newIpPermission builds a new IpPermission with optional ranges and group pairs
+func newIpPermission(proto string, from, to int64, v4 []*ec2.IpRange, v6 []*ec2.Ipv6Range, groups ...*ec2.UserIdGroupPair) *ec2.IpPermission {
+	return &ec2.IpPermission{
+		IpProtocol:       aws.String(proto),
+		FromPort:         aws.Int64(from),
+		ToPort:           aws.Int64(to),
+		IpRanges:         v4,
+		Ipv6Ranges:       v6,
+		UserIdGroupPairs: groups,
+	}
 }
 
 func (d *Driver) deleteKeyPair() error {
@@ -1609,7 +1730,7 @@ func (d *Driver) deleteKeyPair() error {
 		return nil
 	}
 
-	log.Debugf("deleting key pair: %s", d.KeyName)
+	log.Debugf("Deleting key pair: %s", d.KeyName)
 
 	var deleteInput ec2.DeleteKeyPairInput
 	instance, err := d.getInstance()
@@ -1646,7 +1767,7 @@ func (d *Driver) getDefaultVPCId() (string, error) {
 		}
 	}
 
-	return "", errors.New("No default-vpc attribute")
+	return "", errors.New("no default-vpc attribute")
 }
 
 func (d *Driver) getRegionZone() string {
@@ -1657,7 +1778,7 @@ func (d *Driver) getRegionZone() string {
 }
 
 // buildEC2Tags accepts a string of tagGroups (in the format of 'key1,value1,key2,value2')
-// and returns a slice of ec2.Tag's which can be applied to various ec2 resources.
+// and returns a slice of ec2.Tags which can be applied to various ec2 resources.
 func buildEC2Tags(tagGroups string) []*ec2.Tag {
 	if tagGroups == "" {
 		return []*ec2.Tag{}

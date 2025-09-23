@@ -1,12 +1,10 @@
 package commands
 
 import (
+	"errors"
 	"os"
 	"testing"
-
 	"time"
-
-	"errors"
 
 	"github.com/rancher/machine/drivers/fakedriver"
 	"github.com/rancher/machine/libmachine/engine"
@@ -340,7 +338,7 @@ func TestGetHostListItems(t *testing.T) {
 		version string
 		error   string
 	}{
-		{"bar10", state.Error, false, "Unknown", "Unable to get ip"},
+		{"bar10", state.Error, false, "Unknown", "unable to get ip"},
 		{"bar100", state.Stopped, false, "Unknown", ""},
 		{"foo", state.Running, true, "v1.9", ""},
 	}
@@ -490,7 +488,7 @@ func TestGetHostStateError(t *testing.T) {
 	assert.Equal(t, state.Error, hostItem.State)
 	assert.Equal(t, "Driver", hostItem.DriverName)
 	assert.Empty(t, hostItem.URL)
-	assert.Equal(t, "Unable to get ip", hostItem.Error)
+	assert.Equal(t, "unable to get ip", hostItem.Error)
 	assert.Nil(t, hostItem.SwarmOptions)
 }
 

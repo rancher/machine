@@ -28,15 +28,14 @@ func printVersion(c CommandLine, api libmachine.API, out io.Writer) error {
 		return err
 	}
 
-	if host.HostOptions.AuthOptions != nil {
+	if host != nil && host.HostOptions != nil && host.HostOptions.AuthOptions != nil {
 		version, err := mcndockerclient.DockerVersion(host)
 		if err != nil {
 			return err
 		}
-
-		fmt.Fprintln(out, version)
+		_, _ = fmt.Fprintln(out, version)
 	} else {
-		fmt.Fprintln(out, "Docker was not installed on machine")
+		_, _ = fmt.Fprintln(out, "Docker was not installed on machine")
 	}
 
 	return nil

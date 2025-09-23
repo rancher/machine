@@ -11,7 +11,7 @@ type Ec2Client interface {
 
 	ModifyInstanceMetadataOptions(input *ec2.ModifyInstanceMetadataOptionsInput) (*ec2.ModifyInstanceMetadataOptionsOutput, error)
 
-	//SecurityGroup
+	// SecurityGroup
 
 	CreateSecurityGroup(input *ec2.CreateSecurityGroupInput) (*ec2.CreateSecurityGroupOutput, error)
 
@@ -23,7 +23,7 @@ type Ec2Client interface {
 
 	DeleteSecurityGroup(input *ec2.DeleteSecurityGroupInput) (*ec2.DeleteSecurityGroupOutput, error)
 
-	//KeyPair
+	// KeyPair
 
 	DeleteKeyPair(input *ec2.DeleteKeyPairInput) (*ec2.DeleteKeyPairOutput, error)
 
@@ -31,7 +31,7 @@ type Ec2Client interface {
 
 	DescribeKeyPairs(input *ec2.DescribeKeyPairsInput) (*ec2.DescribeKeyPairsOutput, error)
 
-	//Instances
+	// Instances
 
 	DescribeInstances(input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 
@@ -45,7 +45,7 @@ type Ec2Client interface {
 
 	TerminateInstances(input *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error)
 
-	//SpotInstances
+	// SpotInstances
 
 	RequestSpotInstances(input *ec2.RequestSpotInstancesInput) (*ec2.RequestSpotInstancesOutput, error)
 

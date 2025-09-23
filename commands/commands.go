@@ -462,9 +462,15 @@ var Commands = []cli.Command{
 
 func printIP(h *host.Host) func() error {
 	return func() error {
+		// preference: IPv4 address, then IPv6 address
 		ip, err := h.Driver.GetIP()
 		if err != nil {
-			return fmt.Errorf("Error getting IP address: %s", err)
+			log.Warnf("Error getting IPv4 address: %s", err)
+			log.Debug("Getting IPv6 address")
+			ip, err = h.Driver.GetIPv6()
+			if err != nil {
+				return fmt.Errorf("error getting IPv6 address: %s", err)
+			}
 		}
 
 		fmt.Println(ip)

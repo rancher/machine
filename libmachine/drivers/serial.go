@@ -1,9 +1,8 @@
 package drivers
 
 import (
-	"sync"
-
 	"encoding/json"
+	"sync"
 
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/state"
@@ -64,6 +63,13 @@ func (d *SerialDriver) GetIP() (string, error) {
 	d.Lock()
 	defer d.Unlock()
 	return d.Driver.GetIP()
+}
+
+// GetIPv6 returns an IPv6 address that this host is available at
+func (d *SerialDriver) GetIPv6() (string, error) {
+	d.Lock()
+	defer d.Unlock()
+	return d.Driver.GetIPv6()
 }
 
 // GetMachineName returns the name of the machine

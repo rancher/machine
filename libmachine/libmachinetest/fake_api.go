@@ -72,7 +72,7 @@ func (api *FakeAPI) Save(host *host.Host) error {
 	return nil
 }
 
-func (api FakeAPI) GetMachinesDir() string {
+func (api *FakeAPI) GetMachinesDir() string {
 	return ""
 }
 

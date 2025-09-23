@@ -12,6 +12,7 @@ type Driver struct {
 	*drivers.BaseDriver
 	MockState state.State
 	MockIP    string
+	MockIPv6  string
 	MockName  string
 }
 
@@ -45,7 +46,7 @@ func (d *Driver) GetMachineName() string {
 
 func (d *Driver) GetIP() (string, error) {
 	if d.MockState == state.Error {
-		return "", fmt.Errorf("Unable to get ip")
+		return "", fmt.Errorf("unable to get ip")
 	}
 	if d.MockState == state.Timeout {
 		select {} // Loop forever
@@ -53,7 +54,26 @@ func (d *Driver) GetIP() (string, error) {
 	if d.MockState != state.Running {
 		return "", drivers.ErrHostIsNotRunning
 	}
+	if d.MockIP == "" {
+		return "", fmt.Errorf("no IPv4 address found")
+	}
 	return d.MockIP, nil
+}
+
+func (d *Driver) GetIPv6() (string, error) {
+	if d.MockState == state.Error {
+		return "", fmt.Errorf("unable to get ip")
+	}
+	if d.MockState == state.Timeout {
+		select {} // Loop forever
+	}
+	if d.MockState != state.Running {
+		return "", drivers.ErrHostIsNotRunning
+	}
+	if d.MockIPv6 == "" {
+		return "", fmt.Errorf("no IPv6 address found")
+	}
+	return d.MockIPv6, nil
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
