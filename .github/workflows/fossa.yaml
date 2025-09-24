@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - master
-    # For manual scans.
-    workflow_dispatch:
+  # For manual scans.
+  workflow_dispatch:
 
 jobs:
   fossa:
