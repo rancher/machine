@@ -1,7 +1,7 @@
 package commandstest
 
 import (
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v3"
 )
 
 type FakeFlagger struct {
