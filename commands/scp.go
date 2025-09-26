@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"os/exec"
 	"strings"
@@ -178,6 +179,13 @@ func generateLocationArg(hostInfo HostInfo, user, path string) (string, error) {
 	hostname, err := hostInfo.GetSSHHostname()
 	if err != nil {
 		return "", err
+	}
+	ipAddr, err := netip.ParseAddr(hostname)
+	if err != nil {
+		return "", err
+	}
+	if ipAddr.Is6() {
+		hostname = fmt.Sprintf("[%s]", hostname)
 	}
 
 	if user == "" {

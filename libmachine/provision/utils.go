@@ -33,7 +33,7 @@ func installDockerGeneric(p Provisioner, baseURL string) error {
 	// just install it using the docker repos
 	log.Infof("Installing Docker from: %s", baseURL)
 	if output, err := p.SSHCommand(fmt.Sprintf("if ! type docker; then curl -sSL %s | sh -; fi", baseURL)); err != nil {
-		return fmt.Errorf("Error installing Docker: %s", output)
+		return fmt.Errorf("error installing Docker: %s", output)
 	}
 
 	return nil
@@ -73,28 +73,34 @@ func ConfigureAuth(p Provisioner) error {
 	org := mcnutils.GetUsername() + "." + machineName
 	bits := 2048
 
+	// preference: IPv4 address, then IPv6 address
 	ip, err := driver.GetIP()
 	if err != nil {
-		return err
+		log.Warnf("Error getting IPv4 address: %s", err)
+		log.Debug("Getting IPv6 address")
+		ip, err = driver.GetIPv6()
+		if err != nil {
+			return fmt.Errorf("error getting IPv6 address: %s", err)
+		}
 	}
 
 	log.Info("Copying certs to the local machine directory...")
 
 	if err := mcnutils.CopyFile(authOptions.CaCertPath, filepath.Join(authOptions.StorePath, "ca.pem")); err != nil {
-		return fmt.Errorf("Copying ca.pem to machine dir failed: %s", err)
+		return fmt.Errorf("copying ca.pem to machine dir failed: %s", err)
 	}
 
 	if err := mcnutils.CopyFile(authOptions.ClientCertPath, filepath.Join(authOptions.StorePath, "cert.pem")); err != nil {
-		return fmt.Errorf("Copying cert.pem to machine dir failed: %s", err)
+		return fmt.Errorf("copying cert.pem to machine dir failed: %s", err)
 	}
 
 	if err := mcnutils.CopyFile(authOptions.ClientKeyPath, filepath.Join(authOptions.StorePath, "key.pem")); err != nil {
-		return fmt.Errorf("Copying key.pem to machine dir failed: %s", err)
+		return fmt.Errorf("copying key.pem to machine dir failed: %s", err)
 	}
 
 	// The Host IP is always added to the certificate's SANs list
 	hosts := append(authOptions.ServerCertSANs, ip, "localhost")
-	log.Debugf("generating server cert: %s ca-key=%s private-key=%s org=%s san=%s",
+	log.Debugf("Generating server cert: %s ca-key=%s private-key=%s org=%s san=%s",
 		authOptions.ServerCertPath,
 		authOptions.CaCertPath,
 		authOptions.CaPrivateKeyPath,
@@ -248,7 +254,7 @@ func decideStorageDriver(p Provisioner, defaultDriver, suppliedDriver string) (s
 func getFilesystemType(p Provisioner, directory string) (string, error) {
 	statCommandOutput, err := p.SSHCommand("stat -f -c %T " + directory)
 	if err != nil {
-		err = fmt.Errorf("Error looking up filesystem type: %s", err)
+		err = fmt.Errorf("error looking up filesystem type: %s", err)
 		return "", err
 	}
 
@@ -330,10 +336,10 @@ func waitForLock(ssh SSHCommander, cmd string) error {
 		return true
 	})
 	if sshErr != nil {
-		return fmt.Errorf("Error running %q: %s", cmd, sshErr)
+		return fmt.Errorf("error running %q: %s", cmd, sshErr)
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to obtain lock: %s", err)
+		return fmt.Errorf("failed to obtain lock: %s", err)
 	}
 	return nil
 }

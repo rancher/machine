@@ -11,6 +11,7 @@ import (
 type MockHostInfo struct {
 	name        string
 	ip          string
+	ipv6        string
 	sshPort     int
 	sshUsername string
 	sshKeyPath  string
@@ -21,7 +22,11 @@ func (h *MockHostInfo) GetMachineName() string {
 }
 
 func (h *MockHostInfo) GetSSHHostname() (string, error) {
-	return h.ip, nil
+	// preference: IPv4 address, then IPv6 address
+	if h.ip != "" {
+		return h.ip, nil
+	}
+	return h.ipv6, nil
 }
 
 func (h *MockHostInfo) GetSSHPort() (int, error) {

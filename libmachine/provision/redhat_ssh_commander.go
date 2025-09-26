@@ -18,7 +18,7 @@ func (sshCmder RedHatSSHCommander) SSHCommand(args string) (string, error) {
 		return "", err
 	}
 
-	log.Debugf("About to run SSH command:\n%s", args)
+	log.Debugf("About to run SSH command: [%s]", args)
 
 	// redhat needs "-t" for tty allocation on ssh therefore we check for the
 	// external client and add as needed.

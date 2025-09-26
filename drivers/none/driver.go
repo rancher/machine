@@ -51,6 +51,10 @@ func (d *Driver) GetIP() (string, error) {
 	return d.IPAddress, nil
 }
 
+func (d *Driver) GetIPv6() (string, error) {
+	return d.IPv6Address, nil
+}
+
 func (d *Driver) GetSSHHostname() (string, error) {
 	return "", nil
 }

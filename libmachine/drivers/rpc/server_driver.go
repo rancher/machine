@@ -153,6 +153,12 @@ func (r *RPCServerDriver) GetIP(_ *struct{}, reply *string) error {
 	return err
 }
 
+func (r *RPCServerDriver) GetIPv6(_ *struct{}, reply *string) error {
+	ip, err := r.ActualDriver.GetIPv6()
+	*reply = ip
+	return err
+}
+
 func (r *RPCServerDriver) GetMachineName(_ *struct{}, reply *string) error {
 	*reply = r.ActualDriver.GetMachineName()
 	return nil

@@ -78,26 +78,27 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "test key", driver.SecretKey)
 }
 
-func TestConfigureSecurityGroupPermissionsEmpty(t *testing.T) {
+func TestIngressPermissionsEmpty(t *testing.T) {
 	driver := NewTestDriver()
 
-	perms, err := driver.configureSecurityGroupPermissions(securityGroup)
+	perms, err := driver.ingressPermissions(securityGroup)
 
 	assert.Nil(t, err)
 	assert.Empty(t, perms)
 }
 
-func TestRancherSecurityGroupPermissions(t *testing.T) {
+func TestRancherSecurityGroupIngressPermissions(t *testing.T) {
 	driver := NewTestDriver()
 
-	perms, err := driver.configureSecurityGroupPermissions(rancherSecurityGroup)
+	perms, err := driver.ingressPermissions(rancherSecurityGroup)
 
 	assert.Nil(t, err)
-	assert.Len(t, perms, 17)
+	assert.Len(t, perms, 25)
 	assert.Equal(t, testSSHPort, *perms[0].FromPort)
+	assert.Equal(t, testSSHPort, *perms[1].FromPort)
 }
 
-func TestConfigureSecurityGroupPermissionsDockerAndSsh(t *testing.T) {
+func TestIngressPermissionsDockerAndSsh(t *testing.T) {
 	driver := NewTestDriver()
 	group := securityGroup
 	group.IpPermissions = []*ec2.IpPermission{
@@ -113,28 +114,104 @@ func TestConfigureSecurityGroupPermissionsDockerAndSsh(t *testing.T) {
 		},
 	}
 
-	perms, err := driver.configureSecurityGroupPermissions(group)
+	perms, err := driver.ingressPermissions(group)
 
 	assert.Nil(t, err)
 	assert.Empty(t, perms)
 }
 
-func TestConfigureSecurityGroupPermissionsSkipReadOnly(t *testing.T) {
+func TestIngressPermissionsSkipReadOnly(t *testing.T) {
 	driver := NewTestDriver()
 	driver.SecurityGroupReadOnly = true
-	perms, err := driver.configureSecurityGroupPermissions(securityGroupNoIpPermissions)
+	perms, err := driver.ingressPermissions(securityGroupNoIpPermissions)
 
 	assert.Nil(t, err)
 	assert.Len(t, perms, 0)
 }
 
-func TestConfigureSecurityGroupPermissionsInvalidOpenPorts(t *testing.T) {
+func TestIngressPermissionsInvalidOpenPorts(t *testing.T) {
 	driver := NewTestDriver()
 	driver.OpenPorts = []string{"2222/tcp", "abc1"}
-	perms, err := driver.configureSecurityGroupPermissions(securityGroupNoIpPermissions)
+	perms, err := driver.ingressPermissions(securityGroupNoIpPermissions)
 
 	assert.Error(t, err)
 	assert.Nil(t, perms)
+}
+
+func TestIngressPermissionsValidOpenPorts(t *testing.T) {
+	driver := NewTestDriver()
+	driver.OpenPorts = []string{"2222/tcp"}
+	perms, err := driver.ingressPermissions(securityGroupNoIpPermissions)
+
+	assert.Nil(t, err)
+	assert.Len(t, perms, 27)
+}
+
+func TestRancherSecurityGroupEgressPermissions(t *testing.T) {
+	driver := NewTestDriver()
+
+	perms, err := driver.egressPermissions(rancherSecurityGroup)
+
+	assert.Nil(t, err)
+	assert.Len(t, perms, 2)
+	assert.Equal(t, ipRange, *perms[0].IpRanges[0].CidrIp)
+	assert.Equal(t, ipv6Range, *perms[1].Ipv6Ranges[0].CidrIpv6)
+}
+
+func TestEgressPermissionsEmpty(t *testing.T) {
+	driver := NewTestDriver()
+
+	perms, err := driver.egressPermissions(securityGroup)
+
+	assert.Nil(t, err)
+	assert.Empty(t, perms)
+}
+
+func TestEgressPermissionsDockerAndSsh(t *testing.T) {
+	driver := NewTestDriver()
+	group := securityGroup
+	group.IpPermissions = []*ec2.IpPermission{
+		{
+			IpProtocol: aws.String("tcp"),
+			FromPort:   aws.Int64(testSSHPort),
+			ToPort:     aws.Int64(testSSHPort),
+		},
+		{
+			IpProtocol: aws.String("tcp"),
+			FromPort:   aws.Int64(testDockerPort),
+			ToPort:     aws.Int64(testDockerPort),
+		},
+	}
+
+	perms, err := driver.egressPermissions(group)
+
+	assert.Nil(t, err)
+	assert.Empty(t, perms)
+}
+
+func TestEgressPermissionsSkipReadOnly(t *testing.T) {
+	driver := NewTestDriver()
+	driver.SecurityGroupReadOnly = true
+	perms, err := driver.egressPermissions(securityGroupNoIpPermissions)
+
+	assert.Nil(t, err)
+	assert.Len(t, perms, 0)
+}
+
+func TestEgressPermissionsValidOpenPorts(t *testing.T) {
+	driver := NewTestDriver()
+	group := rancherSecurityGroup
+	group.IpPermissionsEgress = []*ec2.IpPermission{
+		{
+			IpProtocol: aws.String("-1"),
+			IpRanges:   []*ec2.IpRange{{CidrIp: aws.String(ipRange)}},
+		},
+	}
+
+	perms, err := driver.egressPermissions(group)
+
+	assert.Nil(t, err)
+	assert.Len(t, perms, 1)
 }
 
 func TestValidateAwsRegionValid(t *testing.T) {
@@ -154,7 +231,7 @@ func TestValidateAwsRegionInvalid(t *testing.T) {
 	for _, region := range regions {
 		_, err := validateAwsRegion(region)
 
-		assert.EqualError(t, err, "Invalid region specified")
+		assert.EqualError(t, err, "invalid region specified")
 	}
 }
 
@@ -182,7 +259,7 @@ func TestDefaultVPCIsMissing(t *testing.T) {
 
 	vpc, err := driver.getDefaultVPCId()
 
-	assert.EqualError(t, err, "No default-vpc attribute")
+	assert.EqualError(t, err, "no default-vpc attribute")
 	assert.Empty(t, vpc)
 }
 
@@ -229,13 +306,13 @@ func TestDescribeAccountAttributeFails(t *testing.T) {
 	driver := NewDriver("machineFoo", "path")
 	driver.clientFactory = func() Ec2Client {
 		return &fakeEC2WithDescribe{
-			err: errors.New("Not Found"),
+			err: errors.New("not Found"),
 		}
 	}
 
 	vpc, err := driver.getDefaultVPCId()
 
-	assert.EqualError(t, err, "Not Found")
+	assert.EqualError(t, err, "not Found")
 	assert.Empty(t, vpc)
 }
 
@@ -346,7 +423,7 @@ func TestMergeSecurityGroupId(t *testing.T) {
 
 func matchGroupLookup(expected []string) interface{} {
 	return func(input *ec2.DescribeSecurityGroupsInput) bool {
-		actual := []string{}
+		var actual []string
 		for _, filter := range input.Filters {
 			if *filter.Name == "group-name" {
 				for _, groupName := range filter.Values {
@@ -456,7 +533,9 @@ func TestBase64UserDataGeneratesErrorIfFileNotFound(t *testing.T) {
 	dir, err := os.MkdirTemp("", "awsuserdata")
 	assert.NoError(t, err, "Unable to create temporary directory.")
 
-	defer os.RemoveAll(dir)
+	defer func(path string) {
+		_ = os.RemoveAll(path)
+	}(dir)
 
 	userdataPath := filepath.Join(dir, "does-not-exist.yml")
 
@@ -471,7 +550,9 @@ func TestBase64UserDataIsCorrectWhenFileProvided(t *testing.T) {
 	dir, err := os.MkdirTemp("", "awsuserdata")
 	assert.NoError(t, err, "Unable to create temporary directory.")
 
-	defer os.RemoveAll(dir)
+	defer func(path string) {
+		_ = os.RemoveAll(path)
+	}(dir)
 
 	userdataPath := filepath.Join(dir, "test-userdata.yml")
 

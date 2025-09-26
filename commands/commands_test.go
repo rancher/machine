@@ -138,7 +138,7 @@ func TestPrintIPEmptyGivenLocalEngine(t *testing.T) {
 	assert.Equal(t, "\n", stdoutGetter.Output())
 }
 
-func TestPrintIPPrintsGivenRemoteEngine(t *testing.T) {
+func TestPrintIPPrintsGivenRemoteEngineIpv4(t *testing.T) {
 	stdoutGetter := commandstest.NewStdoutGetter()
 	defer stdoutGetter.Stop()
 
@@ -151,6 +151,21 @@ func TestPrintIPPrintsGivenRemoteEngine(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "1.2.3.4\n", stdoutGetter.Output())
+}
+func TestPrintIPPrintsGivenRemoteEngineIpv6(t *testing.T) {
+	stdoutGetter := commandstest.NewStdoutGetter()
+	defer stdoutGetter.Stop()
+
+	host, _ := hosttest.GetDefaultTestHost()
+	host.Driver = &fakedriver.Driver{
+		MockState: state.Running,
+		MockIPv6:  "2001:db8:85a3::8a2e:370:7334",
+	}
+	err := printIP(host)()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "2001:db8:85a3::8a2e:370:7334\n", stdoutGetter.Output())
+
 }
 
 func TestConsolidateError(t *testing.T) {

@@ -15,6 +15,7 @@ const (
 // of fields and functions.
 type BaseDriver struct {
 	IPAddress      string
+	IPv6Address    string
 	MachineName    string
 	SSHUser        string
 	SSHPort        int
@@ -35,12 +36,20 @@ func (d *BaseDriver) GetMachineName() string {
 	return d.MachineName
 }
 
-// GetIP returns the ip
+// GetIP returns the IPv4 address
 func (d *BaseDriver) GetIP() (string, error) {
 	if d.IPAddress == "" {
-		return "", errors.New("IP address is not set")
+		return "", errors.New("IPv4 address is not set")
 	}
 	return d.IPAddress, nil
+}
+
+// GetIPv6 GetIP returns the IPv6 address
+func (d *BaseDriver) GetIPv6() (string, error) {
+	if d.IPv6Address == "" {
+		return "", errors.New("IPv6 address is not set")
+	}
+	return d.IPv6Address, nil
 }
 
 // GetSSHKeyPath returns the ssh key path
@@ -60,7 +69,7 @@ func (d *BaseDriver) GetSSHPort() (int, error) {
 	return d.SSHPort, nil
 }
 
-// GetSSHUsername returns the ssh user name, root if not specified
+// GetSSHUsername returns the ssh username, root if not specified
 func (d *BaseDriver) GetSSHUsername() string {
 	if d.SSHUser == "" {
 		d.SSHUser = DefaultSSHUser

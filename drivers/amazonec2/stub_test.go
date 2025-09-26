@@ -127,7 +127,7 @@ func (f *fakeEC2SecurityGroupTestRecorder) DescribeSecurityGroups(input *ec2.Des
 	err := result.Error(1)
 	value, ok := result.Get(0).(*ec2.DescribeSecurityGroupsOutput)
 	if !ok && err == nil {
-		return nil, errors.New("Type assertion to DescribeSecurityGroupsOutput failed")
+		return nil, errors.New("type assertion to DescribeSecurityGroupsOutput failed")
 	}
 	return value, err
 }
@@ -137,7 +137,7 @@ func (f *fakeEC2SecurityGroupTestRecorder) CreateSecurityGroup(input *ec2.Create
 	err := result.Error(1)
 	value, ok := result.Get(0).(*ec2.CreateSecurityGroupOutput)
 	if !ok && err == nil {
-		return nil, errors.New("Type assertion to CreateSecurityGroupOutput failed")
+		return nil, errors.New("type assertion to CreateSecurityGroupOutput failed")
 	}
 	return value, err
 }
@@ -147,7 +147,7 @@ func (f *fakeEC2SecurityGroupTestRecorder) AuthorizeSecurityGroupIngress(input *
 	err := result.Error(1)
 	value, ok := result.Get(0).(*ec2.AuthorizeSecurityGroupIngressOutput)
 	if !ok && err == nil {
-		return nil, errors.New("Type assertion to AuthorizeSecurityGroupIngressInput failed")
+		return nil, errors.New("type assertion to AuthorizeSecurityGroupIngressInput failed")
 	}
 	return value, err
 }
@@ -157,7 +157,7 @@ func (f *fakeEC2SecurityGroupTestRecorder) CreateTags(input *ec2.CreateTagsInput
 	err := result.Error(1)
 	value, ok := result.Get(0).(*ec2.CreateTagsOutput)
 	if !ok && err == nil {
-		return nil, errors.New("Type assertion to CreateTagsOutput failed")
+		return nil, errors.New("type assertion to CreateTagsOutput failed")
 	}
 	return value, err
 }

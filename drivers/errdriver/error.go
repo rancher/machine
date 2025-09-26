@@ -55,6 +55,10 @@ func (d *Driver) GetIP() (string, error) {
 	return "1.2.3.4", NotLoadable{d.Name}
 }
 
+func (d *Driver) GetIPv6() (string, error) {
+	return "2001:db8:3333:4444:5555:6666:7777:8888", NotLoadable{d.Name}
+}
+
 func (d *Driver) GetSSHHostname() (string, error) {
 	return "", NotLoadable{d.Name}
 }

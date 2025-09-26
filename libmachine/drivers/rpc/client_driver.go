@@ -69,6 +69,7 @@ const (
 	GetURLMethod             = `.GetURL`
 	GetMachineNameMethod     = `.GetMachineName`
 	GetIPMethod              = `.GetIP`
+	GetIPv6Method            = `.GetIPv6`
 	GetSSHHostnameMethod     = `.GetSSHHostname`
 	GetSSHKeyPathMethod      = `.GetSSHKeyPath`
 	GetSSHPortMethod         = `.GetSSHPort`
@@ -287,6 +288,10 @@ func (c *RPCClientDriver) GetMachineName() string {
 
 func (c *RPCClientDriver) GetIP() (string, error) {
 	return c.rpcStringCall(GetIPMethod)
+}
+
+func (c *RPCClientDriver) GetIPv6() (string, error) {
+	return c.rpcStringCall(GetIPv6Method)
 }
 
 func (c *RPCClientDriver) GetSSHHostname() (string, error) {

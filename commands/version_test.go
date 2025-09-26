@@ -1,12 +1,12 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
-	"bytes"
-
 	"github.com/rancher/machine/commands/commandstest"
+	"github.com/rancher/machine/libmachine/auth"
 	"github.com/rancher/machine/libmachine/host"
 	"github.com/rancher/machine/libmachine/libmachinetest"
 	"github.com/rancher/machine/libmachine/mcndockerclient"
@@ -56,6 +56,9 @@ func TestCmdVersionOnHost(t *testing.T) {
 		Hosts: []*host.Host{
 			{
 				Name: "machine",
+				HostOptions: &host.Options{
+					AuthOptions: &auth.Options{},
+				},
 			},
 		},
 	}
@@ -78,6 +81,9 @@ func TestCmdVersionFailure(t *testing.T) {
 		Hosts: []*host.Host{
 			{
 				Name: "machine",
+				HostOptions: &host.Options{
+					AuthOptions: &auth.Options{},
+				},
 			},
 		},
 	}

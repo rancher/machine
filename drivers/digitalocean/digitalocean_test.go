@@ -12,7 +12,7 @@ import (
 func TestUnmarshalJSON(t *testing.T) {
 	driver := NewDriver("", "")
 
-	// Unmarhsal driver configuration from JSON and args.
+	// Unmarshal driver configuration from JSON and args.
 	os.Args = append(os.Args, []string{"--digitalocean-access-token", "test access token"}...)
 
 	driverBytes, err := json.Marshal(driver)

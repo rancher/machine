@@ -69,7 +69,7 @@ type Provisioner interface {
 	// Figure out if this is the right provisioner to use based on /etc/os-release info
 	CompatibleWithHost() bool
 
-	// Do the actual provisioning piece:
+	// Provision does the actual provisioning piece:
 	//     1. Set the hostname on the instance.
 	//     2. Install Docker if it is not present.
 	//     3. Configure the daemon to accept connections over TLS.

@@ -80,7 +80,14 @@ func (d *Driver) DriverName() string {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
-	return d.GetIP()
+	// preference: IPv4 address, then IPv6 address
+	ip, err := d.GetIP()
+	if err != nil {
+		log.Warnf("Error getting IPv4 address: %s", err)
+		log.Debug("Getting IPv6 address")
+		return d.GetIPv6()
+	}
+	return ip, nil
 }
 
 func (d *Driver) GetSSHUsername() string {
