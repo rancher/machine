@@ -1061,7 +1061,7 @@ func (d *Driver) GetURL() (string, error) {
 		// Dual-stack mode
 		// preference: IPv4 address, then IPv6 address
 		if ip, err = d.GetIP(); err != nil {
-			log.Warnf("Rrror getting IPv4 address: %s", err)
+			log.Warnf("Error getting IPv4 address: %s", err)
 			log.Debug("Getting IPv6 address")
 			ip, err = d.GetIPv6()
 			if err != nil {
