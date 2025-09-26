@@ -297,8 +297,9 @@ func (d *Driver) Create() error {
 				d.PrivateIPAddress = network.IPAddress
 			}
 		}
-
-		d.IPv6Address, _ = newDroplet.PublicIPv6()
+		if d.IPv6 {
+			d.IPv6Address, _ = newDroplet.PublicIPv6()
+		}
 
 		if d.IPAddress != "" && (!d.PrivateNetworking || d.PrivateIPAddress != "") && (!d.IPv6 || d.IPv6Address != "") {
 			break
