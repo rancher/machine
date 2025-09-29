@@ -979,7 +979,7 @@ func (d *Driver) innerCreate() error {
 	}
 
 	if instance == nil {
-		return fmt.Errorf("instance is not found in the client's response")
+		return fmt.Errorf("instance is not found in the clients response")
 	}
 
 	d.InstanceId = *instance.InstanceId
