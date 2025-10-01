@@ -109,35 +109,41 @@ func (d *Driver) PreCreateCheck() error {
 	return nil
 }
 
+// getWaitForIP watches for the pod to be assigned an IP address and returns it.
 func getWaitForIP(ctx context.Context, k8s kubernetes.Interface, namespace, name string) (string, error) {
-	_, err := k8s.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
+	pod, err := k8s.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
 		return "", err
+	}
+	if pod != nil && pod.Status.PodIP != "" {
+		return pod.Status.PodIP, nil
+	}
+
+	// If we got a pod from the Get call, use its resource version to start the watch.
+	// This prevents a race condition where an update could be missed between the Get and Watch.
+	resourceVersion := ""
+	if pod != nil {
+		resourceVersion = pod.ResourceVersion
 	}
 
 	w, err := k8s.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector:  "metadata.name=" + name,
-		TimeoutSeconds: &[]int64{600}[0],
+		FieldSelector:   "metadata.name=" + name,
+		ResourceVersion: resourceVersion,
 	})
 	if err != nil {
 		return "", err
 	}
+	defer w.Stop()
 
-	var ip string
 	for event := range w.ResultChan() {
 		if pod, ok := event.Object.(*corev1.Pod); ok {
 			if pod.Status.PodIP != "" {
-				ip = pod.Status.PodIP
-				w.Stop()
+				return pod.Status.PodIP, nil
 			}
 		}
 	}
 
-	if ip == "" {
-		return "", fmt.Errorf("failed to get IP of %s/%s", namespace, name)
-	}
-
-	return ip, nil
+	return "", fmt.Errorf("watch closed before IP was found for pod %s/%s (context timeout exceeded?)", namespace, name)
 }
 
 func getClient() (string, kubernetes.Interface, apply.Apply, error) {
@@ -267,25 +273,12 @@ func (d *Driver) Start() error {
 		return err
 	}
 
-	w, err := k8s.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
-		TimeoutSeconds: &[]int64{600}[0],
-	})
+	ip, err := getWaitForIP(ctx, k8s, namespace, d.MachineName)
 	if err != nil {
 		return err
 	}
-
-	for event := range w.ResultChan() {
-		if pod, ok := event.Object.(*corev1.Pod); ok {
-			if pod.Status.PodIP != "" {
-				d.IPAddress = pod.Status.PodIP
-				w.Stop()
-			}
-		}
-	}
-
-	if d.IPAddress == "" {
-		return fmt.Errorf("failed to get IP of %s/%s", namespace, d.MachineName)
-	}
+	d.IPAddress = ip
+	log.Infof("Created pod instance %s/%s, IP address %s", namespace, d.MachineName, d.IPAddress)
 
 	return nil
 }
