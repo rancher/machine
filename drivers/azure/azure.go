@@ -70,6 +70,7 @@ const (
 	flAzureAcceleratedNetworking     = "azure-accelerated-networking"
 	flAzureEnablePublicIPStandardSKU = "azure-enable-public-ip-standard-sku"
 	flAzureAvailabilityZones         = "azure-availability-zone"
+	flAzureEncryptionAtHost          = "azure-encryption-at-host"
 )
 
 const (
@@ -108,6 +109,7 @@ type Driver struct {
 	AcceleratedNetworking     bool
 	AvailabilityZone          string
 	EnablePublicIPStandardSKU bool
+	EncryptionAtHost          bool
 
 	OpenPorts      []string
 	PrivateIPAddr  string
@@ -318,6 +320,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Specify if an Accelerated Networking NIC should be created for your VM",
 			EnvVar: "AZURE_ACCELERATED_NETWORKING",
 		},
+		mcnflag.BoolFlag{
+			Name:   flAzureEncryptionAtHost,
+			Usage:  "Specify if disk encryption at host should be enabled for your VM",
+			EnvVar: "AZURE_ENCRYPTION_AT_HOST",
+		},
 	}
 }
 
@@ -410,6 +417,7 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.DiskSize = fl.Int(flAzureDiskSize)
 	d.NSG = fl.String(flAzureNSG)
 	d.Plan = fl.String(flAzurePlan)
+	d.EncryptionAtHost = fl.Bool(flAzureEncryptionAtHost)
 
 	d.ClientID = fl.String(flAzureClientID)
 	d.ClientSecret = fl.String(flAzureClientSecret)
@@ -557,7 +565,7 @@ func (d *Driver) Create() error {
 	}
 	if err := c.CreateVirtualMachine(ctx, d.ResourceGroup, d.naming().VM(), d.Location, d.Size, d.deploymentCtx.AvailabilitySetID,
 		d.deploymentCtx.NetworkInterfaceID, d.BaseDriver.SSHUser, d.deploymentCtx.SSHPublicKey, d.Image, d.Plan, customData, d.deploymentCtx.StorageAccount,
-		d.ManagedDisks, d.StorageType, int32(d.DiskSize), d.Tags, d.AvailabilityZone); err != nil {
+		d.ManagedDisks, d.StorageType, int32(d.DiskSize), d.Tags, d.AvailabilityZone, d.EncryptionAtHost); err != nil {
 		return err
 	}
 	ip, err := d.GetIP()

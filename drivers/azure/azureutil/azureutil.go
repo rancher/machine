@@ -12,7 +12,7 @@ import (
 	"github.com/rancher/machine/drivers/azure/logutil"
 	"github.com/rancher/machine/libmachine/log"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-12-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-12-01/network"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources"
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2019-06-01/storage"
@@ -564,7 +564,7 @@ func (a AzureClient) removeOSDiskBlob(ctx context.Context, resourceGroup, vmName
 // CreateVirtualMachine creates a VM according to the specifications and adds an SSH key to access the VM
 func (a AzureClient) CreateVirtualMachine(ctx context.Context, resourceGroup, name, location, size, availabilitySetID, networkInterfaceID,
 	username, sshPublicKey, imageName, imagePlan, customData string, storageAccount *storage.AccountProperties, isManaged bool,
-	storageType string, diskSize int32, tags map[string]*string, availabilityZone string) error {
+	storageType string, diskSize int32, tags map[string]*string, availabilityZone string, encryptionAtHost bool) error {
 	// TODO: "VM created from Image cannot have blob based disks. All disks have to be managed disks."
 	imgReference, err := a.getImageReference(ctx, imageName, location)
 	if err != nil {
@@ -631,6 +631,9 @@ func (a AzureClient) CreateVirtualMachine(ctx context.Context, resourceGroup, na
 			StorageProfile: &compute.StorageProfile{
 				ImageReference: imgReference,
 				OsDisk:         getOSDisk(name, storageAccount, isManaged, storageType, diskSize),
+			},
+			SecurityProfile: &compute.SecurityProfile{
+				EncryptionAtHost: &encryptionAtHost,
 			},
 		},
 		Plan: imagePurchasePlan,
