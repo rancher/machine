@@ -545,7 +545,7 @@ func (d *Driver) Create() error {
 	}
 
 	// Reading the username from the template
-	if template.DefaultUser == "" {
+	if template.DefaultUser != "" {
 		d.SSHUser = template.DefaultUser
 	}
 	log.Debugf("Image %v(10) = %s (%s)", d.Image, template.ID, d.SSHUser)
