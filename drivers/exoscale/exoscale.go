@@ -335,12 +335,12 @@ func (d *Driver) GetState() (state.State, error) {
 }
 
 func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) (v3.UUID, error) {
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	op, err := cs.CreateSecurityGroup(ctx,
+	op, err := client.CreateSecurityGroup(ctx,
 		v3.CreateSecurityGroupRequest{
 			Name:        sgName,
 			Description: "created by docker-machine",
@@ -349,7 +349,7 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 		return "", err
 	}
 
-	res, err := cs.Wait(ctx, op, v3.OperationStateSuccess)
+	res, err := client.Wait(ctx, op, v3.OperationStateSuccess)
 	if err != nil {
 		return "", err
 	}
@@ -429,7 +429,7 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 	for _, req := range requests {
 		req.FlowDirection = v3.AddRuleToSecurityGroupRequestFlowDirectionIngress
 		if req.Network != "" {
-			err := addRuleToSG(ctx, cs, sgID, req)
+			err := addRuleToSG(ctx, client, sgID, req)
 			if err != nil {
 				return "", err
 			}
@@ -438,13 +438,13 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 				for _, cidr := range cidrList {
 					req.Network = cidr
 
-					err := addRuleToSG(ctx, cs, sgID, req)
+					err := addRuleToSG(ctx, client, sgID, req)
 					if err != nil {
 						return "", err
 					}
 				}
 			} else {
-				err := addRuleToSG(ctx, cs, sgID, req)
+				err := addRuleToSG(ctx, client, sgID, req)
 				if err != nil {
 					return "", err
 				}
@@ -462,20 +462,17 @@ func addRuleToSG(ctx context.Context, cs *v3.Client, sgID v3.UUID, req v3.AddRul
 	}
 
 	_, err = cs.Wait(ctx, op, v3.OperationStateSuccess)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (d *Driver) createDefaultAffinityGroup(ctx context.Context, agName string) (v3.UUID, error) {
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := cs.CreateAntiAffinityGroup(ctx, v3.CreateAntiAffinityGroupRequest{
+	resp, err := client.CreateAntiAffinityGroup(ctx, v3.CreateAntiAffinityGroupRequest{
 		Name:        agName,
 		Description: "created by docker-machine",
 	})
@@ -483,7 +480,7 @@ func (d *Driver) createDefaultAffinityGroup(ctx context.Context, agName string) 
 		return "", err
 	}
 
-	op, err := cs.Wait(ctx, resp)
+	op, err := client.Wait(ctx, resp, v3.OperationStateSuccess)
 	if err != nil {
 		return "", err
 	}
@@ -541,7 +538,7 @@ func (d *Driver) Create() error {
 		}
 	}
 	if template.ID == "" {
-		return fmt.Errorf("Unable to find image %v", d.Image)
+		return fmt.Errorf("unable to find image %v", d.Image)
 	}
 
 	// Reading the username from the template
@@ -575,15 +572,13 @@ func (d *Driver) Create() error {
 			return err
 		}
 
-		var found *v3.SecurityGroup
-		for _, elem := range sglist.SecurityGroups {
-			if string(elem.Name) == sgName {
-				found = &elem
-			}
+		sg, err := sglist.FindSecurityGroup(sgName)
+		if err != nil && !errors.Is(err, v3.ErrNotFound) {
+			return err
 		}
 
 		var sgID v3.UUID
-		if found == nil {
+		if errors.Is(err, v3.ErrNotFound) {
 			log.Infof("Security group %v does not exist. Creating it...", sgName)
 			newSGID, err := d.createDefaultSecurityGroup(ctx, sgName)
 			if err != nil {
@@ -592,7 +587,7 @@ func (d *Driver) Create() error {
 
 			sgID = newSGID
 		} else {
-			sgID = found.ID
+			sgID = sg.ID
 		}
 
 		log.Debugf("Security group %v = %s", sgName, sgID)
@@ -607,20 +602,19 @@ func (d *Driver) Create() error {
 		if group == "" {
 			continue
 		}
-		var agID v3.UUID
+
 		agList, err := client.ListAntiAffinityGroups(ctx)
 		if err != nil {
 			return err
 		}
 
-		var found *v3.AntiAffinityGroup
-		for _, elem := range agList.AntiAffinityGroups {
-			if string(elem.Name) == group {
-				found = &elem
-			}
+		ag, err := agList.FindAntiAffinityGroup(group)
+		if err != nil && !errors.Is(err, v3.ErrNotFound) {
+			return err
 		}
 
-		if found == nil {
+		var agID v3.UUID
+		if errors.Is(err, v3.ErrNotFound) {
 			log.Infof("Affinity Group %v does not exist, create it", group)
 			newAGID, err := d.createDefaultAffinityGroup(ctx, group)
 			if err != nil {
@@ -628,7 +622,7 @@ func (d *Driver) Create() error {
 			}
 			agID = newAGID
 		} else {
-			agID = found.ID
+			agID = ag.ID
 		}
 
 		log.Debugf("Affinity group %v = %s", group, agID)
@@ -736,20 +730,20 @@ ssh_authorized_keys:
 		return err
 	}
 
-	vm, err := client.GetInstance(ctx, res.Reference.ID)
+	instance, err := client.GetInstance(ctx, res.Reference.ID)
 	if err != nil {
 		return err
 	}
 
-	IPAddress := vm.PublicIP.String()
+	IPAddress := instance.PublicIP.String()
 	if IPAddress != "<nil>" {
 		d.IPAddress = IPAddress
 	}
-	d.ID = vm.ID
+	d.ID = instance.ID
 	log.Infof("IP Address: %v, SSH User: %v", d.IPAddress, d.GetSSHUsername())
 
-	if vm.Template != nil && vm.Template.PasswordEnabled != nil && *vm.Template.PasswordEnabled {
-		res, err := client.RevealInstancePassword(ctx, vm.ID)
+	if instance.Template != nil && instance.Template.PasswordEnabled != nil && *instance.Template.PasswordEnabled {
+		res, err := client.RevealInstancePassword(ctx, instance.ID)
 		if err != nil {
 			return err
 		}
@@ -757,7 +751,7 @@ ssh_authorized_keys:
 		d.Password = res.Password
 	}
 
-	// Destroy the SSH key from CloudStack
+	// Destroy the SSH key
 	if d.KeyPair != "" {
 		if err := drivers.WaitForSSH(d); err != nil {
 			return err
@@ -847,7 +841,7 @@ func (d *Driver) Remove() error {
 		}
 	}
 
-	// Destroy the virtual machine
+	// Destroy the Instance
 	if d.ID != "" {
 		op, err := client.DeleteInstance(ctx, d.ID)
 		if err != nil {
