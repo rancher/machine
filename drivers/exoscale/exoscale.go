@@ -275,6 +275,10 @@ func (d *Driver) client(ctx context.Context) (*v3.Client, error) {
 		return nil, err
 	}
 
+	if d.URL != "" {
+		client = client.WithEndpoint(v3.Endpoint(d.URL))
+	}
+
 	zones, err := client.ListZones(ctx)
 	if err != nil {
 		return nil, err
