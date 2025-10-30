@@ -297,27 +297,27 @@ func (d *Driver) client(ctx context.Context) (*v3.Client, error) {
 
 func (d *Driver) getInstance() (*v3.Instance, error) {
 	ctx := context.Background()
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return cs.GetInstance(ctx, d.ID)
+	return client.GetInstance(ctx, d.ID)
 }
 
 // GetState returns a github.com/machine/libmachine/state.State representing the state of the host (running, stopped, etc.)
 func (d *Driver) GetState() (state.State, error) {
-	vm, err := d.getInstance()
+	instance, err := d.getInstance()
 	if err != nil {
 		return state.Error, err
 	}
-	switch vm.State {
+	switch instance.State {
 	case v3.InstanceStateStarting:
 		return state.Starting, nil
 	case v3.InstanceStateRunning:
 		return state.Running, nil
 	case v3.InstanceStateStopping:
-		return state.Running, nil
+		return state.Stopping, nil
 	case v3.InstanceStateStopped:
 		return state.Stopped, nil
 	case v3.InstanceStateDestroying:
@@ -455,13 +455,13 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 	return sgID, nil
 }
 
-func addRuleToSG(ctx context.Context, cs *v3.Client, sgID v3.UUID, req v3.AddRuleToSecurityGroupRequest) error {
-	op, err := cs.AddRuleToSecurityGroup(ctx, sgID, req)
+func addRuleToSG(ctx context.Context, client *v3.Client, sgID v3.UUID, req v3.AddRuleToSecurityGroupRequest) error {
+	op, err := client.AddRuleToSecurityGroup(ctx, sgID, req)
 	if err != nil {
 		return err
 	}
 
-	_, err = cs.Wait(ctx, op, v3.OperationStateSuccess)
+	_, err = client.Wait(ctx, op, v3.OperationStateSuccess)
 
 	return err
 }
@@ -488,7 +488,7 @@ func (d *Driver) createDefaultAffinityGroup(ctx context.Context, agName string) 
 	return op.Reference.ID, nil
 }
 
-// Create creates the VM instance acting as the docker host
+// Create creates the Instance acting as the docker host
 func (d *Driver) Create() error {
 	cloudInit, err := d.getCloudInit()
 	if err != nil {
@@ -773,7 +773,7 @@ ssh_authorized_keys:
 	return nil
 }
 
-// Start starts the existing VM instance.
+// Start starts the existing Instance.
 func (d *Driver) Start() error {
 	ctx := context.Background()
 	client, err := d.client(ctx)
@@ -791,7 +791,7 @@ func (d *Driver) Start() error {
 	return err
 }
 
-// Stop stops the existing VM instance.
+// Stop stops the existing Instance.
 func (d *Driver) Stop() error {
 	ctx := context.Background()
 	client, err := d.client(ctx)
@@ -809,7 +809,7 @@ func (d *Driver) Stop() error {
 	return err
 }
 
-// Restart reboots the existing VM instance.
+// Restart reboots the existing Instance.
 func (d *Driver) Restart() error {
 	ctx := context.Background()
 	client, err := d.client(ctx)
@@ -831,7 +831,7 @@ func (d *Driver) Kill() error {
 	return d.Stop()
 }
 
-// Remove destroys the VM instance and the associated SSH key.
+// Remove destroys the Instance and the associated SSH key.
 func (d *Driver) Remove() error {
 	ctx := context.Background()
 	client, err := d.client(ctx)
@@ -839,7 +839,7 @@ func (d *Driver) Remove() error {
 		return err
 	}
 
-	// Destroy the SSH key from CloudStack
+	// Destroy the SSH key
 	if d.KeyPair != "" {
 		op, err := client.DeleteSSHKey(ctx, d.KeyPair)
 		if err != nil {
