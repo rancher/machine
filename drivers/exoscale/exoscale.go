@@ -678,7 +678,7 @@ func (d *Driver) Create() error {
 		// Sending the SSH public key through the cloud-init config
 		pubKey, errR := os.ReadFile(sshKey + ".pub")
 		if errR != nil {
-			return fmt.Errorf("Cannot read SSH public key %s", errR)
+			return fmt.Errorf("cannot read SSH public key %s", errR)
 		}
 
 		sshAuthorizedKeys := `
@@ -688,10 +688,10 @@ ssh_authorized_keys:
 
 		// Copying the private key into docker-machine
 		if errCopy := mcnutils.CopyFile(sshKey, d.GetSSHKeyPath()); errCopy != nil {
-			return fmt.Errorf("Unable to copy SSH file: %s", errCopy)
+			return fmt.Errorf("unable to copy SSH file: %s", errCopy)
 		}
 		if errChmod := os.Chmod(d.GetSSHKeyPath(), 0600); errChmod != nil {
-			return fmt.Errorf("Unable to set permissions on the SSH file: %s", errChmod)
+			return fmt.Errorf("unable to set permissions on the SSH file: %s", errChmod)
 		}
 	}
 
@@ -776,13 +776,17 @@ ssh_authorized_keys:
 // Start starts the existing VM instance.
 func (d *Driver) Start() error {
 	ctx := context.Background()
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return err
 	}
 
-	op, err := cs.StartInstance(ctx, d.ID, v3.StartInstanceRequest{})
-	_, err = cs.Wait(ctx, op, v3.OperationStateSuccess)
+	op, err := client.StartInstance(ctx, d.ID, v3.StartInstanceRequest{})
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Wait(ctx, op, v3.OperationStateSuccess)
 
 	return err
 }
@@ -790,13 +794,17 @@ func (d *Driver) Start() error {
 // Stop stops the existing VM instance.
 func (d *Driver) Stop() error {
 	ctx := context.Background()
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return err
 	}
 
-	op, err := cs.StopInstance(ctx, d.ID)
-	_, err = cs.Wait(ctx, op, v3.OperationStateSuccess)
+	op, err := client.StopInstance(ctx, d.ID)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Wait(ctx, op, v3.OperationStateSuccess)
 
 	return err
 }
@@ -804,13 +812,16 @@ func (d *Driver) Stop() error {
 // Restart reboots the existing VM instance.
 func (d *Driver) Restart() error {
 	ctx := context.Background()
-	cs, err := d.client(ctx)
+	client, err := d.client(ctx)
 	if err != nil {
 		return err
 	}
 
-	op, err := cs.RebootInstance(ctx, d.ID)
-	_, err = cs.Wait(ctx, op, v3.OperationStateSuccess)
+	op, err := client.RebootInstance(ctx, d.ID)
+	if err != nil {
+		return err
+	}
+	_, err = client.Wait(ctx, op, v3.OperationStateSuccess)
 
 	return err
 }
