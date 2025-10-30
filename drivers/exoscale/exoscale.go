@@ -741,9 +741,9 @@ ssh_authorized_keys:
 		return err
 	}
 
-	IPAddress := vm.PublicIP
-	if IPAddress != nil {
-		d.IPAddress = IPAddress.String()
+	IPAddress := vm.PublicIP.String()
+	if IPAddress != "<nil>" {
+		d.IPAddress = IPAddress
 	}
 	d.ID = vm.ID
 	log.Infof("IP Address: %v, SSH User: %v", d.IPAddress, d.GetSSHUsername())
