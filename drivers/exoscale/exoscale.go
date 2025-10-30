@@ -865,6 +865,7 @@ func (d *Driver) Remove() error {
 		}
 	}
 
+	//TODO: cleanup Anti-Affinities and Security-Groups, not urgent for now.
 	log.Infof("The Anti-Affinity group and Security group were not removed")
 
 	return nil
