@@ -13,7 +13,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	driver := NewDriver("", "").(*Driver)
 
 	// Unmarhsal driver configuration from JSON, envvars, and args.
-	assert.NoError(t, os.Setenv("EXOSCALE_API_SECRET", "test secret"))
+	assert.NoError(t, os.Setenv("EXOSCALE_API_SECRET_KEY", "test secret"))
 	os.Args = append(os.Args, []string{"--exoscale-api-key", "test api key"}...)
 
 	driverBytes, err := json.Marshal(driver)
