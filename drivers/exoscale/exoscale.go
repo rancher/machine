@@ -73,7 +73,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "exoscale API key",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "EXOSCALE_API_SECRET",
+			EnvVar: "EXOSCALE_API_SECRET_KEY",
 			Name:   "exoscale-api-secret-key",
 			Usage:  "exoscale API secret key",
 		},
