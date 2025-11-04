@@ -18,7 +18,7 @@ require (
 	github.com/docker/docker v25.0.8+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/exoscale/egoscale v0.12.3
-	github.com/gophercloud/gophercloud v0.7.0
+	github.com/gophercloud/gophercloud/v2 v2.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/moby/term v0.5.2
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
