@@ -52,7 +52,7 @@ const (
 	defaultImage            = "Linux Ubuntu 24.04 LTS 64-bit"
 	defaultAvailabilityZone = "ch-dk-2"
 	defaultSSHUser          = "root"
-	defaultSecurityGroup    = "docker-machine"
+	defaultSecurityGroup    = "rancher-machine"
 	defaultCloudInit        = `#cloud-config
 manage_etc_hosts: localhost
 `
@@ -340,11 +340,10 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 		return "", err
 	}
 
-	op, err := client.CreateSecurityGroup(ctx,
-		v3.CreateSecurityGroupRequest{
-			Name:        sgName,
-			Description: "created by docker-machine",
-		})
+	op, err := client.CreateSecurityGroup(ctx, v3.CreateSecurityGroupRequest{
+		Name:        sgName,
+		Description: "created by rancher-machine",
+	})
 	if err != nil {
 		return "", err
 	}
@@ -354,11 +353,6 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 		return "", err
 	}
 
-	cidrList := []string{
-		"0.0.0.0/0",
-		"::/0",
-	}
-
 	sgID := res.Reference.ID
 	sg := v3.SecurityGroupResource{
 		ID:         sgID,
@@ -366,89 +360,120 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 		Visibility: v3.SecurityGroupResourceVisibilityPrivate,
 	}
 
-	requests := []v3.AddRuleToSecurityGroupRequest{
+	publicRules := []v3.AddRuleToSecurityGroupRequest{
 		{
 			Description: "SSH",
 			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
 			StartPort:   22,
 			EndPort:     22,
-		},
-		{
-			Description: "Ping",
 			Network:     "0.0.0.0/0",
-			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolICMP,
-			ICMP: &v3.AddRuleToSecurityGroupRequestICMP{
-				Type: v3.Int64(8),
-				Code: v3.Int64(0),
-			},
 		},
 		{
-			Description: "Ping6",
+			Description: "SSH",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   22,
+			EndPort:     22,
 			Network:     "::/0",
-			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolIcmpv6,
-			ICMP: &v3.AddRuleToSecurityGroupRequestICMP{
-				Type: v3.Int64(128),
-				Code: v3.Int64(0),
-			},
 		},
+	}
+
+	// Internal cluster communication rules (restricted to same SG)
+	internalRules := []v3.AddRuleToSecurityGroupRequest{
+		// Kubernetes / RKE2 control plane
 		{
-			Description: "Docker",
-			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:   2376,
-			EndPort:     2377,
-		},
-		{
-			Description: "Legacy Standalone Swarm",
-			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:   3376,
-			EndPort:     3377,
-		},
-		{
-			Description:   "Communication among nodes",
+			Description:   "Kubernetes API",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     7946,
-			EndPort:       7946,
+			StartPort:     6443,
+			EndPort:       6443,
 			SecurityGroup: &sg,
 		},
 		{
-			Description:   "Communication among nodes",
+			Description:   "RKE2 supervisor API",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     9345,
+			EndPort:       9345,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "kubelet metrics",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     10250,
+			EndPort:       10250,
+			SecurityGroup: &sg,
+		},
+		// etcd (only needed on server nodes)
+		{
+			Description:   "etcd client port",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     2379,
+			EndPort:       2379,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "etcd peer port",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     2380,
+			EndPort:       2380,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "etcd metrics port",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     2381,
+			EndPort:       2381,
+			SecurityGroup: &sg,
+		},
+		// NodePort range
+		{
+			Description:   "NodePort services",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     30000,
+			EndPort:       32767,
+			SecurityGroup: &sg,
+		},
+		// CNI / Overlay networking
+		{
+			Description:   "VXLAN (Flannel/Calico)",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
-			StartPort:     7946,
-			EndPort:       7946,
+			StartPort:     8472,
+			EndPort:       8472,
 			SecurityGroup: &sg,
 		},
 		{
-			Description:   "Overlay network traffic",
+			Description:   "Calico VXLAN",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
 			StartPort:     4789,
 			EndPort:       4789,
 			SecurityGroup: &sg,
 		},
+		{
+			Description:   "Calico BGP",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     179,
+			EndPort:       179,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Calico Typha",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     5473,
+			EndPort:       5473,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Calico Typha health",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     9098,
+			EndPort:       9099,
+			SecurityGroup: &sg,
+		},
 	}
 
-	for _, req := range requests {
+	allRules := append(publicRules, internalRules...)
+	for _, req := range allRules {
 		req.FlowDirection = v3.AddRuleToSecurityGroupRequestFlowDirectionIngress
-		if req.Network != "" {
-			err := addRuleToSG(ctx, client, sgID, req)
-			if err != nil {
-				return "", err
-			}
-		} else {
-			if req.SecurityGroup == nil {
-				for _, cidr := range cidrList {
-					req.Network = cidr
-
-					err := addRuleToSG(ctx, client, sgID, req)
-					if err != nil {
-						return "", err
-					}
-				}
-			} else {
-				err := addRuleToSG(ctx, client, sgID, req)
-				if err != nil {
-					return "", err
-				}
-			}
+		if err := addRuleToSG(ctx, client, sgID, req); err != nil {
+			return "", err
 		}
 	}
 
@@ -460,9 +485,7 @@ func addRuleToSG(ctx context.Context, client *v3.Client, sgID v3.UUID, req v3.Ad
 	if err != nil {
 		return err
 	}
-
 	_, err = client.Wait(ctx, op, v3.OperationStateSuccess)
-
 	return err
 }
 
@@ -474,7 +497,7 @@ func (d *Driver) createDefaultAffinityGroup(ctx context.Context, agName string) 
 
 	resp, err := client.CreateAntiAffinityGroup(ctx, v3.CreateAntiAffinityGroupRequest{
 		Name:        agName,
-		Description: "created by docker-machine",
+		Description: "created by rancher-machine",
 	})
 	if err != nil {
 		return "", err
@@ -633,7 +656,7 @@ func (d *Driver) Create() error {
 
 	// SSH key pair
 	if d.SSHKey == "" {
-		keyPairName := fmt.Sprintf("docker-machine-%s", d.MachineName)
+		keyPairName := fmt.Sprintf("rancher-machine-%s", d.MachineName)
 		log.Infof("Generate an SSH keypair...")
 
 		err = ssh.GenerateSSHKey(d.GetSSHKeyPath())
@@ -686,7 +709,7 @@ ssh_authorized_keys:
 - `
 		cloudInit = bytes.Join([][]byte{cloudInit, []byte(sshAuthorizedKeys), pubKey}, []byte(""))
 
-		// Copying the private key into docker-machine
+		// Copying the private key into rancher-machine
 		if errCopy := mcnutils.CopyFile(sshKey, d.GetSSHKeyPath()); errCopy != nil {
 			return fmt.Errorf("unable to copy SSH file: %s", errCopy)
 		}
