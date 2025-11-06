@@ -360,117 +360,162 @@ func (d *Driver) createDefaultSecurityGroup(ctx context.Context, sgName string) 
 		Visibility: v3.SecurityGroupResourceVisibilityPrivate,
 	}
 
+	var (
+		dockerPort         int64 = 2376
+		swarmPort          int64 = 3376
+		kubeApiPort        int64 = 6443
+		httpPort           int64 = 80
+		sshPort            int64 = 22
+		rancherWebhookPort int64 = 8443
+		httpsPort          int64 = 443
+		supervisorPort     int64 = 9345
+		nodeExporter       int64 = 9796
+
+		etcdPorts            = []int64{2379, 2380}
+		vxlanPorts           = []int64{4789, 4789}
+		typhaPorts           = []int64{5473, 5473}
+		flannelPorts         = []int64{8472, 8472}
+		otherKubePorts       = []int64{10250, 10252}
+		kubeProxyPorts       = []int64{10256, 10256}
+		nodePorts            = []int64{30000, 32767}
+		calicoPort     int64 = 179
+	)
+
 	publicRules := []v3.AddRuleToSecurityGroupRequest{
 		{
 			Description: "SSH",
 			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:   22,
-			EndPort:     22,
-			Network:     "0.0.0.0/0",
+			StartPort:   sshPort,
+			EndPort:     sshPort,
 		},
 		{
-			Description: "SSH",
+			Description: "Docker",
 			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:   22,
-			EndPort:     22,
-			Network:     "::/0",
+			StartPort:   dockerPort,
+			EndPort:     dockerPort,
+		},
+		{
+			Description: "(Legacy) Standalone Swarm",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   swarmPort,
+			EndPort:     swarmPort,
+		},
+		{
+			Description: "Rancher webhook",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   rancherWebhookPort,
+			EndPort:     rancherWebhookPort,
+		},
+		{
+			Description: "Kubernetes API",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   kubeApiPort,
+			EndPort:     kubeApiPort,
+		},
+		{
+			Description: "HTTP",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   httpPort,
+			EndPort:     httpPort,
+		},
+		{
+			Description: "HTTPS",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   httpsPort,
+			EndPort:     httpsPort,
+		},
+		{
+			Description: "NodePort range (TCP)",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:   nodePorts[0],
+			EndPort:     nodePorts[1],
+		},
+		{
+			Description: "NodePort range (UDP)",
+			Protocol:    v3.AddRuleToSecurityGroupRequestProtocolUDP,
+			StartPort:   nodePorts[0],
+			EndPort:     nodePorts[1],
 		},
 	}
 
-	// Internal cluster communication rules (restricted to same SG)
 	internalRules := []v3.AddRuleToSecurityGroupRequest{
-		// Kubernetes / RKE2 control plane
-		{
-			Description:   "Kubernetes API",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     6443,
-			EndPort:       6443,
-			SecurityGroup: &sg,
-		},
 		{
 			Description:   "RKE2 supervisor API",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     9345,
-			EndPort:       9345,
+			StartPort:     supervisorPort,
+			EndPort:       supervisorPort,
 			SecurityGroup: &sg,
 		},
 		{
-			Description:   "kubelet metrics",
+			Description:   "etcd client/peer",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     10250,
-			EndPort:       10250,
-			SecurityGroup: &sg,
-		},
-		// etcd (only needed on server nodes)
-		{
-			Description:   "etcd client port",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     2379,
-			EndPort:       2379,
-			SecurityGroup: &sg,
-		},
-		{
-			Description:   "etcd peer port",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     2380,
-			EndPort:       2380,
-			SecurityGroup: &sg,
-		},
-		{
-			Description:   "etcd metrics port",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     2381,
-			EndPort:       2381,
-			SecurityGroup: &sg,
-		},
-		// NodePort range
-		{
-			Description:   "NodePort services",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     30000,
-			EndPort:       32767,
-			SecurityGroup: &sg,
-		},
-		// CNI / Overlay networking
-		{
-			Description:   "VXLAN (Flannel/Calico)",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
-			StartPort:     8472,
-			EndPort:       8472,
-			SecurityGroup: &sg,
-		},
-		{
-			Description:   "Calico VXLAN",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
-			StartPort:     4789,
-			EndPort:       4789,
-			SecurityGroup: &sg,
-		},
-		{
-			Description:   "Calico BGP",
-			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     179,
-			EndPort:       179,
+			StartPort:     etcdPorts[0],
+			EndPort:       etcdPorts[1],
 			SecurityGroup: &sg,
 		},
 		{
 			Description:   "Calico Typha",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     5473,
-			EndPort:       5473,
+			StartPort:     typhaPorts[0],
+			EndPort:       typhaPorts[1],
 			SecurityGroup: &sg,
 		},
 		{
-			Description:   "Calico Typha health",
+			Description:   "kubelet / kube components",
 			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
-			StartPort:     9098,
-			EndPort:       9099,
+			StartPort:     otherKubePorts[0],
+			EndPort:       otherKubePorts[1],
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "kube-proxy",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     kubeProxyPorts[0],
+			EndPort:       kubeProxyPorts[1],
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Node exporter metrics",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     nodeExporter,
+			EndPort:       nodeExporter,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Calico BGP",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolTCP,
+			StartPort:     calicoPort,
+			EndPort:       calicoPort,
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Calico VXLAN",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
+			StartPort:     vxlanPorts[0],
+			EndPort:       vxlanPorts[1],
+			SecurityGroup: &sg,
+		},
+		{
+			Description:   "Flannel VXLAN",
+			Protocol:      v3.AddRuleToSecurityGroupRequestProtocolUDP,
+			StartPort:     flannelPorts[0],
+			EndPort:       flannelPorts[1],
 			SecurityGroup: &sg,
 		},
 	}
 
-	allRules := append(publicRules, internalRules...)
-	for _, req := range allRules {
+	dualStack := []string{"0.0.0.0/0", "::/0"}
+	for _, req := range publicRules {
+		for _, sourceCidr := range dualStack {
+			req.FlowDirection = v3.AddRuleToSecurityGroupRequestFlowDirectionIngress
+			req.Network = sourceCidr
+			if err := addRuleToSG(ctx, client, sgID, req); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	for _, req := range internalRules {
 		req.FlowDirection = v3.AddRuleToSecurityGroupRequestFlowDirectionIngress
 		if err := addRuleToSG(ctx, client, sgID, req); err != nil {
 			return "", err
