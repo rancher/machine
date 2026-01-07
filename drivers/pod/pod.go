@@ -303,6 +303,30 @@ func podAndSecret(namespace, name, image string, userData, metaData []byte) (*co
 							},
 						},
 					},
+					{
+						Name: "bpf",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/sys/fs/bpf",
+							},
+						},
+					},
+					{
+						Name: "modules",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/lib/modules",
+							},
+						},
+					},
+					{
+						Name: "cgroup",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/sys/fs/cgroup",
+							},
+						},
+					},
 				},
 				Containers: []corev1.Container{{
 					Name:  "machine",
@@ -317,6 +341,18 @@ func podAndSecret(namespace, name, image string, userData, metaData []byte) (*co
 							Name:      "data",
 							MountPath: "/var/lib/cloud/seed/nocloud/user-data",
 							SubPath:   "user-data",
+						},
+						{
+							Name:      "bpf",
+							MountPath: "/sys/fs/bpf",
+						},
+						{
+							Name:      "modules",
+							MountPath: "/lib/modules",
+						},
+						{
+							Name:      "cgroup",
+							MountPath: "/run/cilium/cgroupv2",
 						},
 					},
 					SecurityContext: &corev1.SecurityContext{
