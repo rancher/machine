@@ -26,3 +26,33 @@ can make and distribute their own plugin for any virtualization technology or
 cloud provider.  To browse the list of known Rancher Machine plugins, please [see
 this document in our
 docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILABLE_DRIVER_PLUGINS.md).
+
+## Releasing a New Version
+
+- **Prerequisite:**
+
+	- Ensure all release changes are already merged into the `master` branch before creating a tag. This process creates the tag from the latest `master` commit.
+
+- **Prepare `master` and remote:**
+
+	- Choose your release remote (replace `<remote>`):
+
+		- `git fetch <remote> --tags`
+		- `git checkout master`
+		- `git pull --ff-only <remote> master`
+
+- **Verify the latest tag (locally):**
+
+	- `git describe --tags --abbrev=0`
+
+- **Create tag (from latest `master`):**
+
+	- `git tag v0.15.0-rancher<NEW-VERSION>`
+
+- **Push the tag to your remote:**
+
+	- Push single tag: `git push <remote> v0.15.0-rancher<NEW-VERSION>`
+
+- **Verify the tag is on the remote:**
+
+	- `git ls-remote --tags <remote> | grep v0.15.0-rancher<NEW-VERSION>`
