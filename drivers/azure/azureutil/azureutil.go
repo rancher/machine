@@ -367,7 +367,47 @@ func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *
 
 // DeleteNetworkInterfaceIfExists deletes a network interface if it exists
 func (a AzureClient) DeleteNetworkInterfaceIfExists(ctx context.Context, resourceGroup, name string) error {
-	return a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name})
+	err := a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name})
+
+	if err == nil || !strings.Contains(err.Error(), "NicReservedForAnotherVm") {
+		return err
+	}
+
+	return a.retryNICDeletionWithBackOff(ctx, resourceGroup, name)
+}
+
+// retryNICDeletionWithBackOff deletes a reserved NIC with exponential backoff retries up to 180 seconds.
+func (a AzureClient) retryNICDeletionWithBackOff(ctx context.Context, resourceGroup, name string) error {
+	const (
+		initialBackoff = 5 * time.Second
+		backoffFactor  = 2
+		maxBackOff     = time.Second * 180
+	)
+
+	startTime := time.Now()
+	backoff := initialBackoff
+	for {
+		log.Warnf("NIC reserved, waiting %v before retry", backoff)
+		waitTimer := time.NewTimer(backoff)
+		select {
+		case <-waitTimer.C:
+			elapsed := time.Since(startTime)
+			if err := a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name}); err == nil {
+				log.Info("Successfully removed NIC")
+				return nil
+			}
+			if elapsed > maxBackOff {
+				return fmt.Errorf("failed to remove NIC after %v", elapsed)
+			}
+			backoff *= backoffFactor
+			log.Warnf("NIC still reserved (elapsed: %v), retrying with backoff: %v", elapsed, backoff)
+		case <-ctx.Done():
+			if !waitTimer.Stop() {
+				<-waitTimer.C
+			}
+			return fmt.Errorf("context cancelled while waiting for NIC deletion: %w", ctx.Err())
+		}
+	}
 }
 
 // CreateStorageAccount sees if the storage account provided exists or otherwise creates a storage account for you and stores the data into DeploymentContext
