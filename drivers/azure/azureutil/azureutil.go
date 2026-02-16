@@ -30,6 +30,7 @@ const (
 	powerStatePollingInterval = time.Second * 5
 	waitStartTimeout          = time.Minute * 10
 	waitPowerOffTimeout       = time.Minute * 5
+	maxRetryDuration          = time.Second * 180
 )
 
 var (
@@ -367,7 +368,26 @@ func (a AzureClient) CreateNetworkInterface(ctx context.Context, deploymentCtx *
 
 // DeleteNetworkInterfaceIfExists deletes a network interface if it exists
 func (a AzureClient) DeleteNetworkInterfaceIfExists(ctx context.Context, resourceGroup, name string) error {
-	return a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name})
+	err := a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name})
+
+	if err == nil || !strings.Contains(err.Error(), "NicReservedForAnotherVm") {
+		return err
+	}
+
+	// Azure reserves the NIC for up to 180 seconds in case the VM recovers.
+	// Retry NIC deletion after the reservation period expires.
+	log.Warnf("NIC still reserved for another VM, waiting %v before retry", maxRetryDuration)
+	select {
+	case <-time.After(maxRetryDuration):
+		log.Info("Retrying NIC deletion after reservation period")
+		if err := a.cleanupResourceIfExists(ctx, &networkInterfaceCleanup{rg: resourceGroup, name: name}); err != nil {
+			return fmt.Errorf("failed to remove NIC after %v wait: %w", maxRetryDuration, err)
+		}
+		log.Info("Successfully removed NIC")
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("context cancelled while waiting for NIC deletion: %w", ctx.Err())
+	}
 }
 
 // CreateStorageAccount sees if the storage account provided exists or otherwise creates a storage account for you and stores the data into DeploymentContext
