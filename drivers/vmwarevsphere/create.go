@@ -342,7 +342,10 @@ func (d *Driver) createFromLibraryName() error {
 		hostId = d.hostsystem.Reference().Value
 	}
 
-	ds, err := d.getDatastore(&types.VirtualMachineConfigSpec{})
+	ds, err := d.getDatastore(&types.VirtualMachineConfigSpec{
+		NumCPUs:  int32(d.CPU),
+		MemoryMB: int64(d.Memory),
+	})
 	if err != nil {
 		return err
 	}
