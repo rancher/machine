@@ -342,7 +342,13 @@ func (d *Driver) createFromLibraryName() error {
 		hostId = d.hostsystem.Reference().Value
 	}
 
-	ds, err := d.getDatastore(&types.VirtualMachineConfigSpec{})
+	spec := types.VirtualMachineConfigSpec{
+		NumCPUs:    int32(d.CPU),
+		MemoryMB:   int64(d.Memory),
+		VAppConfig: d.getVAppConfig(),
+	}
+
+	ds, err := d.getDatastore(&spec)
 	if err != nil {
 		return err
 	}
@@ -385,12 +391,6 @@ func (d *Driver) createFromLibraryName() error {
 
 	vm := obj.(*object.VirtualMachine)
 	log.Debugf("[createFromLibraryName] machine [%s] has OS [%s]", d.MachineName, d.OS)
-
-	spec := types.VirtualMachineConfigSpec{
-		NumCPUs:    int32(d.CPU),
-		MemoryMB:   int64(d.Memory),
-		VAppConfig: d.getVAppConfig(),
-	}
 
 	task, err := vm.Reconfigure(d.getCtx(), spec)
 	if err != nil {
