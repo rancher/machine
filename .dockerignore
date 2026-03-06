@@ -1,7 +1,15 @@
 *.log
 cover
+.git
+.idea
 bin
 ./bin
-./.dapper
 ./dist
 ./.github
+contrib
+experimental
+its
+scripts
+test
+tools
+package/rancher-machine-*
