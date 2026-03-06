@@ -3,8 +3,6 @@
 .idea/
 /bin
 cover
-/.dapper
-/.dapper.tmp
 /dist
 *.swp
 rancher-machine
