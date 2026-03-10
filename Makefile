@@ -6,7 +6,7 @@ PLATFORM ?= linux/$(ARCH)
 BUILDX_BUILDER := machine
 IMAGE_BUILDER ?= docker buildx
 DEFAULT_PLATFORMS := linux/amd64,linux/arm64
-BUILDX_ARGS ?= --sbom=true --attest type=provenance,mode=max
+BUILDX_ARGS ?= --provenance=false --sbom=false
 
 $(SCRIPT_TARGETS):
 	./scripts/$@
@@ -62,6 +62,11 @@ push-image: buildx-builder
 		BUILDX_PUSH=1 \
 		IID_FILE_FLAG="$${IID_FILE_FLAG:-}"; \
 	echo "Pushed $${IMAGE}"'
+
+.PHONY: push-prime-image
+push-prime-image:
+	@$(MAKE) --no-print-directory push-image \
+		BUILDX_ARGS="--sbom=true --attest type=provenance,mode=max"
 
 .DEFAULT_GOAL := ci
 
