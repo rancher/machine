@@ -89,7 +89,7 @@ func powerStateFromInstanceView(instanceView *compute.VirtualMachineInstanceView
 	case "deallocating":
 		return Deallocating
 	default:
-		log.Warn("Encountered unknown PowerState for virtual machine: %q", code)
+		log.Warnf("Encountered unknown PowerState for virtual machine: %q", code)
 		return Unknown
 	}
 }

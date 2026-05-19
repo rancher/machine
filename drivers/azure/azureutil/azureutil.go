@@ -272,7 +272,7 @@ func (a AzureClient) CreateSubnet(ctx context.Context, deploymentCtx *Deployment
 	subnet, err := a.subnetsClient().Get(ctx, resourceGroup, virtualNetwork, name, "")
 	exists, err := checkResourceExistsFromError(err)
 	if err != nil {
-		log.Warn("Unexpected get subnet operation error %v: ", err)
+		log.Warnf("Unexpected get subnet operation error: %v", err)
 		return err
 	}
 	if exists {
