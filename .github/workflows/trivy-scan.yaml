@@ -1,0 +1,105 @@
+name: Trivy CVE Scan
+
+on:
+  schedule:
+    # Run weekly on Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: 'Image to scan (e.g. rancher/machine:v0.15.0-rancher143). Leave empty to scan the latest release.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  resolve-image:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.resolve.outputs.image }}
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Resolve image reference
+        id: resolve
+        env:
+          INPUT_IMAGE: ${{ inputs.image_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${INPUT_IMAGE}" ]; then
+            echo "image=${INPUT_IMAGE}" >> "$GITHUB_OUTPUT"
+            echo "tag=${INPUT_IMAGE##*:}" >> "$GITHUB_OUTPUT"
+          else
+            TAG=$(gh release view -R "${GITHUB_REPOSITORY}" --json tagName -q '.tagName')
+            echo "image=rancher/machine:${TAG}" >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: resolve-image
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e795cb3a0d7e7532 # v0.31.0
+        with:
+          image-ref: ${{ needs.resolve-image.outputs.image }}
+          format: table
+          output: trivy-results.txt
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+
+      - name: Check for vulnerabilities
+        id: check
+        run: |
+          if grep -qE "Total: [1-9][0-9]*" trivy-results.txt 2>/dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update issue
+        if: steps.check.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ needs.resolve-image.outputs.image }}
+          TAG: ${{ needs.resolve-image.outputs.tag }}
+        run: |
+          TITLE="CVE scan: HIGH/CRITICAL vulnerabilities in ${IMAGE}"
+          BODY="## Trivy CVE Scan Results
+
+          **Image:** \`${IMAGE}\`
+          **Scan date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          **Branch:** \`${GITHUB_REF_NAME}\`
+
+          ### Findings
+
+          \`\`\`
+          $(cat trivy-results.txt)
+          \`\`\`
+
+          ### Recommended Actions
+          - Bump Go toolchain to latest patch version in \`go.mod\`
+          - Run \`go get -u=patch && go mod tidy\` for patch-level dependency updates
+          - Rebuild the image to pick up latest base OS packages
+          "
+
+          # Close any existing issue with the same title
+          EXISTING=$(gh issue list -R "${GITHUB_REPOSITORY}" --state open --search "in:title ${TAG}" --json number -q '.[0].number' 2>/dev/null || true)
+          if [ -n "${EXISTING}" ]; then
+            gh issue close -R "${GITHUB_REPOSITORY}" "${EXISTING}" --comment "Superseded by new scan."
+          fi
+
+          gh issue create -R "${GITHUB_REPOSITORY}" \
+            --title "${TITLE}" \
+            --body "${BODY}" \
+            --label "security,cve"
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-scan-results
+          path: trivy-results.txt
+          retention-days: 90
