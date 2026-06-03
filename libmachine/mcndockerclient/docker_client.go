@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/rancher/machine/libmachine/cert"
 )
@@ -51,7 +51,7 @@ func CreateContainer(dockerHost DockerHost, config *container.Config, hostConfig
 	}
 	ctx := context.Background()
 
-	_, err = cli.ImagePull(ctx, config.Image, types.ImagePullOptions{})
+	_, err = cli.ImagePull(ctx, config.Image, image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to pull image: %s", err)
 	}
