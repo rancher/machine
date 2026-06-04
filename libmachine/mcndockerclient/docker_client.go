@@ -3,6 +3,7 @@ package mcndockerclient
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -51,10 +52,12 @@ func CreateContainer(dockerHost DockerHost, config *container.Config, hostConfig
 	}
 	ctx := context.Background()
 
-	_, err = cli.ImagePull(ctx, config.Image, image.PullOptions{})
+	img, err := cli.ImagePull(ctx, config.Image, image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to pull image: %s", err)
 	}
+	defer io.Copy(io.Discard, img)
+	defer img.Close()
 
 	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, name)
 	if err != nil {
