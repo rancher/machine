@@ -2,8 +2,9 @@
   "extends": [
     "github>rancher/renovate-config#release"
   ],
-  "baseBranches": [
-    "master"
+  "baseBranchPatterns": [
+    "$default",
+    "/^release\\/.*/"
   ],
   "prHourlyLimit": 2
 }
