@@ -6,8 +6,19 @@ on:
       - '*'
 
 jobs:
+  create-draft:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create -R "${GITHUB_REPOSITORY}" --draft --generate-notes "${GITHUB_REF_NAME}"
+
   build:
     runs-on: ubuntu-latest
+    needs: [create-draft]
     strategy:
       fail-fast: true
       matrix:
@@ -15,17 +26,17 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build binary
         run: make build ARCH=${{ matrix.arch }}
       - name: Package artifacts
         run: make package ARCH=${{ matrix.arch }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: "rancher-machine-${{ matrix.arch }}.tar.gz"
           path: "dist/artifacts/rancher-machine-${{ matrix.arch }}.tar.gz"
@@ -34,14 +45,13 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs:
-      - build
+    needs: [create-draft]
     permissions:
       contents: read
       id-token: write # required for cosign signing
     steps:
       - name: Load Secrets from Vault
-        uses: rancher-eio/read-vault-secrets@main
+        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # main
         with:
           secrets: |
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
@@ -53,9 +63,9 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials username | PRIME_STG_REGISTRY_USERNAME ;
             secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials password | PRIME_STG_REGISTRY_PASSWORD
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build and push image to DockerHub and Prime Staging Registry
-        uses: rancher/ecm-distro-tools/actions/publish-image@master
+        uses: rancher/ecm-distro-tools/actions/publish-image@dccc58c2e8e9c059aeab6229b70d2f0b1e977625 # master
         with:
           image: machine
           tag: ${{ github.ref_name }}
@@ -73,7 +83,8 @@ jobs:
           prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
           prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
       - name: Build and push image to Prime Prod Registry
-        uses: rancher/ecm-distro-tools/actions/publish-image@master
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        uses: rancher/ecm-distro-tools/actions/publish-image@dccc58c2e8e9c059aeab6229b70d2f0b1e977625 # master
         with:
           image: machine
           tag: ${{ github.ref_name }}
@@ -88,25 +99,24 @@ jobs:
           prime-username: ${{ env.PRIME_REGISTRY_USERNAME }}
           prime-password: ${{ env.PRIME_REGISTRY_PASSWORD }}
 
-  create-release:
+  finalize:
     runs-on: ubuntu-latest
     needs:
       - build
       - publish
     permissions:
-      contents: write # needed for creating the GH release
+      contents: write # Publish the draft release
+      id-token: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
       - name: Download assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: /tmp/assets
           pattern: rancher-machine-*.tar.gz
           merge-multiple: true
-      - name: (for testing) check files
-        run: ls -l /tmp/assets
-      - name: Create GH release
-        run: gh release create ${{ github.ref_name }} --verify-tag --generate-notes /tmp/assets/rancher-machine-*.tar.gz
+      - name: Upload binary assets to release
+        run: gh release upload -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" /tmp/assets/rancher-machine-*.tar.gz
+      - name: Publish the release
+        run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
