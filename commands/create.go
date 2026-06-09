@@ -481,7 +481,7 @@ func commonCloudConfig(encodedData, command, path string, cf map[interface{}]int
 	writeFile := map[string]string{
 		"encoding":    "gzip+b64",
 		"content":     fmt.Sprintf("%s", encodedData),
-		"permissions": "0644",
+		"permissions": "0600",
 		"path":        path,
 	}
 	if err := appendValueToListInCloudConfig(cf, "write_files", writeFile); err != nil {
