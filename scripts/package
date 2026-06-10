@@ -22,8 +22,3 @@ mkdir -p $BASEDIR/dist/artifacts
 cd $BASEDIR/bin
 tar -cvzf $BASEDIR/dist/artifacts/rancher-machine-${ARCH}.tar.gz rancher-machine
 cd $BASEDIR
-
-cp ./bin/rancher-machine ./package
-
-# Uncomment the following line if you would like to build the Docker image when using Make and Dapper for developing/testing
-# docker build -f package/Dockerfile -t ${IMAGE} package

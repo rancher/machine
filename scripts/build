@@ -3,11 +3,15 @@ set -ex
 
 cd $(dirname $0)/..
 
+if [ "${CROSS:-0}" != 1 ]; then
+    exec make --no-print-directory build ${ARCH:+ARCH=$ARCH}
+fi
+
 . ./scripts/version
 
 mkdir -p bin
 
-if [ "$CROSS" = 1 ]; then
+if [ "${CROSS}" = 1 ]; then
     CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.VERSION=$VERSION"  -o ./bin/rancher-machine-Darwin-x86_64 ./cmd/rancher-machine
     CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.VERSION=$VERSION"  -o ./bin/rancher-machine-Darwin-arm64 ./cmd/rancher-machine
     CGO_ENABLED=0 GOOS=windows go build -ldflags "-X main.VERSION=$VERSION" -o ./bin/rancher-machine-Windows-x86_64.exe ./cmd/rancher-machine
@@ -22,12 +26,4 @@ if [ "$CROSS" = 1 ]; then
 
     cp ./bin/rancher-machine-$(uname -s)-$(uname -m) ./bin/rancher-machine
     echo Built ./bin/rancher-machine-$(uname -s)-$(uname -m)
-else
-    CGO_ENABLED=0 go build -a -tags netgo -installsuffix netgo \
-        -ldflags "-w -s -extldflags '-static'
-         -X github.com/rancher/machine/version.Version=$VERSION
-         -X github.com/rancher/machine/version.GitCommit=$COMMIT" \
-        -o ./bin/rancher-machine ./cmd/rancher-machine
-    # Ignore the exec format error as the binary might be for a different arch from the action runner's
-    ./bin/rancher-machine --version || true
 fi
