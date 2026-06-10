@@ -12,13 +12,17 @@ on:
         required: false
         default: "false"
         type: string
-  # Run twice in the early morning (UTC) for initial and follow up steps (create pull request and merge)
+  # Run twice in the early morning (UTC) for initial and follow up steps (create pull request and merge), only on weekdays
   schedule:
-    - cron: '30 4,6 * * *'
+    - cron: '30 4,6 * * 1-5'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   call-workflow:
-    uses: rancher/renovate-config/.github/workflows/renovate.yml@c88cbe41a49d02648b9bf83aa5a64902151323fa # release
+    uses: rancher/renovate-config/.github/workflows/renovate.yml@b05a94b6ef60bae74e161e05dbd108c579ee2183 # release
     with:
       logLevel: ${{ inputs.logLevel || 'info' }}
       overrideSchedule: ${{ github.event.inputs.overrideSchedule == 'true' && '{''schedule'':null}' || '' }}
