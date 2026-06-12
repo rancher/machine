@@ -31,7 +31,7 @@ require (
 	golang.org/x/crypto v0.44.0
 	golang.org/x/net v0.47.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sys v0.38.0
+	golang.org/x/sys v0.44.0
 	google.golang.org/api v0.228.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.35.1
