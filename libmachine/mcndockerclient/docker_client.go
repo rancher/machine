@@ -7,9 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/rancher/machine/libmachine/cert"
 )
 
@@ -51,17 +50,21 @@ func CreateContainer(dockerHost DockerHost, config *container.Config, hostConfig
 	}
 	ctx := context.Background()
 
-	_, err = cli.ImagePull(ctx, config.Image, types.ImagePullOptions{})
+	_, err = cli.ImagePull(ctx, config.Image, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to pull image: %s", err)
 	}
 
-	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, name)
+	resp, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     config,
+		HostConfig: hostConfig,
+		Name:       name,
+	})
 	if err != nil {
 		return fmt.Errorf("error while creating container: %s", err)
 	}
 
-	if err = cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if _, err = cli.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("error while starting container: %s", err)
 	}
 

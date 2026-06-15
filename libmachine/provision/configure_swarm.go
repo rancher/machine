@@ -2,12 +2,13 @@ package provision
 
 import (
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/rancher/machine/libmachine/auth"
 	"github.com/rancher/machine/libmachine/engine"
 	"github.com/rancher/machine/libmachine/log"
@@ -78,16 +79,16 @@ func configureSwarm(p Provisioner, swarmOptions swarm.Options, authOptions auth.
 		cmdMaster = append(cmdMaster, swarmOptions.Discovery)
 
 		hostBind := fmt.Sprintf("%s:%s", dockerDir, dockerDir)
-		portBinding := nat.Port(fmt.Sprintf("%s/tcp", port))
+		portBinding := network.MustParsePort(fmt.Sprintf("%s/tcp", port))
 		masterHostConfig := &container.HostConfig{
 			RestartPolicy: container.RestartPolicy{Name: "always", MaximumRetryCount: 0},
 			Binds:         []string{hostBind},
-			PortBindings: nat.PortMap{
-				portBinding: {{HostIP: "0.0.0.0", HostPort: port}},
+			PortBindings: network.PortMap{
+				portBinding: {{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: port}},
 			},
 		}
 
-		exposedPorts := nat.PortSet{"2375/tcp": {}, portBinding: {}}
+		exposedPorts := network.PortSet{network.MustParsePort("2375/tcp"): {}, portBinding: {}}
 		swarmMasterConfig := &container.Config{
 			Image:        swarmOptions.Image,
 			Env:          swarmOptions.Env,
