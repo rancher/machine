@@ -1,4 +1,4 @@
-ARG BCI_VERSION=15.7
+ARG BCI_VERSION=16.1
 ARG GO_VERSION=1.26
 
 FROM --platform=$BUILDPLATFORM registry.suse.com/bci/golang:${GO_VERSION} AS machine-build
