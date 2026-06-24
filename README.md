@@ -27,6 +27,27 @@ cloud provider.  To browse the list of known Rancher Machine plugins, please [se
 this document in our
 docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILABLE_DRIVER_PLUGINS.md).
 
+## Branching and Versioning
+
+The `master` branch is used for ongoing development and always contains the latest release. 
+Tags created from `master` are consumed by Rancher’s `main` branch.
+
+In addition to `master`, this repository maintains multiple release branches. 
+Each branch name corresponds to the Rancher release line that consumes tags cut from that branch.
+
+Whenever a new Rancher release branch is created, a corresponding branch is also created in this repository from `master`.
+
+After a release branch is created, it only receives bug fixes and security patches. 
+New tags created from a release branch increment only the `.x` suffix of the version number. 
+For example, at the time of writing, `v0.15.0-rancher142.2` is the latest tag in the `release/v2.14` branch. 
+Subsequent tags from that branch would be `v0.15.0-rancher142.3`, `v0.15.0-rancher142.4`, and so on.
+
+| Machine Branch | Rancher Releae line |
+|----------------|---------------------|
+| master         | main                |
+| release/v2.14  | v2.14               |
+| release/v2.13  | v2.13               |
+
 ## Releasing a New Version
 
 - **Prerequisite:**
