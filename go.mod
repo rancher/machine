@@ -1,6 +1,6 @@
 module github.com/rancher/machine
 
-go 1.24.13
+go 1.25.0
 
 replace github.com/urfave/cli => github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a // newer versions of this will break the rpc binding code
 
@@ -28,7 +28,7 @@ require (
 	github.com/vmware/govmomi v0.42.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/net v0.44.0
-	golang.org/x/oauth2 v0.28.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sys v0.36.0
 	google.golang.org/api v0.228.0
 	gopkg.in/yaml.v2 v2.4.0
