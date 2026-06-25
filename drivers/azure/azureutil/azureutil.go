@@ -447,7 +447,7 @@ func (a AzureClient) createStorageAccount(ctx context.Context, resourceGroup, lo
 		return nil, err
 	}
 	account, err := future.Result(storageAccountsClient)
-	return account.AccountProperties, nil
+	return account.AccountProperties, err
 }
 
 // VirtualMachineExists sees if a virtual machine exists
