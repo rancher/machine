@@ -65,7 +65,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Build and push image to DockerHub and Prime Staging Registry
-        uses: rancher/ecm-distro-tools/actions/publish-image@ba6da4535406f3fd814a169a325b8100cd4dbf44 # master
+        uses: rancher/ecm-distro-tools/actions/publish-image@9d4bf9fccb77b996e59bbc5a2337f119c6e5d0b7 # master
         with:
           image: machine
           tag: ${{ github.ref_name }}
@@ -84,7 +84,7 @@ jobs:
           prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
       - name: Build and push image to Prime Prod Registry
         if: ${{ !contains(github.ref_name, '-rc') }}
-        uses: rancher/ecm-distro-tools/actions/publish-image@ba6da4535406f3fd814a169a325b8100cd4dbf44 # master
+        uses: rancher/ecm-distro-tools/actions/publish-image@9d4bf9fccb77b996e59bbc5a2337f119c6e5d0b7 # master
         with:
           image: machine
           tag: ${{ github.ref_name }}
