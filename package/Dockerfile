@@ -1,4 +1,4 @@
-ARG BCI_VERSION=15.7
+ARG BCI_VERSION=16.1
 
 FROM registry.suse.com/bci/bci-busybox:${BCI_VERSION} AS final
 FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS builder
