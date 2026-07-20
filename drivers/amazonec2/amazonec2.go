@@ -88,6 +88,7 @@ var (
 	errorInvalidValueForHTTPToken              = errors.New("httpToken must be either optional or required")
 	errorInvalidValueForHTTPEndpoint           = errors.New("httpEndpoint must be either enabled or disabled")
 	errorInvalidValueForHTTPProtocolIpv6       = errors.New("httpProtocolIpv6 must be either enabled or disabled")
+	errorInvalidValueForHTTPPutResponseHopLimit = errors.New("httpPutResponseHopLimit must be between 1 and 64")
 	errorInvalidValueForIpv6AddressCount       = errors.New("ipv6AddressCount must be greater than zero when Ipv6AddressOnly is true")
 )
 
@@ -147,8 +148,9 @@ type Driver struct {
 	kmsKeyId                *string
 	bdmList                 []*ec2.BlockDeviceMapping
 	// Metadata Options
-	HttpEndpoint string
-	HttpTokens   string
+	HttpEndpoint            string
+	HttpTokens              string
+	HttpPutResponseHopLimit int64
 
 	// Enables or disables the IPv6 endpoint for the instance metadata service.
 	// Options: enabled, disabled
@@ -357,6 +359,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  "disabled",
 		},
 		mcnflag.IntFlag{
+			Name:   "amazonec2-http-put-response-hop-limit",
+			Usage:  "The desired HTTP PUT response hop limit for instance metadata requests (1-64).",
+			EnvVar: "AWS_HTTP_PUT_RESPONSE_HOP_LIMIT",
+		},
+		mcnflag.IntFlag{
 			Name: "amazonec2-ipv6-address-count",
 			Usage: "The number of IPv6 addresses to assign to the network interface (default: 0)." +
 				" Must be greater than zero when amazonec2-ipv6-address-only is true.",
@@ -534,6 +541,14 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			return errorInvalidValueForHTTPProtocolIpv6
 		}
 		d.HttpProtocolIpv6 = httpProtocolIpv6
+	}
+
+	httpPutResponseHopLimit := int64(flags.Int("amazonec2-http-put-response-hop-limit"))
+	if httpPutResponseHopLimit != 0 {
+		if httpPutResponseHopLimit < 1 || httpPutResponseHopLimit > 64 {
+			return errorInvalidValueForHTTPPutResponseHopLimit
+		}
+		d.HttpPutResponseHopLimit = httpPutResponseHopLimit
 	}
 
 	if d.Ipv6AddressOnly && d.Ipv6AddressCount < 1 {
@@ -870,6 +885,10 @@ func (d *Driver) innerCreate() error {
 			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
 		}
 
+		if d.HttpPutResponseHopLimit != 0 {
+			req.MetadataOptions.HttpPutResponseHopLimit = aws.Int64(d.HttpPutResponseHopLimit)
+		}
+
 		if d.BlockDurationMinutes != 0 {
 			req.InstanceMarketOptions.SpotOptions.BlockDurationMinutes = &d.BlockDurationMinutes
 		}
@@ -968,6 +987,10 @@ func (d *Driver) innerCreate() error {
 
 		if d.HttpProtocolIpv6 != "" {
 			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
+		}
+
+		if d.HttpPutResponseHopLimit != 0 {
+			req.MetadataOptions.HttpPutResponseHopLimit = aws.Int64(d.HttpPutResponseHopLimit)
 		}
 
 		res, err := d.getClient().RunInstances(&req)
