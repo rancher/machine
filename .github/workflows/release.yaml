@@ -119,4 +119,41 @@ jobs:
       - name: Upload binary assets to release
         run: gh release upload -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" /tmp/assets/rancher-machine-*.tar.gz
       - name: Publish the release
-        run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
+        run: |
+          flags="--draft=false"
+          if [[ "${GITHUB_REF_NAME}" == *"-rc"* ]]; then
+            flags="${flags} --prerelease"
+          fi
+          gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" ${flags}
+
+  dispatch-updatecli:
+    runs-on: ubuntu-latest
+    needs: [finalize]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Get Rancher App secrets
+        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
+        with:
+          secrets: |
+            secret/data/github/org/rancher/github/renovate-rancher appId      | APP_ID ;
+            secret/data/github/org/rancher/github/renovate-rancher privateKey | PRIVATE_KEY
+      - name: Create Rancher App token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        id: rancher-app-token
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.PRIVATE_KEY }}
+          owner: rancher
+          repositories: rancher
+          permission-actions: write
+      - name: Dispatch Rancher Machine update
+        env:
+          GH_TOKEN: ${{ steps.rancher-app-token.outputs.token }}
+        run: |
+          gh workflow run updatecli \
+            --repo rancher/rancher \
+            --ref main \
+            -f target=machine \
+            -f tag="${GITHUB_REF_NAME}"
