@@ -48,6 +48,7 @@ const (
 	defaultSSHUser              = "ubuntu"
 	defaultSpotPrice            = "0.50"
 	defaultBlockDurationMinutes = 0
+	defaultHttpPutResponseHopLimit = 2
 	charset                     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	ec2VolumeResource           = "volume"
 	ec2NetworkInterfaceResource = "network-interface"
@@ -150,7 +151,7 @@ type Driver struct {
 	// Metadata Options
 	HttpEndpoint            string
 	HttpTokens              string
-	HttpPutResponseHopLimit int64
+	HttpPutResponseHopLimit *int64
 
 	// Enables or disables the IPv6 endpoint for the instance metadata service.
 	// Options: enabled, disabled
@@ -362,6 +363,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "amazonec2-http-put-response-hop-limit",
 			Usage:  "The desired HTTP PUT response hop limit for instance metadata requests (1-64).",
 			EnvVar: "AWS_HTTP_PUT_RESPONSE_HOP_LIMIT",
+			Value:  defaultHttpPutResponseHopLimit,
 		},
 		mcnflag.IntFlag{
 			Name: "amazonec2-ipv6-address-count",
@@ -548,7 +550,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		if httpPutResponseHopLimit < 1 || httpPutResponseHopLimit > 64 {
 			return errorInvalidValueForHTTPPutResponseHopLimit
 		}
-		d.HttpPutResponseHopLimit = httpPutResponseHopLimit
+		d.HttpPutResponseHopLimit = aws.Int64(httpPutResponseHopLimit)
 	}
 
 	if d.Ipv6AddressOnly && d.Ipv6AddressCount < 1 {
@@ -885,8 +887,8 @@ func (d *Driver) innerCreate() error {
 			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
 		}
 
-		if d.HttpPutResponseHopLimit != 0 {
-			req.MetadataOptions.HttpPutResponseHopLimit = aws.Int64(d.HttpPutResponseHopLimit)
+		if d.HttpPutResponseHopLimit != nil {
+			req.MetadataOptions.HttpPutResponseHopLimit = d.HttpPutResponseHopLimit
 		}
 
 		if d.BlockDurationMinutes != 0 {
@@ -989,8 +991,8 @@ func (d *Driver) innerCreate() error {
 			req.MetadataOptions.HttpProtocolIpv6 = aws.String(d.HttpProtocolIpv6)
 		}
 
-		if d.HttpPutResponseHopLimit != 0 {
-			req.MetadataOptions.HttpPutResponseHopLimit = aws.Int64(d.HttpPutResponseHopLimit)
+		if d.HttpPutResponseHopLimit != nil {
+			req.MetadataOptions.HttpPutResponseHopLimit = d.HttpPutResponseHopLimit
 		}
 
 		res, err := d.getClient().RunInstances(&req)
