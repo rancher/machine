@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+tagger="$repo_root/scripts/tag-rc-if-master-changed"
+tmpdir="$(mktemp -d)"
+source_repo="$tmpdir/source"
+runner_repo="$tmpdir/runner"
+
+trap 'rm -rf "$tmpdir"' EXIT
+
+fail() {
+  echo "FAIL: $*" >&2
+  exit 1
+}
+
+setup_repo() {
+  local tag="$1"
+
+  rm -rf "$source_repo" "$runner_repo"
+  git init --quiet -b master "$source_repo"
+  git -C "$source_repo" config user.name tester
+  git -C "$source_repo" config user.email tester@example.com
+  git -C "$source_repo" config commit.gpgSign false
+  printf 'initial\n' > "$source_repo/README"
+  git -C "$source_repo" add README
+  git -C "$source_repo" commit --quiet -m initial
+  git -C "$source_repo" tag --no-sign -a "$tag" -m "$tag"
+
+  git clone --quiet "$source_repo" "$runner_repo"
+  git -C "$runner_repo" config user.name tester
+  git -C "$runner_repo" config user.email tester@example.com
+}
+
+change_master() {
+  local message="$1"
+
+  printf '%s\n' "$message" >> "$source_repo/README"
+  git -C "$source_repo" commit --quiet -am "$message"
+}
+
+run_tagger() {
+  (
+    cd "$runner_repo"
+    "$tagger"
+  )
+}
+
+assert_tag() {
+  local tag="$1"
+
+  test "$(git -C "$source_repo" tag --list "$tag")" = "$tag" ||
+    fail "missing tag $tag"
+}
+
+assert_tag_points_to_master() {
+  local tag="$1"
+  local tag_commit
+  local master_commit
+
+  tag_commit="$(git -C "$source_repo" rev-parse "${tag}^{commit}")"
+  master_commit="$(git -C "$source_repo" rev-parse master)"
+  test "$tag_commit" = "$master_commit" ||
+    fail "$tag does not point to master"
+}
+
+setup_repo v0.15.0-rancher149
+run_tagger
+test -z "$(git -C "$source_repo" tag --list 'v0.15.0-rancher150-rc.*')" ||
+  fail "created a tag for an unchanged master"
+
+change_master first-change
+run_tagger
+assert_tag v0.15.0-rancher150-rc.0
+assert_tag_points_to_master v0.15.0-rancher150-rc.0
+
+change_master second-change
+run_tagger
+assert_tag v0.15.0-rancher150-rc.1
+assert_tag_points_to_master v0.15.0-rancher150-rc.1
+
+run_tagger
+test "$(git -C "$source_repo" tag --list 'v0.15.0-rancher150-rc.*' | wc -l)" -eq 2 ||
+  fail "created a duplicate tag for an unchanged master"
+
+setup_repo v0.15.0-rancher150.1
+if run_tagger >"$tmpdir/dotted-tag-output" 2>&1; then
+  fail "accepted unsupported dotted tag"
+fi
+grep -q 'No matching Rancher tags found' "$tmpdir/dotted-tag-output" ||
+  fail "dotted tag did not report that no matching tag was found"
+
+echo "tag-rc-if-master-changed tests passed"
