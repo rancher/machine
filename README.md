@@ -48,6 +48,12 @@ Subsequent tags from that branch would be `v0.15.0-rancher142.3`, `v0.15.0-ranch
 | release/v2.14  | v2.14               |
 | release/v2.13  | v2.13               |
 
+### Automated master release candidates
+
+The daily `Daily Master Tag` workflow compares the current `master` commit with
+the latest Rancher tag. If they differ, it creates the next release-candidate
+tag; otherwise it exits without creating a tag.
+
 ## Releasing a New Version
 
 - **Prerequisite:**
