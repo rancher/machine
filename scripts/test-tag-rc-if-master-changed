@@ -87,7 +87,7 @@ setup_repo v0.15.0-rancher150.1
 if run_tagger >"$tmpdir/dotted-tag-output" 2>&1; then
   fail "accepted unsupported dotted tag"
 fi
-grep -q 'No matching Rancher tags found' "$tmpdir/dotted-tag-output" ||
-  fail "dotted tag did not report that no matching tag was found"
+grep -q 'Rancher tags found, but none match the supported format' "$tmpdir/dotted-tag-output" ||
+  fail "dotted tag did not report its unsupported format"
 
 echo "tag-rc-if-master-changed tests passed"

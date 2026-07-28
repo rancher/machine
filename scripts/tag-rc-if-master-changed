@@ -3,6 +3,8 @@ set -euo pipefail
 
 remote="${1:-origin}"
 branch="${2:-master}"
+supported_tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-rancher[0-9]+(-rc\.[0-9]+)?$'
+rancher_tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-rancher'
 
 git check-ref-format --branch "$branch" >/dev/null
 git fetch --quiet --tags "$remote" "refs/heads/$branch:refs/remotes/$remote/$branch"
@@ -10,14 +12,17 @@ git fetch --quiet --tags "$remote" "refs/heads/$branch:refs/remotes/$remote/$bra
 target="refs/remotes/$remote/$branch"
 target_commit="$(git rev-parse "${target}^{commit}")"
 latest="$(
-  git tag --list |
-    grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rancher[0-9]+(-rc\.[0-9]+)?$' |
-    sort -V |
+  git tag --list --sort=version:refname |
+    grep -E "$supported_tag_pattern" |
     tail -n1 || true
 )"
 
 if [[ -z "$latest" ]]; then
-  echo "No matching Rancher tags found" >&2
+  if git tag --list | grep -E "$rancher_tag_pattern" >/dev/null; then
+    echo "Rancher tags found, but none match the supported format" >&2
+  else
+    echo "No Rancher tags found" >&2
+  fi
   exit 1
 fi
 
@@ -42,7 +47,7 @@ if git ls-remote --exit-code --tags "$remote" "refs/tags/$next" >/dev/null 2>&1;
 fi
 
 echo "Latest tag:  $latest"
-echo "Master commit: $target_commit"
+echo "$branch commit: $target_commit"
 echo "Next tag:    $next"
 
 git tag --no-sign -a "$next" "$target_commit" -m "Release candidate $next"

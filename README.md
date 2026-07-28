@@ -51,8 +51,10 @@ Subsequent tags from that branch would be `v0.15.0-rancher142.3`, `v0.15.0-ranch
 ### Automated master release candidates
 
 The daily `Daily Master Tag` workflow compares the current `master` commit with
-the latest Rancher tag. If they differ, it creates the next release-candidate
-tag; otherwise it exits without creating a tag.
+the latest supported Rancher tag matching `vX.Y.Z-rancherN` or
+`vX.Y.Z-rancherN-rc.M`. If they differ, it creates the next release-candidate
+tag; otherwise it exits without creating a tag. Other Rancher tag formats,
+including dotted patch tags, are ignored.
 
 ## Releasing a New Version
 
