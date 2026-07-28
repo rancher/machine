@@ -19,7 +19,7 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/moby/term v0.5.2
-	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
+	github.com/rackspace/gophercloud v1.0.0
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
 	github.com/stretchr/testify v1.10.0
@@ -91,6 +91,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/racker/perigee v0.1.0 // indirect
 	github.com/rancher/lasso v0.2.3-rc1 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181016170032-d91630c85102 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
