@@ -19,7 +19,7 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
 	github.com/moby/term v0.5.2
-	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
+	github.com/rackspace/gophercloud v1.0.0
 	github.com/rancher/wrangler/v3 v3.3.0-rc.1
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
 	github.com/stretchr/testify v1.11.1
@@ -105,6 +105,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/racker/perigee v0.1.0 // indirect
 	github.com/rancher/lasso v0.2.5-rc.1 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
