@@ -27,7 +27,7 @@ import (
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/swarm"
 	"github.com/urfave/cli"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
