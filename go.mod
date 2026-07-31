@@ -11,7 +11,7 @@ require (
 	github.com/Azure/go-autorest/autorest/azure/auth v0.4.2
 	github.com/Azure/go-autorest/autorest/to v0.4.0
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/bugsnag/bugsnag-go v2.5.0+incompatible
+	github.com/bugsnag/bugsnag-go v2.6.4+incompatible
 	github.com/digitalocean/godo v1.163.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.5.0
