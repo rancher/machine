@@ -234,8 +234,10 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747 h1:Ney6Z2JleqcILrsaSePqF9xeeSEb1jt4BWPgXk3f9T8=
-github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747/go.mod h1:4bJ1FwuaBZ6dt1VcDX5/O662mwR8GWqS4l68H6hkoYQ=
+github.com/racker/perigee v0.1.0 h1:8RjBm1YGJKVVjUfO02Uok+npegz8lSSEVqjimDqlFYc=
+github.com/racker/perigee v0.1.0/go.mod h1:JUvG8J+Vrr1c/aQOanqN9XDS2nnVu4+vlwGjNPG2PJI=
+github.com/rackspace/gophercloud v1.0.0 h1:dI8jqEOOanEOgOSYcfvBRnETdeScNtlWg3KlJ4guUVQ=
+github.com/rackspace/gophercloud v1.0.0/go.mod h1:4bJ1FwuaBZ6dt1VcDX5/O662mwR8GWqS4l68H6hkoYQ=
 github.com/rancher/lasso v0.2.5-rc.1 h1:E88eG3FDYGmccJjGDjv7HrknSaYQz4WNGgJ/gGjmGFc=
 github.com/rancher/lasso v0.2.5-rc.1/go.mod h1:71rWfv+KkdSmSxZ9Ly5QYhxAu0nEUcaq9N2ByjcHqAM=
 github.com/rancher/wrangler/v3 v3.3.0-rc.1 h1:7cCwq+7ZBNpiXcaUL8NBkF5tFbJJklBdZfq31VXf5DU=
