@@ -12,7 +12,7 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.4.1
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/bugsnag/bugsnag-go v2.5.0+incompatible
-	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
+	github.com/digitalocean/godo v0.9.0
 	github.com/docker/docker v25.0.8+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/exoscale/egoscale v0.12.3
