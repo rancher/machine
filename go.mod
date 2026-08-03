@@ -24,10 +24,10 @@ require (
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli v1.22.17
 	github.com/vmware/govcloudair v0.0.2
-	github.com/vmware/govmomi v0.42.0
+	github.com/vmware/govmomi v0.55.1
 	golang.org/x/crypto v0.54.0
 	golang.org/x/net v0.57.0
 	golang.org/x/oauth2 v0.36.0
@@ -71,7 +71,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v0.0.0-20140804062624-30f7a39f4a21 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
