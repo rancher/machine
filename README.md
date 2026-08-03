@@ -42,11 +42,28 @@ New tags created from a release branch increment only the `.x` suffix of the ver
 For example, at the time of writing, `v0.15.0-rancher142.2` is the latest tag in the `release/v2.14` branch. 
 Subsequent tags from that branch would be `v0.15.0-rancher142.3`, `v0.15.0-rancher142.4`, and so on.
 
+Release candidates will also be created from release branches before the
+corresponding release is published. This is necessary because CVE fixes may
+require a high volume of releases.
+
 | Machine Branch | Rancher Releae line |
 |----------------|---------------------|
 | master         | main                |
 | release/v2.14  | v2.14               |
 | release/v2.13  | v2.13               |
+
+### Automated master release candidates
+
+The daily `Daily Master Tag` workflow compares the current `master` commit with
+the latest supported Rancher tag matching `vX.Y.Z-rancherN` or
+`vX.Y.Z-rancherN-rc.M`. If they differ, it creates the next release-candidate
+tag; otherwise it exits without creating a tag. Starting from a stable
+`vX.Y.Z-rancherN` tag, the first candidate is
+`vX.Y.Z-rancher(N+1)-rc.0`; each subsequent changed `master` commit increments
+the `rc` number. RC tags are for validating the next release from `master`;
+stable release tags continue to be created explicitly, and release branches
+continue to use the dotted patch suffix described above. Other Rancher tag
+formats, including dotted patch tags, are ignored by the automated RC tagger.
 
 ## Releasing a New Version
 
