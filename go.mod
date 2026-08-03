@@ -22,7 +22,7 @@ require (
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli v1.22.15
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.42.0
