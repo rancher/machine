@@ -18,7 +18,7 @@ require (
 	github.com/exoscale/egoscale/v3 v3.1.26
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
-	github.com/moby/moby/api v1.54.2
+	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.4.1
 	github.com/moby/term v0.5.2
 	github.com/rackspace/gophercloud v0.0.0-20150408191457-ce0f487f6747
