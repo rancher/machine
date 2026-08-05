@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: daily-master-tag
@@ -16,8 +17,25 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
+      - name: Get Rancher App secrets
+        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
+        with:
+          secrets: |
+            secret/data/github/org/rancher/github/renovate-rancher appId      | APP_ID ;
+            secret/data/github/org/rancher/github/renovate-rancher privateKey | PRIVATE_KEY
+      - name: Create Rancher App token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        id: rancher-app-token
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.PRIVATE_KEY }}
+          owner: rancher
+          repositories: rancher
+          permission-actions: write
       - name: Checkout master and tags
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        # using EIO app token so we can trigger release workflow if a new tag gets pushed
+        token: ${{ steps.rancher-app-token.outputs.token }}
         with:
           ref: master
           fetch-depth: 0
