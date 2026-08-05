@@ -30,7 +30,7 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 ## Branching and Versioning
 
 * `master` is the primary development branch and always contains the latest changes.
-* Stable tags from `master` are consumed by Rancher's `main` branch.
+* Tags from `master` are consumed by Rancher's `main` branch.
 * Each Rancher release line has a corresponding `release/vX.Y` branch, created from `master`.
 * Release branches only receive bug fixes and security patches.
 * Release branch tags increment only the patch suffix (`.x`). 
@@ -48,13 +48,13 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 
 ### Automated `master` Release Candidates
 
-The `Daily Master Tag` workflow runs daily to create RC tags for `master`.
+The `Daily Master Tag` workflow runs daily to create RC tags from the `master` branch.
 
 * If `master` has changed since the latest `vX.Y.Z-rancherN` or `vX.Y.Z-rancherN-rc.M` tag, it creates the next RC tag.
 * Otherwise, no tag is created.
 * After a stable release (`vX.Y.Z-rancherN`), RCs start at `vX.Y.Z-rancher(N+1)-rc.0` and increment with each new commit.
-* Stable releases are still created manually.
-* Release branch tags (`.x`) are ignored by this workflow.
+* Stable releases are still created **manually**.
+* Release branch tags are ignored by this workflow.
 
 ## Releasing a New Version
 
