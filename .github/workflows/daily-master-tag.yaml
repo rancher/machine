@@ -34,9 +34,9 @@ jobs:
           permission-actions: write
       - name: Checkout master and tags
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        # using EIO app token so we can trigger release workflow if a new tag gets pushed
-        token: ${{ steps.rancher-app-token.outputs.token }}
         with:
+          # using EIO app token so we can trigger release workflow if a new tag gets pushed
+          token: ${{ steps.rancher-app-token.outputs.token }}
           ref: master
           fetch-depth: 0
           fetch-tags: true
