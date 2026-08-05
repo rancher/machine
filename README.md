@@ -29,41 +29,32 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 
 ## Branching and Versioning
 
-The `master` branch is used for ongoing development and always contains the latest release. 
-Tags created from `master` are consumed by Rancher’s `main` branch.
+* `master` is the primary development branch and always contains the latest changes.
+* Tags from `master` are consumed by Rancher's `main` branch.
+* Each Rancher release line has a corresponding `release/vX.Y` branch, created from `master`.
+* Release branches only receive bug fixes and security patches.
+* Release branch tags increment only the patch suffix (`.x`). 
+  * For example, in the `release/v2.14` branch: `v0.15.0-rancher142.2`, `v0.15.0-rancher142.3`, `v0.15.0-rancher142.4`
+* Release candidates (RCs) may also be created from release branches before a stable release.
+* Release candidates (RCs) tag format is `vX.Y.Z-rancherN-rc.M` where `M` is incremented for each new RC.
 
-In addition to `master`, this repository maintains multiple release branches. 
-Each branch name corresponds to the Rancher release line that consumes tags cut from that branch.
+| Machine Branch  | Rancher Release Line | Tag Format             |
+|-----------------|----------------------|------------------------|
+| `master`        | `main`               | `vX.Y.Z-rancherN`      |
+| `release/v2.15` | `v2.15`              | `v0.15.0-rancher145.x` |
+| `release/v2.14` | `v2.14`              | `v0.15.0-rancher142.x` |
+| `release/v2.13` | `v2.13`              | `v0.15.0-rancher137.x` |
+| `release/v2.12` | `v2.12`              | `v0.15.0-rancher133.x` |
 
-Whenever a new Rancher release branch is created, a corresponding branch is also created in this repository from `master`.
+### Automated `master` Release Candidates
 
-After a release branch is created, it only receives bug fixes and security patches. 
-New tags created from a release branch increment only the `.x` suffix of the version number. 
-For example, at the time of writing, `v0.15.0-rancher142.2` is the latest tag in the `release/v2.14` branch. 
-Subsequent tags from that branch would be `v0.15.0-rancher142.3`, `v0.15.0-rancher142.4`, and so on.
+The `Daily Master Tag` workflow runs daily to create RC tags from the `master` branch.
 
-Release candidates will also be created from release branches before the
-corresponding release is published. This is necessary because CVE fixes may
-require a high volume of releases.
-
-| Machine Branch | Rancher Releae line |
-|----------------|---------------------|
-| master         | main                |
-| release/v2.14  | v2.14               |
-| release/v2.13  | v2.13               |
-
-### Automated master release candidates
-
-The daily `Daily Master Tag` workflow compares the current `master` commit with
-the latest supported Rancher tag matching `vX.Y.Z-rancherN` or
-`vX.Y.Z-rancherN-rc.M`. If they differ, it creates the next release-candidate
-tag; otherwise it exits without creating a tag. Starting from a stable
-`vX.Y.Z-rancherN` tag, the first candidate is
-`vX.Y.Z-rancher(N+1)-rc.0`; each subsequent changed `master` commit increments
-the `rc` number. RC tags are for validating the next release from `master`;
-stable release tags continue to be created explicitly, and release branches
-continue to use the dotted patch suffix described above. Other Rancher tag
-formats, including dotted patch tags, are ignored by the automated RC tagger.
+* If `master` has changed since the latest `vX.Y.Z-rancherN` or `vX.Y.Z-rancherN-rc.M` tag, it creates the next RC tag.
+* Otherwise, no tag is created.
+* After a stable release (`vX.Y.Z-rancherN`), RCs start at `vX.Y.Z-rancher(N+1)-rc.0` and increment with each new commit.
+* Stable releases are still created **manually**.
+* Release branch tags are ignored by this workflow.
 
 ## Releasing a New Version
 
