@@ -1,6 +1,6 @@
 module github.com/rancher/machine
 
-go 1.25.8
+go 1.25.9
 
 toolchain go1.25.11
 
