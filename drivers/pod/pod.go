@@ -17,6 +17,7 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/objectset"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,6 +28,20 @@ type Driver struct {
 	*drivers.BaseDriver
 	Userdata string
 	Image    string
+	Tmpfs    string
+}
+
+// etcdMountPaths are the etcd data directories backed by a RAM (tmpfs)
+// volume when the pod-tmpfs flag is set. etcd is the write-heavy component;
+// everything else stays on disk. Both RKE2 and K3s paths are mounted from a
+// single tmpfs volume so the size limit is shared and only the directory that
+// is actually written to consumes RAM.
+var etcdMountPaths = []struct {
+	subPath   string // subdirectory within the shared tmpfs volume
+	mountPath string // etcd data dir inside the container
+}{
+	{subPath: "rke2", mountPath: "/var/lib/rancher/rke2/server/db"},
+	{subPath: "k3s", mountPath: "/var/lib/rancher/k3s/server/db"},
 }
 
 const (
@@ -48,6 +63,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "pod-image",
 			Usage:  "Pod image to run",
 			EnvVar: "POD_IMAGE",
+			Value:  "",
+		},
+		mcnflag.StringFlag{
+			Name:   "pod-etcd-tmpfs",
+			Usage:  "Back the etcd data dirs (RKE2 & K3s) with a RAM (tmpfs) volume; value is the size limit (e.g. \"4Gi\"), empty disables it",
+			EnvVar: "POD_ETCD_TMPFS",
 			Value:  "",
 		},
 	}
@@ -87,6 +108,7 @@ func (d *Driver) DriverName() string {
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.Userdata = flags.String("pod-userdata")
 	d.Image = flags.String("pod-image")
+	d.Tmpfs = flags.String("pod-etcd-tmpfs")
 	d.SetSwarmConfigFromFlags(flags)
 
 	if d.Image == "" {
@@ -103,6 +125,12 @@ func (d *Driver) PreCreateCheck() error {
 		_, err := os.ReadFile(d.Userdata)
 		if err != nil {
 			return fmt.Errorf("cannot read userdata file %v: %v", d.Userdata, err)
+		}
+	}
+
+	if d.Tmpfs != "" {
+		if _, err := resource.ParseQuantity(d.Tmpfs); err != nil {
+			return fmt.Errorf("invalid pod-tmpfs size %q: %v", d.Tmpfs, err)
 		}
 	}
 
@@ -260,7 +288,7 @@ func (d *Driver) Start() error {
 		return err
 	}
 
-	pod, secret := podAndSecret(namespace, d.MachineName, d.Image, userdata, metadata)
+	pod, secret := podAndSecret(namespace, d.MachineName, d.Image, d.Tmpfs, userdata, metadata)
 	apply, os := getApply(ctx, apply, pod, secret)
 
 	if err := apply.Apply(os); err != nil {
@@ -290,7 +318,53 @@ func (d *Driver) Start() error {
 	return nil
 }
 
-func podAndSecret(namespace, name, image string, userData, metaData []byte) (*corev1.Pod, *corev1.Secret) {
+func podAndSecret(namespace, name, image, tmpfs string, userData, metaData []byte) (*corev1.Pod, *corev1.Secret) {
+	volumes := []corev1.Volume{
+		{
+			Name: "data",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: name,
+				},
+			},
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "data",
+			MountPath: "/var/lib/cloud/seed/nocloud/meta-data",
+			SubPath:   "meta-data",
+		},
+		{
+			Name:      "data",
+			MountPath: "/var/lib/cloud/seed/nocloud/user-data",
+			SubPath:   "user-data",
+		},
+	}
+
+	// When a tmpfs size is set, back the etcd data dirs with a single
+	// RAM-backed emptyDir so etcd's write-heavy WAL/db IO stays off the node
+	// disk. Everything else keeps using the disk.
+	if tmpfs != "" {
+		emptyDir := &corev1.EmptyDirVolumeSource{
+			Medium: corev1.StorageMediumMemory,
+		}
+		if q, err := resource.ParseQuantity(tmpfs); err == nil {
+			emptyDir.SizeLimit = &q
+		}
+		volumes = append(volumes, corev1.Volume{
+			Name:         "tmpfs-etcd",
+			VolumeSource: corev1.VolumeSource{EmptyDir: emptyDir},
+		})
+		for _, m := range etcdMountPaths {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "tmpfs-etcd",
+				MountPath: m.mountPath,
+				SubPath:   m.subPath,
+			})
+		}
+	}
+
 	return &corev1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Pod",
@@ -301,31 +375,11 @@ func podAndSecret(namespace, name, image string, userData, metaData []byte) (*co
 				Namespace: namespace,
 			},
 			Spec: corev1.PodSpec{
-				Volumes: []corev1.Volume{
-					{
-						Name: "data",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: name,
-							},
-						},
-					},
-				},
+				Volumes: volumes,
 				Containers: []corev1.Container{{
-					Name:  "machine",
-					Image: image,
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "data",
-							MountPath: "/var/lib/cloud/seed/nocloud/meta-data",
-							SubPath:   "meta-data",
-						},
-						{
-							Name:      "data",
-							MountPath: "/var/lib/cloud/seed/nocloud/user-data",
-							SubPath:   "user-data",
-						},
-					},
+					Name:         "machine",
+					Image:        image,
+					VolumeMounts: volumeMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &[]bool{true}[0],
 					},
@@ -375,7 +429,7 @@ func (d *Driver) Stop() error {
 		return err
 	}
 
-	pod, secret := podAndSecret(namespace, d.MachineName, "", nil, nil)
+	pod, secret := podAndSecret(namespace, d.MachineName, "", "", nil, nil)
 	apply, _ = getApply(ctx, apply, pod, secret)
 
 	// Delete everything
