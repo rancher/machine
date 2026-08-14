@@ -26,16 +26,13 @@ import (
 // Driver is a struct compatible with the docker.hosts.drivers.Driver interface.
 type Driver struct {
 	*drivers.BaseDriver
-	Userdata string
-	Image    string
-	Tmpfs    string
+	Userdata      string
+	Image         string
+	EtcdTmpfsSize string
 }
 
 // etcdMountPaths are the etcd data directories backed by a RAM (tmpfs)
-// volume when the pod-tmpfs flag is set. etcd is the write-heavy component;
-// everything else stays on disk. Both RKE2 and K3s paths are mounted from a
-// single tmpfs volume so the size limit is shared and only the directory that
-// is actually written to consumes RAM.
+// volume when the pod-etcd-tmpfs flag is set.
 var etcdMountPaths = []struct {
 	subPath   string // subdirectory within the shared tmpfs volume
 	mountPath string // etcd data dir inside the container
@@ -67,7 +64,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "pod-etcd-tmpfs",
-			Usage:  "Back the etcd data dirs (RKE2 & K3s) with a RAM (tmpfs) volume; value is the size limit (e.g. \"4Gi\"), empty disables it",
+			Usage:  "Back the etcd data dirs (RKE2 & K3s) with a RAM (tmpfs) volume. This value is the size limit (e.g. \"4Gi\"). An empty value defaults to using the backing disk",
 			EnvVar: "POD_ETCD_TMPFS",
 			Value:  "",
 		},
@@ -108,7 +105,7 @@ func (d *Driver) DriverName() string {
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.Userdata = flags.String("pod-userdata")
 	d.Image = flags.String("pod-image")
-	d.Tmpfs = flags.String("pod-etcd-tmpfs")
+	d.EtcdTmpfsSize = flags.String("pod-etcd-tmpfs")
 	d.SetSwarmConfigFromFlags(flags)
 
 	if d.Image == "" {
@@ -128,9 +125,9 @@ func (d *Driver) PreCreateCheck() error {
 		}
 	}
 
-	if d.Tmpfs != "" {
-		if _, err := resource.ParseQuantity(d.Tmpfs); err != nil {
-			return fmt.Errorf("invalid pod-tmpfs size %q: %v", d.Tmpfs, err)
+	if d.EtcdTmpfsSize != "" {
+		if _, err := resource.ParseQuantity(d.EtcdTmpfsSize); err != nil {
+			return fmt.Errorf("invalid pod-etcd-tmpfs size %q: %v", d.EtcdTmpfsSize, err)
 		}
 	}
 
@@ -288,7 +285,7 @@ func (d *Driver) Start() error {
 		return err
 	}
 
-	pod, secret := podAndSecret(namespace, d.MachineName, d.Image, d.Tmpfs, userdata, metadata)
+	pod, secret := podAndSecret(namespace, d.MachineName, d.Image, d.EtcdTmpfsSize, userdata, metadata)
 	apply, os := getApply(ctx, apply, pod, secret)
 
 	if err := apply.Apply(os); err != nil {
