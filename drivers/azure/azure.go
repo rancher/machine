@@ -59,6 +59,8 @@ const (
 	flAzureUsePrivateIP              = "azure-use-private-ip"
 	flAzureStaticPublicIP            = "azure-static-public-ip"
 	flAzureNoPublicIP                = "azure-no-public-ip"
+	flAzureNoNSG                     = "azure-no-nsg"
+	flAzureNoAvailability            = "azure-no-availability"
 	flAzureDNSLabel                  = "azure-dns"
 	flAzureStorageType               = "azure-storage-type"
 	flAzureCustomData                = "azure-custom-data"
@@ -113,6 +115,8 @@ type Driver struct {
 	PrivateIPAddr  string
 	UsePrivateIP   bool
 	NoPublicIP     bool
+	NoNSG          bool
+	NoAvailability bool
 	DNSLabel       string
 	StaticPublicIP bool
 	CustomDataFile string // Can provide cloud-config file here
@@ -276,6 +280,14 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "Do not create a public IP address for the machine",
 		},
 		mcnflag.BoolFlag{
+			Name:  flAzureNoNSG,
+			Usage: "Do not create a network security group for the machine",
+		},
+		mcnflag.BoolFlag{
+			Name:  flAzureNoAvailability,
+			Usage: "Do not create a AvailabilitySet or AvailabilityZone for the machine",
+		},
+		mcnflag.BoolFlag{
 			Name:  flAzureStaticPublicIP,
 			Usage: "Assign a static public IP address to the machine",
 		},
@@ -400,6 +412,8 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.PrivateIPAddr = fl.String(flAzurePrivateIPAddr)
 	d.UsePrivateIP = fl.Bool(flAzureUsePrivateIP)
 	d.NoPublicIP = fl.Bool(flAzureNoPublicIP)
+	d.NoNSG = fl.Bool(flAzureNoNSG)
+	d.NoAvailability = fl.Bool(flAzureNoAvailability)
 	d.StaticPublicIP = fl.Bool(flAzureStaticPublicIP)
 	d.DockerPort = fl.Int(flAzureDockerPort)
 	d.DNSLabel = fl.String(flAzureDNSLabel)
@@ -434,7 +448,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 		}
 	}
 
-	if d.AvailabilityZone != "" {
+	if d.AvailabilityZone != "" && !d.NoAvailability {
 		if !d.ManagedDisks {
 			return fmt.Errorf("Managed Disks must be used when creating resources in specific Availability Zones (--azure-managed-disks)")
 		}
@@ -520,13 +534,22 @@ func (d *Driver) Create() error {
 		return err
 	}
 	// availability sets and availability zones cannot be used together. The presence of an Availability Zone indicates that an Availability set should not be created / used
-	if d.AvailabilityZone == "" {
-		if err := c.CreateAvailabilitySetIfNotExists(ctx, d.deploymentCtx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
-			return err
+	if d.NoAvailability {
+		log.Info("Not creating an availability zone or availability set.")
+	} else {
+		// availability sets and availability zones cannot be used together. The presence of an Availability Zone indicates that an Availability set should not be created / used
+		if d.AvailabilityZone == "" {
+			if err := c.CreateAvailabilitySetIfNotExists(ctx, d.deploymentCtx, d.ResourceGroup, d.AvailabilitySet, d.Location, d.ManagedDisks, int32(d.FaultCount), int32(d.UpdateCount)); err != nil {
+				return err
+			}
 		}
 	}
-	if err := c.CreateNetworkSecurityGroup(ctx, d.deploymentCtx, d.ResourceGroup, d.nsgResource, d.Location, d.nsgUsedInPool, d.deploymentCtx.FirewallRules); err != nil {
-		return err
+	if d.NoNSG {
+		log.Info("Not creating a network security group.")
+	} else {
+		if err := c.CreateNetworkSecurityGroup(ctx, d.deploymentCtx, d.ResourceGroup, d.nsgResource, d.Location, d.nsgUsedInPool, d.deploymentCtx.FirewallRules); err != nil {
+			return err
+		}
 	}
 	vnetResourceGroup, vNetName := parseVirtualNetwork(d.VirtualNetwork, d.ResourceGroup)
 	if err := c.CreateVirtualNetworkIfNotExists(ctx, vnetResourceGroup, vNetName, d.Location); err != nil {
@@ -605,7 +628,7 @@ func (d *Driver) Remove() error {
 		return err
 	}
 	// availability sets and availability zones cannot be used together. The absence of any Availability Zones indicates that an Availability set was created and should be deleted.
-	if d.AvailabilityZone == "" {
+	if d.AvailabilityZone == "" && !d.NoAvailability {
 		if err := c.CleanupAvailabilitySetIfExists(ctx, d.ResourceGroup, d.AvailabilitySet); err != nil {
 			return err
 		}
