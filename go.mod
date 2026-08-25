@@ -1,16 +1,18 @@
 module github.com/rancher/machine
 
-go 1.25.0
+go 1.24.0
+
+toolchain go1.24.7
 
 replace github.com/urfave/cli => github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a // newer versions of this will break the rpc binding code
 
 require (
 	github.com/Azure/azure-sdk-for-go v55.8.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.30
+	github.com/Azure/go-autorest/autorest v0.11.29
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/Azure/go-autorest/autorest/azure/auth v0.4.2
-	github.com/Azure/go-autorest/autorest/to v0.4.1
-	github.com/aws/aws-sdk-go v1.55.8
+	github.com/Azure/go-autorest/autorest/to v0.4.0
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/bugsnag/bugsnag-go v2.5.0+incompatible
 	github.com/digitalocean/godo v0.0.0-20170317202744-d59ed2fe842b
 	github.com/docker/docker v25.0.8+incompatible
@@ -23,13 +25,13 @@ require (
 	github.com/rancher/wrangler/v3 v3.2.0-rc.3
 	github.com/skarademir/naturalsort v0.0.0-20150715044055-69a5d87bef62
 	github.com/stretchr/testify v1.10.0
-	github.com/urfave/cli v1.22.17
+	github.com/urfave/cli v1.22.15
 	github.com/vmware/govcloudair v0.0.2
 	github.com/vmware/govmomi v0.42.0
-	golang.org/x/crypto v0.53.0
-	golang.org/x/net v0.56.0
+	golang.org/x/crypto v0.36.0
+	golang.org/x/net v0.38.0
 	golang.org/x/oauth2 v0.28.0
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.31.0
 	google.golang.org/api v0.228.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.33.1
@@ -105,9 +107,9 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/term v0.44.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
