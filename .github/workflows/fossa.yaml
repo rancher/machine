@@ -15,16 +15,16 @@ jobs:
       id-token: write # needed for the Vault authentication
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Read FOSSA token
-        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
+        uses: rancher-eio/read-vault-secrets@dfae8acd43a9e170fca5f90168da22f814fe4e9a # main
         with:
           secrets: |
             secret/data/github/org/rancher/fossa/push token | FOSSA_API_KEY_PUSH_ONLY
 
       - name: FOSSA scan
-        uses: fossas/fossa-action@29693cc50323968e039056be419b32989fc5880c # main
+        uses: fossas/fossa-action@46f513339b840b61fe7453c2c9a0061ec51dc505 # main
         with:
           api-key: ${{ env.FOSSA_API_KEY_PUSH_ONLY }}
           run-tests: false
