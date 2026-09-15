@@ -1,4 +1,4 @@
-name: Daily Master Tag
+name: Daily Tag
 
 on:
   schedule:
@@ -9,13 +9,24 @@ permissions:
   contents: write
   id-token: write
 
-concurrency:
-  group: daily-master-tag
-  cancel-in-progress: false
-
 jobs:
   tag:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ref: master
+            base_pattern: 'v0\.15\.0-rancher'
+          - ref: release/v2.15
+            base_pattern: 'v0\.15\.0-rancher145\.'
+          - ref: release/v2.14
+            base_pattern: 'v0\.15\.0-rancher142\.'
+          - ref: release/v2.13
+            base_pattern: 'v0\.15\.0-rancher137\.'
+    concurrency:
+      group: daily-tag-${{ matrix.ref }}
+      cancel-in-progress: false
     steps:
       - name: Get Rancher App secrets
         uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
@@ -32,17 +43,19 @@ jobs:
           owner: rancher
           repositories: machine
           permission-contents: write
-      - name: Checkout master and tags
+      - name: Checkout branch and tags
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           # using EIO app token so we can trigger release workflow if a new tag gets pushed
           token: ${{ steps.rancher-app-token.outputs.token }}
-          ref: master
+          ref: ${{ matrix.ref }}
           fetch-depth: 0
           fetch-tags: true
       - name: Configure tagger
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Create tag when master changed
-        run: ./scripts/tag-rc-if-master-changed
+      - name: Create tag when branch changed
+        run: ./scripts/tag-rc-if-master-changed "${{ matrix.base_pattern }}" origin "${{ matrix.ref }}"
+      - name: Push tags
+        run: git push --tags

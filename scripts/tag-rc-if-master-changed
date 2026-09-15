@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-remote="${1:-origin}"
-branch="${2:-master}"
-supported_tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-rancher[0-9]+(-rc\.[0-9]+)?$'
-rancher_tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-rancher'
+base_pattern="${1:?Usage: $0 <base-pattern> [remote] [branch]}"
+remote="${2:-origin}"
+branch="${3:-master}"
+supported_tag_pattern="^${base_pattern}[0-9]+(-rc\.[0-9]+)?$"
+base_tag_pattern="^${base_pattern}"
 
 git check-ref-format --branch "$branch" >/dev/null
 git fetch --quiet --tags "$remote" "refs/heads/$branch:refs/remotes/$remote/$branch"
@@ -18,10 +19,10 @@ latest="$(
 )"
 
 if [[ -z "$latest" ]]; then
-  if git tag --list | grep -E "$rancher_tag_pattern" >/dev/null; then
-    echo "Rancher tags found, but none match the supported format" >&2
+  if git tag --list | grep -E "$base_tag_pattern" >/dev/null; then
+    echo "Tags matching $base_pattern found, but none match the supported format" >&2
   else
-    echo "No Rancher tags found" >&2
+    echo "No tags matching $base_pattern found" >&2
   fi
   exit 1
 fi
@@ -32,10 +33,11 @@ if [[ "$latest_commit" == "$target_commit" ]]; then
   exit 0
 fi
 
-if [[ "$latest" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+-rancher)([0-9]+)-rc\.([0-9]+)$ ]]; then
-  next="${BASH_REMATCH[1]}${BASH_REMATCH[2]}-rc.$((BASH_REMATCH[3] + 1))"
-elif [[ "$latest" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+-rancher)([0-9]+)$ ]]; then
-  next="${BASH_REMATCH[1]}$((BASH_REMATCH[2] + 1))-rc.0"
+if [[ "$latest" =~ -rc\.([0-9]+)$ ]]; then
+  next="${latest%-rc.*}-rc.$((BASH_REMATCH[1] + 1))"
+elif [[ "$latest" =~ ([0-9]+)$ ]]; then
+  number="${BASH_REMATCH[1]}"
+  next="${latest%"$number"}$((number + 1))-rc.0"
 else
   echo "Unexpected tag: $latest" >&2
   exit 1
@@ -51,4 +53,3 @@ echo "$branch commit: $target_commit"
 echo "Next tag:    $next"
 
 git tag --no-sign -a "$next" "$target_commit" -m "Release candidate $next"
-git push "$remote" "refs/tags/$next"

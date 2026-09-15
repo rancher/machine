@@ -148,12 +148,26 @@ jobs:
           owner: rancher
           repositories: rancher
           permission-actions: write
+      - name: Determine Rancher ref from tag
+        id: rancher-ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${GITHUB_REF_NAME}" in
+            v0.15.0-rancher145.*) rancher_ref=release/v2.15 ;;
+            v0.15.0-rancher142.*) rancher_ref=release/v2.14 ;;
+            v0.15.0-rancher137.*) rancher_ref=release/v2.13 ;;
+            *) rancher_ref=main ;;
+          esac
+
+          printf 'rancher_ref=%s\n' "$rancher_ref" >> "$GITHUB_OUTPUT"
       - name: Dispatch Rancher Machine update
         env:
           GH_TOKEN: ${{ steps.rancher-app-token.outputs.token }}
         run: |
           gh workflow run updatecli \
             --repo rancher/rancher \
-            --ref main \
+            --ref "${{ steps.rancher-ref.outputs.rancher_ref }}" \
             -f target=machine \
             -f tag="${GITHUB_REF_NAME}"
