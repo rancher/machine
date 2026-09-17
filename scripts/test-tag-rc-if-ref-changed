@@ -33,7 +33,7 @@ setup_repo() {
   git -C "$runner_repo" config user.email tester@example.com
 }
 
-change_master() {
+commit_to_branch() {
   local message="$1"
 
   printf '%s\n' "$message" >> "$source_repo/README"
@@ -54,15 +54,16 @@ assert_tag() {
     fail "missing tag $tag"
 }
 
-assert_tag_points_to_master() {
+assert_tag_points_to_ref() {
   local tag="$1"
+  local ref="${2:-master}"
   local tag_commit
-  local master_commit
+  local ref_commit
 
   tag_commit="$(git -C "$runner_repo" rev-parse "${tag}^{commit}")"
-  master_commit="$(git -C "$source_repo" rev-parse master)"
-  test "$tag_commit" = "$master_commit" ||
-    fail "$tag does not point to master"
+  ref_commit="$(git -C "$source_repo" rev-parse $ref)"
+  test "$tag_commit" = "$ref_commit" ||
+    fail "$tag does not point to $ref"
 }
 
 setup_repo v0.15.0-rancher149
@@ -77,21 +78,21 @@ grep -q 'Usage: .* <base-pattern>' "$tmpdir/missing-base-pattern-output" ||
 
 run_tagger
 test -z "$(git -C "$source_repo" tag --list 'v0.15.0-rancher150-rc.*')" ||
-  fail "created a tag for an unchanged master"
+  fail "created a tag for an unchanged ref"
 
-change_master first-change
+commit_to_branch first-change
 run_tagger
 assert_tag v0.15.0-rancher150-rc.0
-assert_tag_points_to_master v0.15.0-rancher150-rc.0
+assert_tag_points_to_ref v0.15.0-rancher150-rc.0
 
-change_master second-change
+commit_to_branch second-change
 run_tagger
 assert_tag v0.15.0-rancher150-rc.1
-assert_tag_points_to_master v0.15.0-rancher150-rc.1
+assert_tag_points_to_ref v0.15.0-rancher150-rc.1
 
 run_tagger
 test "$(git -C "$runner_repo" tag --list 'v0.15.0-rancher150-rc.*' | wc -l)" -eq 2 ||
-  fail "created a duplicate tag for an unchanged master"
+  fail "created a duplicate tag for an unchanged ref"
 
 setup_repo v0.15.0-rancher150.1
 if run_tagger >"$tmpdir/dotted-tag-output" 2>&1; then
@@ -111,13 +112,14 @@ for branch_series in \
   git -C "$runner_repo" branch -m master "$branch"
   run_tagger "$base_pattern" origin "$branch"
 
-  change_master "$branch-change"
+  commit_to_branch "$branch-change"
   run_tagger "$base_pattern" origin "$branch"
   assert_tag "${series}1-rc.1"
+  assert_tag_points_to_ref "${series}1-rc.1" "$branch"
   test "$(git -C "$runner_repo" tag --list "${series}1-rc.*" | wc -l)" -eq 2 ||
     fail "created an unexpected tag for $branch"
 
   run_tagger "$base_pattern" origin "$branch"
 done
 
-echo "tag-rc-if-master-changed tests passed"
+echo "tag-rc-if-rc-changed tests passed"
