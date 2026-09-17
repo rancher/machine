@@ -158,11 +158,13 @@ jobs:
             v0.15.0-rancher145.*) rancher_ref=release/v2.15 ;;
             v0.15.0-rancher142.*) rancher_ref=release/v2.14 ;;
             v0.15.0-rancher137.*) rancher_ref=release/v2.13 ;;
-            *) rancher_ref=main ;;
+            v0.15.0-rancher146*) rancher_ref=main           ;;
+            *) rancher_ref=notfound ;;
           esac
 
           printf 'rancher_ref=%s\n' "$rancher_ref" >> "$GITHUB_OUTPUT"
       - name: Dispatch Rancher Machine update
+        if: ${{ steps.rancher-ref.outputs.rancher_ref != 'notfound' }}
         env:
           GH_TOKEN: ${{ steps.rancher-app-token.outputs.token }}
         run: |
