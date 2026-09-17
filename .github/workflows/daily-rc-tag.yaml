@@ -56,6 +56,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Create tag when branch changed
-        run: ./scripts/tag-rc-if-master-changed "${{ matrix.base_pattern }}" origin "${{ matrix.ref }}"
+        run: ./scripts/tag-rc-if-ref-changed "${{ matrix.base_pattern }}" origin "${{ matrix.ref }}"
       - name: Push tags
         run: git push --tags

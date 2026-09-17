@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-tagger="$repo_root/scripts/tag-rc-if-master-changed"
+tagger="$repo_root/scripts/tag-rc-if-ref-changed"
 base_pattern='v0.15.0-rancher'
 tmpdir="$(mktemp -d)"
 source_repo="$tmpdir/source"
