@@ -24,7 +24,7 @@
       "description": "Automerge eligible security updates",
       "matchDepTypes": ["!devDependencies", "!dev-dependencies", "!test"],
       "matchJsonata": [
-        "$exists(vulnerabilityFixVersion) or $exists(isVulnerabilityAlert)"
+        "($exists(vulnerabilityFixVersion) or $exists(isVulnerabilityAlert)) and (vulnerabilitySeverity = 'HIGH' or vulnerabilitySeverity = 'CRITICAL')"
       ],
       "matchUpdateTypes": ["patch", "minor"],
       "automerge": true
