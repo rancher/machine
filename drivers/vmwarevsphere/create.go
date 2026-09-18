@@ -72,6 +72,28 @@ func (d *Driver) preCreate() error {
 	return nil
 }
 
+// preRemove creates the minimum vSphere context needed for delete operations.
+// Unlike preCreate, it must not validate current placement settings such as
+// networks, hostsystem, or resource pool because a VM can still be deleted even
+// after those values become stale in the machine config.
+func (d *Driver) preRemove() error {
+	c, err := d.getSoapClient()
+	if err != nil {
+		return err
+	}
+
+	d.finder = find.NewFinder(c.Client, true)
+
+	d.datacenter, err = d.finder.DatacenterOrDefault(d.getCtx(), d.Datacenter)
+	if err != nil {
+		return err
+	}
+	log.Infof("Using datacenter %s", d.datacenter.InventoryPath)
+	d.finder.SetDatacenter(d.datacenter)
+
+	return nil
+}
+
 // postCreate adds additional VM configuration,
 // parses, applies, and creates the cloudInit ISO
 // and adds tags and custom attributes
