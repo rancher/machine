@@ -46,15 +46,17 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 | `release/v2.13` | `v2.13`              | `v0.15.0-rancher137.x` |
 | `release/v2.12` | `v2.12`              | `v0.15.0-rancher133.x` |
 
-### Automated `master` Release Candidates
+### Automated Daily Tags
 
-The `Daily Master Tag` workflow runs daily to create RC tags from the `master` branch.
+The `Daily Tag` workflow runs daily to create RC tags from `master` and the
+configured release branches.
 
-* If `master` has changed since the latest `vX.Y.Z-rancherN` or `vX.Y.Z-rancherN-rc.M` tag, it creates the next RC tag.
+* If a configured branch has changed since its latest matching tag, it creates the next RC tag.
 * Otherwise, no tag is created.
-* After a stable release (`vX.Y.Z-rancherN`), RCs start at `vX.Y.Z-rancher(N+1)-rc.0` and increment with each new commit.
+* On `master`, tags use `vX.Y.Z-rancherN` and RCs start at `vX.Y.Z-rancher(N+1)-rc.0`.
+* On release branches, tags use the branch's dotted tag series from the table above
+  and increment the dotted suffix before adding `-rc.0`.
 * Stable releases are still created **manually**.
-* Release branch tags are ignored by this workflow.
 
 ## Releasing a New Version
 
