@@ -170,7 +170,9 @@ func (provisioner *PhotonOSProvisioner) Provision(swarmOptions swarm.Options, au
 	}
 
 	log.Debug("Configuring swarm")
-	err := configureSwarm(provisioner, swarmOptions, provisioner.AuthOptions)
+	if err := configureSwarm(provisioner, swarmOptions, provisioner.AuthOptions); err != nil {
+		return err
+	}
 
 	// enable in systemd
 	log.Debug("Enabling docker in systemd")
