@@ -89,6 +89,7 @@ var (
 	errorInvalidValueForHTTPEndpoint           = errors.New("httpEndpoint must be either enabled or disabled")
 	errorInvalidValueForHTTPProtocolIpv6       = errors.New("httpProtocolIpv6 must be either enabled or disabled")
 	errorInvalidValueForIpv6AddressCount       = errors.New("ipv6AddressCount must be greater than zero when Ipv6AddressOnly is true")
+	errorInvalidValueForTenancy                = errors.New("tenancy must be either default or dedicated")
 )
 
 type Driver struct {
@@ -168,6 +169,12 @@ type Driver struct {
 	// Indicates whether the instance has only IPv6 address.
 	// Useful when the VPC or subnet is configured as IPv6-only.
 	Ipv6AddressOnly bool
+
+	// The tenancy of the instance: default or dedicated. When empty, no tenancy is
+	// sent to RunInstances and the instance inherits the tenancy of its VPC.
+	// For more information, see Placement.Tenancy on
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Placement.html
+	Tenancy string
 }
 
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
@@ -377,7 +384,25 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 				" When set to true, amazonec2-ipv6-address-count must be greater than zero.",
 			EnvVar: "AWS_IPV6_ADDRESS_ONLY",
 		},
+		mcnflag.StringFlag{
+			Name: "amazonec2-tenancy",
+			Usage: "The tenancy of the instance. Options: default, dedicated." +
+				" When not set, the instance inherits the tenancy of its VPC.",
+			EnvVar: "AWS_TENANCY",
+		},
 	}
+}
+
+// placement returns the Placement for RunInstances. Tenancy is only set when
+// configured, so that instances otherwise inherit the tenancy of their VPC.
+func (d *Driver) placement(zone string) *ec2.Placement {
+	placement := &ec2.Placement{
+		AvailabilityZone: aws.String(zone),
+	}
+	if d.Tenancy != "" {
+		placement.Tenancy = aws.String(d.Tenancy)
+	}
+	return placement
 }
 
 func NewDriver(hostName, storePath string) *Driver {
@@ -534,6 +559,14 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			return errorInvalidValueForHTTPProtocolIpv6
 		}
 		d.HttpProtocolIpv6 = httpProtocolIpv6
+	}
+
+	tenancy := flags.String("amazonec2-tenancy")
+	if tenancy != "" {
+		if tenancy != ec2.TenancyDefault && tenancy != ec2.TenancyDedicated {
+			return errorInvalidValueForTenancy
+		}
+		d.Tenancy = tenancy
 	}
 
 	if d.Ipv6AddressOnly && d.Ipv6AddressCount < 1 {
@@ -832,12 +865,10 @@ func (d *Driver) innerCreate() error {
 	var instance *ec2.Instance
 	if d.RequestSpotInstance {
 		req := ec2.RunInstancesInput{
-			ImageId:  &d.AMI,
-			MinCount: aws.Int64(1),
-			MaxCount: aws.Int64(1),
-			Placement: &ec2.Placement{
-				AvailabilityZone: &regionZone,
-			},
+			ImageId:           &d.AMI,
+			MinCount:          aws.Int64(1),
+			MaxCount:          aws.Int64(1),
+			Placement:         d.placement(regionZone),
 			KeyName:           &d.KeyName,
 			InstanceType:      &d.InstanceType,
 			NetworkInterfaces: netSpecs,
@@ -938,12 +969,10 @@ func (d *Driver) innerCreate() error {
 			ec2NetworkInterfaceResource,
 		})
 		req := ec2.RunInstancesInput{
-			ImageId:  &d.AMI,
-			MinCount: aws.Int64(1),
-			MaxCount: aws.Int64(1),
-			Placement: &ec2.Placement{
-				AvailabilityZone: &regionZone,
-			},
+			ImageId:           &d.AMI,
+			MinCount:          aws.Int64(1),
+			MaxCount:          aws.Int64(1),
+			Placement:         d.placement(regionZone),
 			KeyName:           &d.KeyName,
 			InstanceType:      &d.InstanceType,
 			NetworkInterfaces: netSpecs,
