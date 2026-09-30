@@ -598,3 +598,53 @@ func TestInvalidAMI(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestTenancyFlag(t *testing.T) {
+	tests := []struct {
+		name            string
+		tenancy         string
+		expectedTenancy string
+		expectedErr     error
+	}{
+		{name: "not set", tenancy: "", expectedTenancy: ""},
+		{name: "default", tenancy: "default", expectedTenancy: ec2.TenancyDefault},
+		{name: "dedicated", tenancy: "dedicated", expectedTenancy: ec2.TenancyDedicated},
+		{name: "host is rejected", tenancy: "host", expectedErr: errorInvalidValueForTenancy},
+		{name: "invalid value", tenancy: "shared", expectedErr: errorInvalidValueForTenancy},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			driver := NewCustomTestDriver(&fakeEC2WithLogin{})
+			driver.awsCredentialsFactory = NewValidAwsCredentials
+			options := &commandstest.FakeFlagger{
+				Data: map[string]interface{}{
+					"name":              "test",
+					"amazonec2-region":  "us-east-1",
+					"amazonec2-zone":    "e",
+					"amazonec2-tenancy": tt.tenancy,
+				},
+			}
+
+			err := driver.SetConfigFromFlags(options)
+
+			assert.Equal(t, tt.expectedErr, err)
+			if tt.expectedErr == nil {
+				assert.Equal(t, tt.expectedTenancy, driver.Tenancy)
+			}
+		})
+	}
+}
+
+func TestPlacement(t *testing.T) {
+	driver := NewTestDriver()
+
+	placement := driver.placement("us-east-1e")
+	assert.Equal(t, "us-east-1e", aws.StringValue(placement.AvailabilityZone))
+	assert.Nil(t, placement.Tenancy, "tenancy must not be sent when it is not configured")
+
+	driver.Tenancy = ec2.TenancyDedicated
+	placement = driver.placement("us-east-1e")
+	assert.Equal(t, "us-east-1e", aws.StringValue(placement.AvailabilityZone))
+	assert.Equal(t, ec2.TenancyDedicated, aws.StringValue(placement.Tenancy))
+}
