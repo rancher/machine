@@ -12,19 +12,35 @@ git fetch --quiet --tags "$remote" "refs/heads/$branch:refs/remotes/$remote/$bra
 
 target="refs/remotes/$remote/$branch"
 target_commit="$(git rev-parse "${target}^{commit}")"
-latest="$(
+
+# A plain version sort puts "X" before "X-rc.N", so a final tag sorts before
+# its own rc tags even though it supersedes them. Compare on the base (rc
+# suffix stripped) to find the highest version, then pick the final tag for
+# that base if it exists, or the highest rc tag otherwise.
+latest_base="$(
   git tag --list --sort=version:refname |
     grep -E "$supported_tag_pattern" |
+    sed -E 's/-rc\.[0-9]+$//' |
     tail -n1 || true
 )"
 
-if [[ -z "$latest" ]]; then
+if [[ -z "$latest_base" ]]; then
   if git tag --list | grep -E "$base_tag_pattern" >/dev/null; then
     echo "Tags matching $base_pattern found, but none match the supported format" >&2
   else
     echo "No tags matching $base_pattern found" >&2
   fi
   exit 1
+fi
+
+if git tag --list | grep -Fx "$latest_base" >/dev/null; then
+  latest="$latest_base"
+else
+  latest="$(
+    git tag --list --sort=version:refname |
+      grep -E "^${latest_base}-rc\.[0-9]+$" |
+      tail -n1
+  )"
 fi
 
 latest_commit="$(git rev-parse "${latest}^{commit}")"
