@@ -20,3 +20,5 @@ jobs:
           go-version-file: 'go.mod'
       - name: Run tests
         run: ./scripts/test
+      - name: Test tag-rc-if-ref-changed script
+        run: ./scripts/test-tag-rc-if-ref-changed
