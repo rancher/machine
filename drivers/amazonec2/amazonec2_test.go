@@ -609,7 +609,7 @@ func TestTenancyFlag(t *testing.T) {
 		{name: "not set", tenancy: "", expectedTenancy: ""},
 		{name: "default", tenancy: "default", expectedTenancy: ec2.TenancyDefault},
 		{name: "dedicated", tenancy: "dedicated", expectedTenancy: ec2.TenancyDedicated},
-		{name: "host is rejected", tenancy: "host", expectedErr: errorInvalidValueForTenancy},
+		{name: "host", tenancy: "host", expectedTenancy: ec2.TenancyHost},
 		{name: "invalid value", tenancy: "shared", expectedErr: errorInvalidValueForTenancy},
 	}
 

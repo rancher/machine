@@ -89,7 +89,7 @@ var (
 	errorInvalidValueForHTTPEndpoint           = errors.New("httpEndpoint must be either enabled or disabled")
 	errorInvalidValueForHTTPProtocolIpv6       = errors.New("httpProtocolIpv6 must be either enabled or disabled")
 	errorInvalidValueForIpv6AddressCount       = errors.New("ipv6AddressCount must be greater than zero when Ipv6AddressOnly is true")
-	errorInvalidValueForTenancy                = errors.New("tenancy must be either default or dedicated")
+	errorInvalidValueForTenancy                = errors.New("tenancy must be one of default, dedicated or host")
 )
 
 type Driver struct {
@@ -170,7 +170,7 @@ type Driver struct {
 	// Useful when the VPC or subnet is configured as IPv6-only.
 	Ipv6AddressOnly bool
 
-	// The tenancy of the instance: default or dedicated. When empty, no tenancy is
+	// The tenancy of the instance: default, dedicated or host. When empty, no tenancy is
 	// sent to RunInstances and the instance inherits the tenancy of its VPC.
 	// For more information, see Placement.Tenancy on
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Placement.html
@@ -386,8 +386,9 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name: "amazonec2-tenancy",
-			Usage: "The tenancy of the instance. Options: default, dedicated." +
-				" When not set, the instance inherits the tenancy of its VPC.",
+			Usage: "The tenancy of the instance. Options: default, dedicated, host." +
+				" When not set, the instance inherits the tenancy of its VPC." +
+				" host requires an available Dedicated Host with auto-placement enabled and is not supported for spot instances.",
 			EnvVar: "AWS_TENANCY",
 		},
 	}
@@ -563,7 +564,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 
 	tenancy := flags.String("amazonec2-tenancy")
 	if tenancy != "" {
-		if tenancy != ec2.TenancyDefault && tenancy != ec2.TenancyDedicated {
+		if tenancy != ec2.TenancyDefault && tenancy != ec2.TenancyDedicated && tenancy != ec2.TenancyHost {
 			return errorInvalidValueForTenancy
 		}
 		d.Tenancy = tenancy
