@@ -14,7 +14,7 @@
   "prConcurrentLimit": 5,
   "packageRules": [
     {
-      "description": "Disable auto-merge except for severe security updates",
+      "description": "Disable auto-merge except for severe security updates and Go stdlib security patches",
       "matchJsonata": [
         "true"
       ],
@@ -24,7 +24,7 @@
       "description": "Automerge eligible security updates",
       "matchDepTypes": ["!devDependencies", "!dev-dependencies", "!test"],
       "matchJsonata": [
-        "($exists(vulnerabilityFixVersion) or $exists(isVulnerabilityAlert)) and (vulnerabilitySeverity = 'HIGH' or vulnerabilitySeverity = 'CRITICAL')"
+        "($exists(vulnerabilityFixVersion) or isVulnerabilityAlert = true) and (vulnerabilitySeverity = 'HIGH' or vulnerabilitySeverity = 'CRITICAL') and $not(manager = 'gomod' and depName = 'go' and depType = 'toolchain')"
       ],
       "matchUpdateTypes": ["patch", "minor"],
       "automerge": true
@@ -77,6 +77,19 @@
       "extends": [
         "github>rancher/renovate-config//rancher-2.11#release"
       ]
+    },
+    {
+      "description": "Automerge isolated Go stdlib security patches regardless of advisory severity",
+      "matchManagers": ["gomod"],
+      "matchDatasources": ["golang-version"],
+      "matchPackageNames": ["go"],
+      "matchDepTypes": ["toolchain"],
+      "matchFileNames": ["go.mod"],
+      "matchUpdateTypes": ["patch"],
+      "matchJsonata": ["isVulnerabilityAlert = true"],
+      "groupSlug": "go-stdlib-security",
+      "minimumGroupSize": 1,
+      "automerge": true
     }
   ]
 }

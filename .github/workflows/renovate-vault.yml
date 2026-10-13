@@ -36,6 +36,14 @@ on:
         required: false
         default: "null"
         type: string
+      dryRun:
+        description: "Preview updates without changing branches or PRs"
+        required: false
+        default: "null"
+        type: choice
+        options:
+          - "null"
+          - "full"
 
   schedule:
     - cron: '30 4,6 * * 1-5'
@@ -53,5 +61,6 @@ jobs:
       overrideSchedule: ${{ github.event.inputs.overrideSchedule == 'true' && '{''schedule'':null}' || '' }}
       renovateConfig: ${{ inputs.renovateConfig || '.github/renovate.json' }}
       minimumReleaseAge: ${{ inputs.minimumReleaseAge || 'null' }}
+      dryRun: ${{ inputs.dryRun || 'null' }}
     secrets:
       override-token: "${{ secrets.RENOVATE_FORK_GH_TOKEN || '' }}"

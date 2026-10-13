@@ -44,6 +44,11 @@ jobs:
             exit 1
           fi
 
+          RENOVATE_BOT_LOGIN="$RENOVATE_BOT_USERNAME"
+          if [[ "$RENOVATE_BOT_USERNAME" == app/* ]]; then
+            RENOVATE_BOT_LOGIN="${RENOVATE_BOT_USERNAME#app/}[bot]"
+          fi
+
           today=$(date -u +%F)
           eligible_prs=()
           if ! pr_list_json=$(gh pr list --repo "$REPO" --state open \
@@ -69,7 +74,7 @@ jobs:
             if [[ $(jq -r '.state' <<<"$pr_json") != "OPEN" ||
                   $(jq -r '.autoMergeRequest' <<<"$pr_json") == "null" ||
                   $(jq -r '.headRepository.nameWithOwner' <<<"$pr_json") != "$REPO" ||
-                  $(jq -r '.author.login' <<<"$pr_json") != "$RENOVATE_BOT_USERNAME" ||
+                  $(jq -r '.author.login' <<<"$pr_json") != "$RENOVATE_BOT_LOGIN" ||
                   "$head_ref" != renovate/* ]]; then
               continue
             fi
