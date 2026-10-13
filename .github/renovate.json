@@ -12,6 +12,9 @@
   ],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
+  "vulnerabilityAlerts": {
+    "groupSlug": "{{#if (and (equals manager 'gomod') (equals packageFile 'go.mod') (equals depName 'go') (equals depType 'toolchain') (equals updateType 'patch'))}}go-stdlib-security{{else}}{{{groupName}}}{{/if}}"
+  },
   "packageRules": [
     {
       "description": "Disable auto-merge except for severe security updates and Go stdlib security patches",
@@ -87,7 +90,6 @@
       "matchFileNames": ["go.mod"],
       "matchUpdateTypes": ["patch"],
       "matchJsonata": ["isVulnerabilityAlert = true"],
-      "groupSlug": "go-stdlib-security",
       "minimumGroupSize": 1,
       "automerge": true
     }
