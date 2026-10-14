@@ -597,6 +597,9 @@ func (c *ComputeUtil) uploadSSHKeyAndUserdata(instance *raw.Instance, sshKeyPath
 	}
 
 	op, err := c.service.Instances.SetMetadata(c.project, c.zone, c.instanceName, metadata).Do()
+	if err != nil {
+		return err
+	}
 
 	return c.waitForRegionalOp(op.Name)
 }
