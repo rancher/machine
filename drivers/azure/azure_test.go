@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/rancher/machine/commands/commandstest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,4 +26,24 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "test client secret", driver.ClientSecret)
 	assert.Equal(t, "test client ID", driver.ClientID)
 	assert.Equal(t, "test sub ID", driver.SubscriptionID)
+}
+
+func TestDefaultImagePlan(t *testing.T) {
+	for _, tc := range []struct{ image, plan, want string }{
+		{defaultAzureImage, "", defaultAzurePlan},
+		{defaultAzureImage, "pub:prod:other", "pub:prod:other"},
+		{"canonical:ubuntu-24_04-lts:server-gen1:latest", "", ""},
+	} {
+		driver := NewDriver("", "").(*Driver)
+		data := map[string]interface{}{}
+		for _, f := range driver.GetCreateFlags() {
+			data[f.String()] = f.Default()
+		}
+		data[flAzureSubscriptionID] = "sub"
+		data[flAzureImage] = tc.image
+		data[flAzurePlan] = tc.plan
+
+		assert.NoError(t, driver.SetConfigFromFlags(&commandstest.FakeFlagger{Data: data}))
+		assert.Equal(t, tc.want, driver.Plan, tc.image)
+	}
 }
