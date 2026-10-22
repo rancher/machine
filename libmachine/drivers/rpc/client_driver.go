@@ -118,7 +118,7 @@ func (f *DefaultRPCClientDriverFactory) Close() error {
 	return nil
 }
 
-func (f *DefaultRPCClientDriverFactory) NewRPCClientDriver(driverName string, rawDriver []byte) (*RPCClientDriver, error) {
+func (f *DefaultRPCClientDriverFactory) NewRPCClientDriver(driverName string, rawDriverConfig []byte) (*RPCClientDriver, error) {
 	mcnName := ""
 
 	p, err := localbinary.NewPlugin(driverName)
@@ -186,8 +186,10 @@ func (f *DefaultRPCClientDriverFactory) NewRPCClientDriver(driverName string, ra
 		}
 	}(c)
 
-	if err := c.SetConfigRaw(rawDriver); err != nil {
-		return nil, err
+	if rawDriverConfig != nil {
+		if err := c.SetConfigRaw(rawDriverConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	mcnName = c.GetMachineName()
