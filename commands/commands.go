@@ -247,6 +247,21 @@ var Commands = []cli.Command{
 		},
 	},
 	{
+		Name:  "get-create-flags",
+		Usage: "Describe Create flags for a driver in JSON file",
+		Action: runCommand(withDriverFlags("get-create-flags", false, &cli.GenericFlag{
+			Name:   "driver, d",
+			EnvVar: "MACHINE_DRIVER",
+		}, cmdGetCreateFlags)),
+		Flags: append(SharedCreateFlags,
+			cli.StringFlag{
+				Name:  "output",
+				Usage: "Destination file for the driver flags descriptors.",
+			},
+		),
+		SkipFlagParsing: true,
+	},
+	{
 		Flags:       SharedCreateFlags,
 		Name:        "create",
 		Usage:       "Create a machine",
