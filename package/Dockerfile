@@ -7,6 +7,7 @@ ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=HEAD
 ENV CGO_ENABLED=0 \
+    GOTOOLCHAIN=auto \
     GOCACHE=/root/.cache/go/cache
 WORKDIR /src
 
