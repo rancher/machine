@@ -7,7 +7,8 @@ ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=HEAD
 ENV CGO_ENABLED=0 \
-    GOCACHE=/root/.cache/go/cache
+    GOCACHE=/root/.cache/go/cache \
+    GOTOOLCHAIN=auto
 WORKDIR /src
 
 # Keep dependency layers stable unless module metadata changes.
