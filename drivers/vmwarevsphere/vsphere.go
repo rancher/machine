@@ -186,31 +186,22 @@ func (d *Driver) GetIP() (string, error) {
 		return "", err
 	}
 
-	configuredMacIPs, err := vm.WaitForNetIP(d.getCtx(), false)
+	// WaitForNetIP blocks until ALL NICs have an IP, which hangs indefinitely
+	// when multiple networks are configured but only one has DHCP.
+	// WaitForIP watches guest.ipAddress (the primary IP reported by VMware Tools)
+	// and works correctly regardless of how many NICs the VM has.
+	ip, err := vm.WaitForIP(d.getCtx(), true)
 	if err != nil {
 		return "", err
 	}
 
-	for _, ips := range configuredMacIPs {
-		if len(ips) >= 0 {
-			// Prefer IPv4 address, but fall back to first/IPv6
-			preferredIP := ips[0]
-			for _, ip := range ips {
-				// In addition to non IPv4 addresses, try to filter
-				// out link local addresses and the default address of
-				// the Docker0 bridge
-				netIP := net.ParseIP(ip)
-				if netIP.To4() != nil && netIP.IsGlobalUnicast() && !netIP.Equal(net.ParseIP(dockerBridgeIP)) {
-					preferredIP = ip
-					break
-				}
-			}
-			d.IPAddress = preferredIP // cache
-			return preferredIP, nil
-		}
+	netIP := net.ParseIP(ip)
+	if netIP == nil || netIP.To4() == nil || !netIP.IsGlobalUnicast() || netIP.Equal(net.ParseIP(dockerBridgeIP)) {
+		return "", errors.New("No valid IP despite waiting for one - check DHCP status")
 	}
 
-	return "", errors.New("No IP despite waiting for one - check DHCP status")
+	d.IPAddress = ip
+	return ip, nil
 }
 
 func (d *Driver) GetState() (state.State, error) {
