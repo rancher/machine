@@ -417,9 +417,19 @@ func (d *Driver) buildClient() Ec2Client {
 		config = config.WithEndpoint(d.Endpoint)
 		config = config.WithDisableSSL(d.DisableSSL)
 	}
-	// use AWS dual stack endpoint to support both IPv6 and IPv4
-	config.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
+	// use AWS dual stack endpoint to support both IPv6 and IPv4, except in the
+	// China partition where the dual-stack EC2 endpoint does not resolve
+	if !isChinaRegion(d.Region) {
+		config.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
+	}
 	return ec2.New(session.New(config))
+}
+
+// isChinaRegion reports whether the region belongs to the AWS China partition.
+// Unknown regions return false so they keep the default dual-stack behavior.
+func isChinaRegion(region string) bool {
+	partition, ok := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), region)
+	return ok && partition.ID() == endpoints.AwsCnPartitionID
 }
 
 func (d *Driver) buildCredentials() awsCredentials {
