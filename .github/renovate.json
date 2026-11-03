@@ -7,32 +7,27 @@
     "release/v2.15",
     "release/v2.14",
     "release/v2.13",
-    "release/v2.12",
-    "release/v2.11"
+    "release/v2.12"
   ],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "automerge": true,
+    "minimumReleaseAge": null,
+    "minimumGroupSize": 1
+  },
   "packageRules": [
     {
-      "description": "Disable auto-merge except for severe security updates",
+      "description": "Disable auto-merge by default",
       "matchJsonata": [
         "true"
       ],
       "automerge": false
     },
     {
-      "description": "Automerge eligible security updates",
-      "matchDepTypes": ["!devDependencies", "!dev-dependencies", "!test"],
-      "matchJsonata": [
-        "($exists(vulnerabilityFixVersion) or $exists(isVulnerabilityAlert)) and (vulnerabilitySeverity = 'HIGH' or vulnerabilitySeverity = 'CRITICAL')"
-      ],
-      "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true
-    },
-
-    {
       "matchBaseBranches": [
-        "main"
+        "master"
       ],
       "extends": [
         "github>rancher/renovate-config//rancher-main#main"
@@ -71,12 +66,11 @@
       ]
     },
     {
-      "matchBaseBranches": [
-        "release/v2.11"
+      "description": "Allow GitHub security fixes beyond branch version caps",
+      "matchJsonata": [
+        "$exists(vulnerabilityFixVersion)"
       ],
-      "extends": [
-        "github>rancher/renovate-config//rancher-2.11#release"
-      ]
+      "allowedVersions": null
     }
   ]
 }
