@@ -6,8 +6,7 @@
     "$default",
     "release/v2.15",
     "release/v2.14",
-    "release/v2.13",
-    "release/v2.12"
+    "release/v2.13"
   ],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
@@ -55,14 +54,6 @@
       ],
       "extends": [
         "github>rancher/renovate-config//rancher-2.13#release"
-      ]
-    },
-    {
-      "matchBaseBranches": [
-        "release/v2.12"
-      ],
-      "extends": [
-        "github>rancher/renovate-config//rancher-2.12#release"
       ]
     },
     {

@@ -48,9 +48,9 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 
 ### Renovate Security Updates
 
-Renovate targets `master` and `release/v2.12` through `release/v2.15`; the EOL
-`release/v2.11` branch is excluded. Detected GitHub and OSV security fixes are
-enabled for automerge regardless of severity, dependency type, or update type,
+Renovate targets `master` and `release/v2.13` through `release/v2.15`;
+`release/v2.11` and `release/v2.12` are excluded. Detected GitHub and OSV security
+fixes are enabled for automerge regardless of severity, dependency type, or update type,
 including major updates. Security fixes bypass release-age delays, minimum group
 sizes, and branch version caps, but must still satisfy GitHub's merge requirements.
 Non-security updates retain the shared presets' restrictions and are not automerged.
