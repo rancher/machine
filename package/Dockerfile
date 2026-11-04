@@ -1,13 +1,12 @@
 ARG BCI_VERSION=15.7
-ARG GO_VERSION=1.26
+ARG GO_VERSION=1.27
 
-FROM --platform=$BUILDPLATFORM registry.suse.com/bci/golang:${GO_VERSION} AS machine-build
+FROM --platform=$BUILDPLATFORM registry.rancher.com/rancher/appco-go:${GO_VERSION} AS machine-build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=HEAD
 ENV CGO_ENABLED=0 \
-    GOTOOLCHAIN=auto \
     GOCACHE=/root/.cache/go/cache
 WORKDIR /src
 
@@ -41,7 +40,7 @@ RUN mkdir -p /dist && tar -C /tmp -czf /dist/rancher-machine-${TARGETARCH}.tar.g
 FROM scratch AS machine-artifacts
 COPY --from=machine-artifacts-build /dist/ /
 
-FROM registry.suse.com/bci/bci-busybox:${BCI_VERSION} AS final
+FROM registry.suse.com/bci/bci-nano:${BCI_VERSION} AS final
 FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS builder
 
 # Creates the base dir for the target image, and hydrates it with the
