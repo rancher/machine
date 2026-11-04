@@ -1,6 +1,7 @@
 package amazonec2
 
 import (
+	"context"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
@@ -58,6 +59,7 @@ const (
 const (
 	keypairNotFoundCode             = "InvalidKeyPair.NotFound"
 	spotInstanceRequestNotFoundCode = "InvalidSpotInstanceRequestID.NotFound"
+	dualStackLookupTimeout          = 5 * time.Second
 )
 
 var (
@@ -95,6 +97,9 @@ type Driver struct {
 	*drivers.BaseDriver
 	clientFactory         func() Ec2Client
 	awsCredentialsFactory func() awsCredentials
+	lookupHost            func(ctx context.Context, host string) ([]string, error)
+	dualStackChecked      bool
+	dualStackAvailable    bool
 	Id                    string
 	AccessKey             string
 	SecretKey             string
@@ -401,6 +406,7 @@ func NewDriver(hostName, storePath string) *Driver {
 
 	driver.clientFactory = driver.buildClient
 	driver.awsCredentialsFactory = driver.buildCredentials
+	driver.lookupHost = net.DefaultResolver.LookupHost
 
 	return driver
 }
@@ -417,19 +423,54 @@ func (d *Driver) buildClient() Ec2Client {
 		config = config.WithEndpoint(d.Endpoint)
 		config = config.WithDisableSSL(d.DisableSSL)
 	}
-	// use AWS dual stack endpoint to support both IPv6 and IPv4, except in the
-	// China partition where the dual-stack EC2 endpoint does not resolve
-	if !isChinaRegion(d.Region) {
+	// use AWS dual stack endpoint to support both IPv6 and IPv4 when the region provides one
+	if d.Endpoint != "" || d.isDualStackEndpointAvailable() {
 		config.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
 	}
 	return ec2.New(session.New(config))
 }
 
-// isChinaRegion reports whether the region belongs to the AWS China partition.
-// Unknown regions return false so they keep the default dual-stack behavior.
-func isChinaRegion(region string) bool {
-	partition, ok := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), region)
-	return ok && partition.ID() == endpoints.AwsCnPartitionID
+// isDualStackEndpointAvailable reports whether the dual-stack EC2 endpoint for the
+// region exists. Not every region publishes one (e.g. cn-northwest-1), and the SDK
+// builds the hostname from a partition-wide template, so check that it resolves.
+// Only a definitive "not found" disables dual-stack; other DNS errors keep it enabled.
+// The result is cached because the client is rebuilt for every API call.
+func (d *Driver) isDualStackEndpointAvailable() bool {
+	if d.dualStackChecked {
+		return d.dualStackAvailable
+	}
+	d.dualStackChecked = true
+	d.dualStackAvailable = true
+
+	resolved, err := endpoints.DefaultResolver().EndpointFor(ec2.EndpointsID, d.Region, func(o *endpoints.Options) {
+		o.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
+	})
+	if err != nil {
+		log.Debugf("unable to resolve dual-stack EC2 endpoint for region %s: %v", d.Region, err)
+		return d.dualStackAvailable
+	}
+	endpointURL, err := url.Parse(resolved.URL)
+	if err != nil || endpointURL.Hostname() == "" {
+		log.Debugf("unable to parse dual-stack EC2 endpoint %q: %v", resolved.URL, err)
+		return d.dualStackAvailable
+	}
+
+	lookupHost := d.lookupHost
+	if lookupHost == nil {
+		lookupHost = net.DefaultResolver.LookupHost
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), dualStackLookupTimeout)
+	defer cancel()
+	if _, err := lookupHost(ctx, endpointURL.Hostname()); err != nil {
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			log.Infof("Dual-stack EC2 endpoint %s does not exist, using the IPv4 endpoint for region %s", endpointURL.Hostname(), d.Region)
+			d.dualStackAvailable = false
+		} else {
+			log.Debugf("unable to look up dual-stack EC2 endpoint %s, keeping dual-stack enabled: %v", endpointURL.Hostname(), err)
+		}
+	}
+	return d.dualStackAvailable
 }
 
 func (d *Driver) buildCredentials() awsCredentials {

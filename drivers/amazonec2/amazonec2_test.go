@@ -1,8 +1,10 @@
 package amazonec2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -237,25 +239,45 @@ func TestValidateAwsRegionInvalid(t *testing.T) {
 }
 
 func TestBuildClientDualStackEndpoint(t *testing.T) {
+	notFound := &net.DNSError{Err: "no such host", IsNotFound: true}
+	timeout := &net.DNSError{Err: "i/o timeout", IsTimeout: true}
+
 	tests := []struct {
-		name     string
-		region   string
-		expected endpoints.DualStackEndpointState
+		name         string
+		region       string
+		endpoint     string
+		lookupErr    error
+		expectedHost string
+		expected     endpoints.DualStackEndpointState
 	}{
-		{name: "standard partition", region: "us-east-1", expected: endpoints.DualStackEndpointStateEnabled},
-		{name: "china partition north", region: "cn-north-1", expected: endpoints.DualStackEndpointStateUnset},
-		{name: "china partition northwest", region: "cn-northwest-1", expected: endpoints.DualStackEndpointStateUnset},
+		{name: "dual-stack endpoint resolves", region: "us-east-1", expectedHost: "ec2.us-east-1.api.aws", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "china dual-stack endpoint resolves", region: "cn-north-1", expectedHost: "ec2.cn-north-1.api.amazonwebservices.com.cn", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "dual-stack endpoint does not exist", region: "cn-northwest-1", lookupErr: notFound, expectedHost: "ec2.cn-northwest-1.api.amazonwebservices.com.cn", expected: endpoints.DualStackEndpointStateUnset},
+		{name: "transient dns error keeps dual-stack", region: "us-east-1", lookupErr: timeout, expectedHost: "ec2.us-east-1.api.aws", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "custom endpoint skips lookup", region: "cn-northwest-1", endpoint: "https://ec2.example.com", expected: endpoints.DualStackEndpointStateEnabled},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			driver := NewDriver("machineFoo", "path")
 			driver.Region = tc.region
+			driver.Endpoint = tc.endpoint
 			driver.awsCredentialsFactory = NewValidAwsCredentials
+			var lookups []string
+			driver.lookupHost = func(_ context.Context, host string) ([]string, error) {
+				lookups = append(lookups, host)
+				return nil, tc.lookupErr
+			}
 
 			client := driver.buildClient().(*ec2.EC2)
+			driver.buildClient()
 
 			assert.Equal(t, tc.expected, client.Config.UseDualStackEndpoint)
+			if tc.expectedHost == "" {
+				assert.Empty(t, lookups)
+			} else {
+				assert.Equal(t, []string{tc.expectedHost}, lookups, "lookup should run once and be cached")
+			}
 		})
 	}
 }
