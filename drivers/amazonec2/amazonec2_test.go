@@ -1,14 +1,19 @@
 package amazonec2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rancher/machine/commands/commandstest"
 	"github.com/rancher/machine/version"
@@ -232,6 +237,96 @@ func TestValidateAwsRegionInvalid(t *testing.T) {
 		_, err := validateAwsRegion(region)
 
 		assert.EqualError(t, err, "invalid region specified")
+	}
+}
+
+func TestBuildClientDualStackEndpoint(t *testing.T) {
+	notFound := &net.DNSError{Err: "no such host", IsNotFound: true}
+	timeout := &net.DNSError{Err: "i/o timeout", IsTimeout: true}
+
+	tests := []struct {
+		name         string
+		region       string
+		endpoint     string
+		lookupErr    error
+		expectedHost string
+		expected     endpoints.DualStackEndpointState
+	}{
+		{name: "dual-stack endpoint resolves", region: "us-east-1", expectedHost: "ec2.us-east-1.api.aws", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "china dual-stack endpoint resolves", region: "cn-north-1", expectedHost: "ec2.cn-north-1.api.amazonwebservices.com.cn", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "dual-stack endpoint does not exist", region: "cn-northwest-1", lookupErr: notFound, expectedHost: "ec2.cn-northwest-1.api.amazonwebservices.com.cn", expected: endpoints.DualStackEndpointStateUnset},
+		{name: "transient dns error keeps dual-stack", region: "us-east-1", lookupErr: timeout, expectedHost: "ec2.us-east-1.api.aws", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "custom endpoint skips lookup", region: "cn-northwest-1", endpoint: "https://ec2.example.com", expected: endpoints.DualStackEndpointStateEnabled},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			driver := NewDriver("machineFoo", "path")
+			driver.Region = tc.region
+			driver.Endpoint = tc.endpoint
+			driver.awsCredentialsFactory = NewValidAwsCredentials
+			var lookups []string
+			driver.lookupHost = func(_ context.Context, host string) ([]string, error) {
+				lookups = append(lookups, host)
+				return nil, tc.lookupErr
+			}
+
+			client := driver.buildClient().(*ec2.EC2)
+			driver.buildClient()
+
+			assert.Equal(t, tc.expected, client.Config.UseDualStackEndpoint)
+			if tc.expectedHost == "" {
+				assert.Empty(t, lookups)
+			} else {
+				assert.Equal(t, []string{tc.expectedHost}, lookups, "lookup should run once and be cached")
+			}
+		})
+	}
+}
+
+func TestDualStackCacheRechecksOnRegionChange(t *testing.T) {
+	driver := NewDriver("machineFoo", "path")
+	var lookups []string
+	driver.lookupHost = func(_ context.Context, host string) ([]string, error) {
+		lookups = append(lookups, host)
+		if host == "ec2.cn-northwest-1.api.amazonwebservices.com.cn" {
+			return nil, &net.DNSError{Err: "no such host", IsNotFound: true}
+		}
+		return nil, nil
+	}
+
+	driver.Region = "us-east-1"
+	assert.True(t, driver.isDualStackEndpointAvailable())
+	driver.Region = "cn-northwest-1"
+	assert.False(t, driver.isDualStackEndpointAvailable())
+	assert.False(t, driver.isDualStackEndpointAvailable())
+
+	assert.Equal(t, []string{"ec2.us-east-1.api.aws", "ec2.cn-northwest-1.api.amazonwebservices.com.cn"}, lookups)
+}
+
+func TestDualStackCacheConcurrentAccess(t *testing.T) {
+	driver := NewDriver("machineFoo", "path")
+	driver.Region = "cn-northwest-1"
+	var lookups int32
+	driver.lookupHost = func(_ context.Context, _ string) ([]string, error) {
+		atomic.AddInt32(&lookups, 1)
+		return nil, &net.DNSError{Err: "no such host", IsNotFound: true}
+	}
+
+	var wg sync.WaitGroup
+	results := make([]bool, 20)
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i] = driver.isDualStackEndpointAvailable()
+		}(i)
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&lookups))
+	for _, r := range results {
+		assert.False(t, r)
 	}
 }
 
