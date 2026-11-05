@@ -49,7 +49,9 @@ RUN mkdir /chroot
 COPY --from=final / /chroot/
 
 RUN zypper --non-interactive refresh && \
-    zypper --installroot /chroot -n rm busybox-less && \
+    if rpm --root /chroot -q busybox-less >/dev/null 2>&1; then \
+        zypper --installroot /chroot -n rm busybox-less; \
+    fi && \
     zypper --installroot /chroot -n install \
         git-core curl mkisofs openssh-clients openssl patterns-base-fips && \
     zypper -n clean -a && \
