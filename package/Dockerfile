@@ -1,5 +1,5 @@
 ARG BCI_VERSION=15.7
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.26
 
 FROM --platform=$BUILDPLATFORM registry.rancher.com/rancher/appco-go:${GO_VERSION} AS machine-build
 ARG TARGETOS
@@ -49,7 +49,6 @@ RUN mkdir /chroot
 COPY --from=final / /chroot/
 
 RUN zypper --non-interactive refresh && \
-    zypper --installroot /chroot -n rm busybox-less && \
     zypper --installroot /chroot -n install \
         git-core curl mkisofs openssh-clients openssl patterns-base-fips && \
     zypper -n clean -a && \
