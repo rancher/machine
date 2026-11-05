@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -279,6 +281,52 @@ func TestBuildClientDualStackEndpoint(t *testing.T) {
 				assert.Equal(t, []string{tc.expectedHost}, lookups, "lookup should run once and be cached")
 			}
 		})
+	}
+}
+
+func TestDualStackCacheRechecksOnRegionChange(t *testing.T) {
+	driver := NewDriver("machineFoo", "path")
+	var lookups []string
+	driver.lookupHost = func(_ context.Context, host string) ([]string, error) {
+		lookups = append(lookups, host)
+		if host == "ec2.cn-northwest-1.api.amazonwebservices.com.cn" {
+			return nil, &net.DNSError{Err: "no such host", IsNotFound: true}
+		}
+		return nil, nil
+	}
+
+	driver.Region = "us-east-1"
+	assert.True(t, driver.isDualStackEndpointAvailable())
+	driver.Region = "cn-northwest-1"
+	assert.False(t, driver.isDualStackEndpointAvailable())
+	assert.False(t, driver.isDualStackEndpointAvailable())
+
+	assert.Equal(t, []string{"ec2.us-east-1.api.aws", "ec2.cn-northwest-1.api.amazonwebservices.com.cn"}, lookups)
+}
+
+func TestDualStackCacheConcurrentAccess(t *testing.T) {
+	driver := NewDriver("machineFoo", "path")
+	driver.Region = "cn-northwest-1"
+	var lookups int32
+	driver.lookupHost = func(_ context.Context, _ string) ([]string, error) {
+		atomic.AddInt32(&lookups, 1)
+		return nil, &net.DNSError{Err: "no such host", IsNotFound: true}
+	}
+
+	var wg sync.WaitGroup
+	results := make([]bool, 20)
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i] = driver.isDualStackEndpointAvailable()
+		}(i)
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&lookups))
+	for _, r := range results {
+		assert.False(t, r)
 	}
 }
 

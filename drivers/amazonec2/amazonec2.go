@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -98,8 +99,7 @@ type Driver struct {
 	clientFactory         func() Ec2Client
 	awsCredentialsFactory func() awsCredentials
 	lookupHost            func(ctx context.Context, host string) ([]string, error)
-	dualStackChecked      bool
-	dualStackAvailable    bool
+	dualStack             *dualStackCache
 	Id                    string
 	AccessKey             string
 	SecretKey             string
@@ -407,6 +407,7 @@ func NewDriver(hostName, storePath string) *Driver {
 	driver.clientFactory = driver.buildClient
 	driver.awsCredentialsFactory = driver.buildCredentials
 	driver.lookupHost = net.DefaultResolver.LookupHost
+	driver.dualStack = &dualStackCache{}
 
 	return driver
 }
@@ -434,43 +435,63 @@ func (d *Driver) buildClient() Ec2Client {
 // region exists. Not every region publishes one (e.g. cn-northwest-1), and the SDK
 // builds the hostname from a partition-wide template, so check that it resolves.
 // Only a definitive "not found" disables dual-stack; other DNS errors keep it enabled.
-// The result is cached because the client is rebuilt for every API call.
+// The result is cached per region because the client is rebuilt for every API call;
+// the mutex makes concurrent callers share a single lookup and see the same result.
 func (d *Driver) isDualStackEndpointAvailable() bool {
-	if d.dualStackChecked {
-		return d.dualStackAvailable
-	}
-	d.dualStackChecked = true
-	d.dualStackAvailable = true
-
-	resolved, err := endpoints.DefaultResolver().EndpointFor(ec2.EndpointsID, d.Region, func(o *endpoints.Options) {
-		o.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
-	})
-	if err != nil {
-		log.Debugf("unable to resolve dual-stack EC2 endpoint for region %s: %v", d.Region, err)
-		return d.dualStackAvailable
-	}
-	endpointURL, err := url.Parse(resolved.URL)
-	if err != nil || endpointURL.Hostname() == "" {
-		log.Debugf("unable to parse dual-stack EC2 endpoint %q: %v", resolved.URL, err)
-		return d.dualStackAvailable
-	}
-
 	lookupHost := d.lookupHost
 	if lookupHost == nil {
 		lookupHost = net.DefaultResolver.LookupHost
 	}
+	if d.dualStack == nil {
+		return dualStackEndpointResolves(d.Region, lookupHost)
+	}
+
+	c := d.dualStack
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.checked && c.region == d.Region {
+		return c.available
+	}
+	c.available = dualStackEndpointResolves(d.Region, lookupHost)
+	c.region = d.Region
+	c.checked = true
+	return c.available
+}
+
+// dualStackCache is held by pointer so the Driver can be copied (e.g. in UnmarshalJSON)
+// without copying the mutex.
+type dualStackCache struct {
+	mu        sync.Mutex
+	checked   bool
+	region    string
+	available bool
+}
+
+func dualStackEndpointResolves(region string, lookupHost func(ctx context.Context, host string) ([]string, error)) bool {
+	resolved, err := endpoints.DefaultResolver().EndpointFor(ec2.EndpointsID, region, func(o *endpoints.Options) {
+		o.UseDualStackEndpoint = endpoints.DualStackEndpointStateEnabled
+	})
+	if err != nil {
+		log.Debugf("unable to resolve dual-stack EC2 endpoint for region %s: %v", region, err)
+		return true
+	}
+	endpointURL, err := url.Parse(resolved.URL)
+	if err != nil || endpointURL.Hostname() == "" {
+		log.Debugf("unable to parse dual-stack EC2 endpoint %q: %v", resolved.URL, err)
+		return true
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), dualStackLookupTimeout)
 	defer cancel()
 	if _, err := lookupHost(ctx, endpointURL.Hostname()); err != nil {
 		var dnsErr *net.DNSError
 		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
-			log.Infof("Dual-stack EC2 endpoint %s does not exist, using the IPv4 endpoint for region %s", endpointURL.Hostname(), d.Region)
-			d.dualStackAvailable = false
-		} else {
-			log.Debugf("unable to look up dual-stack EC2 endpoint %s, keeping dual-stack enabled: %v", endpointURL.Hostname(), err)
+			log.Infof("Dual-stack EC2 endpoint %s does not exist, using the IPv4 endpoint for region %s", endpointURL.Hostname(), region)
+			return false
 		}
+		log.Debugf("unable to look up dual-stack EC2 endpoint %s, keeping dual-stack enabled: %v", endpointURL.Hostname(), err)
 	}
-	return d.dualStackAvailable
+	return true
 }
 
 func (d *Driver) buildCredentials() awsCredentials {
