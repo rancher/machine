@@ -1,6 +1,6 @@
 ARG BCI_VERSION=15.7
 
-FROM registry.suse.com/bci/bci-busybox:${BCI_VERSION} AS final
+FROM registry.suse.com/bci/bci-nano:${BCI_VERSION} AS final
 FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS builder
 
 # Creates the base dir for the target image, and hydrates it with the
