@@ -264,8 +264,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "amazonec2-ssh-user",
-			Usage:  "Set the name of the ssh user",
-			Value:  defaultSSHUser,
+			Usage:  "Set the name of the ssh user (default: the default AMI's user, or \"ubuntu\" for a custom AMI)",
 			EnvVar: "AWS_SSH_USER",
 		},
 		mcnflag.BoolFlag{
@@ -470,8 +469,12 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	}
 
 	image := flags.String("amazonec2-ami")
+	sshUser := flags.String("amazonec2-ssh-user")
 	if len(image) == 0 {
 		image = regionDetails[region].AmiId
+		if sshUser == "" {
+			sshUser = regionDetails[region].SSHUser
+		}
 	}
 
 	d.AccessKey = flags.String("amazonec2-access-key")
@@ -494,7 +497,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.RootSize = int64(flags.Int("amazonec2-root-size"))
 	d.VolumeType = flags.String("amazonec2-volume-type")
 	d.IamInstanceProfile = flags.String("amazonec2-iam-instance-profile")
-	d.SSHUser = flags.String("amazonec2-ssh-user")
+	d.SSHUser = sshUser
 	d.SSHPort = 22
 	d.PrivateIPOnly = flags.Bool("amazonec2-private-address-only")
 	d.UsePrivateIP = flags.Bool("amazonec2-use-private-address")
