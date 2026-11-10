@@ -50,7 +50,7 @@ COPY --from=final / /chroot/
 
 RUN zypper --non-interactive refresh && \
     zypper --installroot /chroot -n install \
-        git-core curl mkisofs openssh-clients openssl patterns-base-fips && \
+        git-core curl mkisofs openssh-clients openssl patterns-base-fips sed grep tar gzip unzip && \
     zypper -n clean -a && \
     rm -rf /chroot/tmp/* /chroot/var/tmp/* /chroot/usr/share/doc/packages/*
 
