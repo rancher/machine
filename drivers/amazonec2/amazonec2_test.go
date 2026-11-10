@@ -598,3 +598,32 @@ func TestInvalidAMI(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestSSHUserFollowsDefaultAMI(t *testing.T) {
+	tests := []struct {
+		name, region, ami, sshUser, expected string
+	}{
+		{"default leap AMI", "us-east-1", "", "", "ec2-user"},
+		{"default ubuntu fallback AMI", "eu-central-2", "", "", "ubuntu"},
+		{"custom AMI", "us-east-1", "ami-123", "", "ubuntu"},
+		{"explicit user", "us-east-1", "", "admin", "admin"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			driver := NewCustomTestDriver(&fakeEC2WithLogin{})
+			driver.awsCredentialsFactory = NewValidAwsCredentials
+			options := &commandstest.FakeFlagger{
+				Data: map[string]interface{}{
+					"name":               "test",
+					"amazonec2-region":   tt.region,
+					"amazonec2-zone":     "a",
+					"amazonec2-ami":      tt.ami,
+					"amazonec2-ssh-user": tt.sshUser,
+				},
+			}
+
+			assert.NoError(t, driver.SetConfigFromFlags(options))
+			assert.Equal(t, tt.expected, driver.GetSSHUsername())
+		})
+	}
+}
