@@ -46,6 +46,15 @@ docs repo](https://github.com/docker/docker.github.io/blob/master/machine/AVAILA
 | `release/v2.13` | `v2.13`              | `v0.15.0-rancher137.x` |
 | `release/v2.12` | `v2.12`              | `v0.15.0-rancher133.x` |
 
+### Renovate Security Updates
+
+Renovate targets `master` and `release/v2.13` through `release/v2.15`;
+`release/v2.11` and `release/v2.12` are excluded. Detected GitHub and OSV security
+fixes are enabled for automerge regardless of severity, dependency type, or update type,
+including major updates. Security fixes bypass release-age delays, minimum group
+sizes, and branch version caps, but must still satisfy GitHub's merge requirements.
+Non-security updates retain the shared presets' restrictions and are not automerged.
+
 ### Automated Daily Tags
 
 The `Daily Tag` workflow runs daily to create RC tags from `master` and the
