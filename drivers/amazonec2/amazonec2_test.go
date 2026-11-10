@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rancher/machine/commands/commandstest"
 	"github.com/rancher/machine/version"
@@ -232,6 +233,30 @@ func TestValidateAwsRegionInvalid(t *testing.T) {
 		_, err := validateAwsRegion(region)
 
 		assert.EqualError(t, err, "invalid region specified")
+	}
+}
+
+func TestBuildClientDualStackEndpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		region   string
+		expected endpoints.DualStackEndpointState
+	}{
+		{name: "standard partition", region: "us-east-1", expected: endpoints.DualStackEndpointStateEnabled},
+		{name: "china partition north", region: "cn-north-1", expected: endpoints.DualStackEndpointStateUnset},
+		{name: "china partition northwest", region: "cn-northwest-1", expected: endpoints.DualStackEndpointStateUnset},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			driver := NewDriver("machineFoo", "path")
+			driver.Region = tc.region
+			driver.awsCredentialsFactory = NewValidAwsCredentials
+
+			client := driver.buildClient().(*ec2.EC2)
+
+			assert.Equal(t, tc.expected, client.Config.UseDualStackEndpoint)
+		})
 	}
 }
 
