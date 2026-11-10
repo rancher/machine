@@ -28,7 +28,8 @@ const (
 	defaultAzureLocation        = "westus"
 	defaultSSHUser              = "docker-user" // 'root' not allowed on Azure
 	defaultDockerPort           = 2376
-	defaultAzureImage           = "canonical:ubuntu-24_04-lts:server-gen1:latest"
+	defaultAzureImage           = "susellc:opensuse-leap-x86-64:gen1:latest"
+	defaultAzurePlan            = "susellc:opensuse-leap-x86-64:gen1" // the default image is a Marketplace image with a purchase plan
 	defaultAzureVNet            = "docker-machine-vnet"
 	defaultAzureSubnet          = "docker-machine"
 	defaultAzureSubnetPrefix    = "192.168.0.0/16"
@@ -410,6 +411,9 @@ func (d *Driver) SetConfigFromFlags(fl drivers.DriverOptions) error {
 	d.DiskSize = fl.Int(flAzureDiskSize)
 	d.NSG = fl.String(flAzureNSG)
 	d.Plan = fl.String(flAzurePlan)
+	if d.Plan == "" && d.Image == defaultAzureImage {
+		d.Plan = defaultAzurePlan
+	}
 
 	d.ClientID = fl.String(flAzureClientID)
 	d.ClientSecret = fl.String(flAzureClientSecret)
