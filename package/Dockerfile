@@ -1,7 +1,7 @@
 ARG BCI_VERSION=15.7
 ARG GO_VERSION=1.27
 
-FROM --platform=$BUILDPLATFORM registry.rancher.com/rancher/appco-go:${GO_VERSION} AS machine-build
+FROM --platform=$BUILDPLATFORM registry.suse.com/rancher/appco-go:${GO_VERSION} AS machine-build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
