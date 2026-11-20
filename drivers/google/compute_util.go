@@ -517,21 +517,18 @@ func (c *ComputeUtil) createInstance(d *Driver) error {
 		instance.Disks[0].Source = c.zoneURL + "/disks/" + c.instanceName + "-disk"
 	}
 
+	// The metadata must be there at first boot, before the guest agent looks for a startup-script.
+	instance.Metadata, err = c.metadata(d.GetSSHKeyPath(), d.Userdata)
+	if err != nil {
+		return err
+	}
+
 	op, err := c.service.Instances.Insert(c.project, c.zone, instance).Do()
 	if err != nil {
 		return err
 	}
 
-	if err = c.waitForRegionalOp(op.Name); err != nil {
-		return err
-	}
-
-	instance, err = c.instance()
-	if err != nil {
-		return err
-	}
-
-	return c.uploadSSHKeyAndUserdata(instance, d.GetSSHKeyPath(), d.Userdata)
+	return c.waitForRegionalOp(op.Name)
 }
 
 // configureInstance configures an existing instance for use with Docker Machine.
@@ -547,7 +544,19 @@ func (c *ComputeUtil) configureInstance(d *Driver) error {
 		}
 	}
 
-	return c.uploadSSHKeyAndUserdata(instance, d.GetSSHKeyPath(), d.Userdata)
+	log.Infof("Uploading SSH Key and userdata")
+	metadata, err := c.metadata(d.GetSSHKeyPath(), d.Userdata)
+	if err != nil {
+		return err
+	}
+	metadata.Fingerprint = instance.Metadata.Fingerprint
+
+	op, err := c.service.Instances.SetMetadata(c.project, c.zone, c.instanceName, metadata).Do()
+	if err != nil {
+		return err
+	}
+
+	return c.waitForRegionalOp(op.Name)
 }
 
 // addFirewallTag adds a tag to the instance to match the firewall rule.
@@ -569,18 +578,15 @@ func (c *ComputeUtil) addFirewallTag(instance *raw.Instance) error {
 	return c.waitForRegionalOp(op.Name)
 }
 
-// uploadSSHKeyUserdata updates the instance metadata with the given ssh key and userdata.
-func (c *ComputeUtil) uploadSSHKeyAndUserdata(instance *raw.Instance, sshKeyPath, userdata string) error {
-	log.Infof("Uploading SSH Key and userdata")
-
+// metadata returns the instance metadata with the given ssh key and userdata.
+func (c *ComputeUtil) metadata(sshKeyPath, userdata string) (*raw.Metadata, error) {
 	sshKey, err := os.ReadFile(sshKeyPath + ".pub")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	metaDataValue := fmt.Sprintf("%s:%s %s\n", c.userName, strings.TrimSpace(string(sshKey)), c.userName)
 	metadata := &raw.Metadata{
-		Fingerprint: instance.Metadata.Fingerprint,
 		Items: []*raw.MetadataItems{
 			{
 				Key:   "sshKeys",
@@ -594,11 +600,19 @@ func (c *ComputeUtil) uploadSSHKeyAndUserdata(instance *raw.Instance, sshKeyPath
 			Key:   "user-data",
 			Value: &userdata,
 		})
+
+		// Images with cloud-init still get the user-data, so an untranslatable one is not fatal.
+		if script, err := startupScript(userdata); err != nil {
+			log.Warnf("userdata is not run on images without cloud-init: %v", err)
+		} else {
+			metadata.Items = append(metadata.Items, &raw.MetadataItems{
+				Key:   "startup-script",
+				Value: &script,
+			})
+		}
 	}
 
-	op, err := c.service.Instances.SetMetadata(c.project, c.zone, c.instanceName, metadata).Do()
-
-	return c.waitForRegionalOp(op.Name)
+	return metadata, nil
 }
 
 // parseTags computes the tags for the instance.
