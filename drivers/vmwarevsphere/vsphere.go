@@ -457,7 +457,7 @@ func (d *Driver) Remove() error {
 		return nil
 	}
 
-	if err := d.preCreate(); err != nil {
+	if err := d.preRemove(); err != nil {
 		return err
 	}
 
